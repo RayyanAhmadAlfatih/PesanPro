@@ -1,28 +1,74 @@
 # =============================================
-# PesanPro private/runtime production data
+# Dependencies
 # =============================================
+/node_modules
+/.pnp
+.pnp.*
+.yarn/*
+!.yarn/patches
+!.yarn/plugins
+!.yarn/releases
+!.yarn/versions
 
-# Private media
+# Testing
+/coverage
+
+# Next.js / build
+/.next/
+/out/
+/build
+
+# Misc
+.DS_Store
+*.pem
+*.key
+*.p12
+*.pfx
+
+# Debug / logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+.pnpm-debug.log*
+server.log
+/logs/
+
+# Environment / secrets
+.env*
+!.env.example
+
+# Vercel
+.vercel
+
+# TypeScript
+*.tsbuildinfo
+next-env.d.ts
+
+# Runtime media
+/data/media/*
+!/data/media/.gitkeep
+
 /data/private-media/*
 !/data/private-media/.gitkeep
+
+/public/media/*
+!/public/media/.gitkeep
 
 # Backups
 /backups/
 *.ppbackup
 *.ppbackup.sha256
 
-# Database dumps/runtime databases
-*.sql
+# Runtime database files / dumps
 *.sqlite
 *.sqlite3
 *.db
+*.sql
 
-# Private keys / credentials
-*.key
-*.p12
-*.pfx
+# IMPORTANT: Prisma SQL migrations MUST be versioned
+!/prisma/migrations/**/*.sql
 
-# Session/auth artifacts
+# Session / auth artifacts
 session-*.json
 creds-*.json
 authstate-*
