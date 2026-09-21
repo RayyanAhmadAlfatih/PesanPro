@@ -1,0 +1,28 @@
+# =============================================
+# PesanPro private/runtime production data
+# =============================================
+
+# Private media
+/data/private-media/*
+!/data/private-media/.gitkeep
+
+# Backups
+/backups/
+*.ppbackup
+*.ppbackup.sha256
+
+# Database dumps/runtime databases
+*.sql
+*.sqlite
+*.sqlite3
+*.db
+
+# Private keys / credentials
+*.key
+*.p12
+*.pfx
+
+# Session/auth artifacts
+session-*.json
+creds-*.json
+authstate-*

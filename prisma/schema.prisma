@@ -1,0 +1,1651 @@
+// This is your Prisma schema file,
+// learn more about it in the docs: https://pris.ly/d/prisma-schema
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "mysql"
+  url      = env("DATABASE_URL")
+}
+
+enum Role {
+  SUPERADMIN
+  USER
+}
+
+enum AccountStatus {
+  ACTIVE
+  SUSPENDED
+}
+
+enum SubscriptionStatus {
+  TRIAL
+  ACTIVE
+  GRACE_PERIOD
+  EXPIRED
+  SUSPENDED
+  CANCELLED
+}
+
+enum EntitlementFeature {
+  API_ACCESS
+  API_KEYS
+  DEVICES
+  STAFF
+  MESSAGES_MONTHLY
+  API_REQUESTS_MONTHLY
+  SCHEDULED_MESSAGES
+  BROADCASTS_MONTHLY
+  BROADCAST_RECIPIENTS_PER_BATCH
+  BROADCAST_MIN_DELAY_MS
+  CAMPAIGNS_MONTHLY
+  AUTOREPLY_RULES
+  WEBHOOKS
+  API_REQUESTS_PER_MINUTE
+  MEDIA_STORAGE_BYTES
+}
+
+enum UsageOperation {
+  RESERVE
+  COMMIT
+  RELEASE
+  ADJUST
+}
+
+enum PaymentVerificationStatus {
+  PENDING
+  APPROVED
+  REJECTED
+  CANCELLED
+}
+
+enum DeviceStatus {
+  CONNECTING
+  QR_REQUIRED
+  PAIRING_REQUIRED
+  CONNECTED
+  RECONNECTING
+  DISCONNECTED
+  STOPPED
+  LOGGED_OUT
+  FAILED
+}
+
+enum MessageType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+  STICKER
+  LOCATION
+  CONTACT
+}
+
+enum MessageStatus {
+  PENDING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum WebhookOutboxStatus {
+  PENDING
+  PROCESSING
+  DISPATCHED
+  DEAD_LETTER
+}
+
+enum WebhookDeliveryStatus {
+  PENDING
+  PROCESSING
+  RETRYING
+  SUCCEEDED
+  DEAD_LETTER
+  CANCELLED
+}
+
+enum WebhookAttemptStatus {
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
+enum IntegrationType {
+  GOOGLE_FORMS
+  WORDPRESS
+  CONTACT_FORM_7
+  WOOCOMMERCE
+}
+
+enum RuntimeProcessType {
+  WEB
+  MESSAGE_WORKER
+  SCHEDULE_WORKER
+  BROADCAST_WORKER
+  CAMPAIGN_WORKER
+  AUTOREPLY_WORKER
+  WEBHOOK_WORKER
+}
+
+enum RuntimeProcessStatus {
+  STARTING
+  HEALTHY
+  DEGRADED
+  STOPPING
+}
+
+enum OperationalAlertSeverity {
+  INFO
+  WARNING
+  CRITICAL
+}
+
+enum OperationalAlertStatus {
+  OPEN
+  ACKNOWLEDGED
+  RESOLVED
+}
+
+model User {
+  id                String        @id @default(cuid())
+  name              String?
+  email             String        @unique
+  password          String
+  role              Role          @default(USER)
+  status            AccountStatus @default(ACTIVE)
+  ownerId           String?
+  deviceLimit       Int           @default(1)
+  staffLimit        Int           @default(5)
+  allowStaffApiKeys Boolean       @default(false)
+  sessionVersion    Int           @default(0)
+  apiKey            String?       @unique // SHA-256 hash of API key secret
+  apiKeyPreview     String?
+  apiKeyCreatedAt   DateTime?
+  createdAt         DateTime      @default(now())
+  updatedAt         DateTime      @updatedAt
+
+  owner                       User?                       @relation("OwnerStaff", fields: [ownerId], references: [id], onDelete: Cascade)
+  staffMembers                User[]                      @relation("OwnerStaff")
+  sessions                    Session[]
+  webhooks                    Webhook[]                   @relation("WebhookCreator")
+  tenantWebhooks              Webhook[]                   @relation("WebhookTenant")
+  webhookOutboxEvents         WebhookOutboxEvent[]        @relation("WebhookEventTenant")
+  createdIntegrationTokens    IntegrationToken[]          @relation("IntegrationTokenCreator")
+  tenantIntegrationTokens     IntegrationToken[]          @relation("IntegrationTokenTenant")
+  notifications               Notification[]
+  sessionAccesses             SessionAccess[]
+  auditLogs                   AuditLog[]
+  passwordResets              PasswordResetToken[]
+  apiKeys                     ApiKey[]
+  subscription                Subscription?
+  subscriptionHistory         SubscriptionHistory[]
+  usageCounters               UsageCounter[]
+  usageLedger                 UsageLedger[]
+  paymentVerifications        PaymentVerification[]
+  tenantMessageJobs           MessageJob[]                @relation("MessageJobTenant")
+  requestedMessageJobs        MessageJob[]                @relation("MessageJobRequester")
+  tenantMedia                 PrivateMedia[]              @relation("PrivateMediaTenant")
+  uploadedMedia               PrivateMedia[]              @relation("PrivateMediaUploader")
+  idempotencyRecords          IdempotencyRecord[]         @relation("IdempotencyTenant")
+  createdSchedules            ScheduledMessage[]          @relation("ScheduleCreator")
+  tenantBroadcasts            BroadcastLog[]              @relation("BroadcastTenant")
+  createdBroadcasts           BroadcastLog[]              @relation("BroadcastCreator")
+  suppressions                SuppressionEntry[]          @relation("SuppressionTenant")
+  createdSuppressions         SuppressionEntry[]          @relation("SuppressionCreator")
+  tenantSegments              Segment[]                   @relation("SegmentTenant")
+  createdSegments             Segment[]                   @relation("SegmentCreator")
+  tenantContactTags           ContactTag[]                @relation("ContactTagTenant")
+  createdContactTags          ContactTag[]                @relation("ContactTagCreator")
+  tenantCampaigns             Campaign[]                  @relation("CampaignTenant")
+  createdCampaigns            Campaign[]                  @relation("CampaignCreator")
+  createdAutoReplies          AutoReply[]                 @relation("AutoReplyCreator")
+  autoReplyTriggerLogs        AutoReplyTriggerLog[]       @relation("AutoReplyLogTenant")
+  tenantEntitlementOverrides  TenantEntitlementOverride[] @relation("EntitlementOverrideTenant")
+  createdEntitlementOverrides TenantEntitlementOverride[] @relation("EntitlementOverrideCreator")
+
+  @@index([ownerId, role])
+  @@index([status])
+}
+
+enum MessageJobStatus {
+  QUEUED
+  PROCESSING
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  CANCELLED
+}
+
+enum MessageJobType {
+  TEXT
+  IMAGE
+  VIDEO
+  AUDIO
+  DOCUMENT
+}
+
+enum MessageAttemptStatus {
+  PROCESSING
+  SUCCEEDED
+  FAILED
+}
+
+enum MessageDeliveryEventType {
+  SENT
+  DELIVERED
+  READ
+  FAILED
+}
+
+enum AutoReplyMatchType {
+  EXACT
+  CONTAINS
+  STARTS_WITH
+  REGEX
+  FALLBACK
+}
+
+enum AutoReplyTriggerType {
+  ALL
+  GROUP
+  PRIVATE
+}
+
+enum AutoReplyTriggerStatus {
+  PENDING
+  PROCESSING
+  ENQUEUED
+  SKIPPED
+  FAILED
+}
+
+enum PrivateMediaStatus {
+  ACTIVE
+  DELETED
+  QUARANTINED
+}
+
+enum ScheduleStatus {
+  ACTIVE
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum ScheduleKind {
+  ONE_TIME
+  RECURRING
+}
+
+enum MissedRunPolicy {
+  SEND_LATE
+  SKIP
+  CANCEL
+}
+
+enum ScheduleExecutionStatus {
+  CLAIMED
+  ENQUEUED
+  SKIPPED
+  FAILED
+}
+
+enum BroadcastStatus {
+  DRAFT
+  QUEUED
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum BroadcastRecipientStatus {
+  PENDING
+  CLAIMED
+  ENQUEUED
+  SENT
+  DELIVERED
+  READ
+  FAILED
+  SKIPPED
+  CANCELLED
+}
+
+enum ContactConsentStatus {
+  UNKNOWN
+  OPTED_IN
+  OPTED_OUT
+}
+
+enum SuppressionReason {
+  MANUAL
+  UNSUBSCRIBE
+  ADMIN
+}
+
+enum CampaignStatus {
+  DRAFT
+  SCHEDULED
+  QUEUED
+  RUNNING
+  PAUSED
+  COMPLETED
+  CANCELLED
+  FAILED
+}
+
+enum CampaignFallbackPolicy {
+  PRIMARY_ONLY
+  USE_FALLBACK
+}
+
+enum CampaignRecipientStatus {
+  PENDING
+  HANDED_OFF
+  SKIPPED
+  CANCELLED
+}
+
+model Plan {
+  id           String   @id @default(cuid())
+  code         String   @unique
+  name         String
+  description  String?  @db.Text
+  isActive     Boolean  @default(true)
+  isDefault    Boolean  @default(false)
+  trialDays    Int      @default(0)
+  priceMonthly Decimal? @db.Decimal(18, 2)
+  currency     String   @default("IDR")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  entitlements         Entitlement[]
+  subscriptions        Subscription[]
+  subscriptionHistory  SubscriptionHistory[]
+  paymentVerifications PaymentVerification[]
+
+  @@index([isActive, isDefault])
+}
+
+model Entitlement {
+  id         String             @id @default(cuid())
+  planId     String
+  feature    EntitlementFeature
+  enabled    Boolean            @default(true)
+  limitValue BigInt?
+  createdAt  DateTime           @default(now())
+  updatedAt  DateTime           @updatedAt
+
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([planId, feature])
+  @@index([feature])
+}
+
+model TenantEntitlementOverride {
+  id          String             @id @default(cuid())
+  tenantId    String
+  feature     EntitlementFeature
+  enabled     Boolean
+  limitValue  BigInt?
+  reason      String             @db.Text
+  expiresAt   DateTime?
+  createdById String
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  tenant    User @relation("EntitlementOverrideTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  createdBy User @relation("EntitlementOverrideCreator", fields: [createdById], references: [id], onDelete: Restrict)
+
+  @@unique([tenantId, feature])
+  @@index([expiresAt])
+  @@index([createdById, createdAt])
+}
+
+model Subscription {
+  id          String             @id @default(cuid())
+  userId      String             @unique
+  planId      String
+  status      SubscriptionStatus @default(TRIAL)
+  startsAt    DateTime           @default(now())
+  trialEndsAt DateTime?
+  endsAt      DateTime?
+  graceEndsAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([planId, status])
+  @@index([status, endsAt])
+}
+
+model SubscriptionHistory {
+  id          String             @id @default(cuid())
+  userId      String
+  planId      String
+  status      SubscriptionStatus
+  reason      String?
+  startsAt    DateTime
+  endsAt      DateTime?
+  graceEndsAt DateTime?
+  createdAt   DateTime           @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
+
+  @@index([userId, createdAt])
+  @@index([planId, status])
+}
+
+model ApiKey {
+  id          String    @id @default(cuid())
+  userId      String
+  name        String
+  keyHash     String    @unique
+  preview     String
+  scopes      Json
+  ipAllowlist Json?
+  expiresAt   DateTime?
+  revokedAt   DateTime?
+  lastUsedAt  DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  user        User          @relation(fields: [userId], references: [id], onDelete: Cascade)
+  usageLedger UsageLedger[]
+  messageJobs MessageJob[]
+
+  @@index([userId, revokedAt])
+  @@index([expiresAt])
+}
+
+model UsageCounter {
+  id          String             @id @default(cuid())
+  tenantId    String
+  feature     EntitlementFeature
+  periodStart DateTime
+  periodEnd   DateTime
+  consumed    BigInt             @default(0)
+  reserved    BigInt             @default(0)
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  tenant User @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, feature, periodStart])
+  @@index([tenantId, periodEnd])
+}
+
+model UsageLedger {
+  id             String             @id @default(cuid())
+  tenantId       String
+  counterId      String?
+  apiKeyId       String?
+  feature        EntitlementFeature
+  operation      UsageOperation
+  amount         BigInt
+  idempotencyKey String?
+  meta           Json?
+  createdAt      DateTime           @default(now())
+
+  tenant User    @relation(fields: [tenantId], references: [id], onDelete: Cascade)
+  apiKey ApiKey? @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, feature, operation, idempotencyKey])
+  @@index([tenantId, feature, createdAt])
+  @@index([counterId])
+  @@index([apiKeyId, createdAt])
+}
+
+model RateLimitBucket {
+  keyHash     String   @id
+  windowStart DateTime
+  count       Int      @default(0)
+  expiresAt   DateTime
+  updatedAt   DateTime @updatedAt
+
+  @@index([expiresAt])
+}
+
+model PaymentVerification {
+  id            String                    @id @default(cuid())
+  userId        String
+  planId        String?
+  amount        Decimal                   @db.Decimal(18, 2)
+  currency      String                    @default("IDR")
+  reference     String?
+  proofUrl      String?                   @db.Text
+  status        PaymentVerificationStatus @default(PENDING)
+  reviewerEmail String?
+  reviewNote    String?                   @db.Text
+  reviewedAt    DateTime?
+  createdAt     DateTime                  @default(now())
+  updatedAt     DateTime                  @updatedAt
+
+  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan Plan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+
+  @@index([status, createdAt])
+  @@index([userId, createdAt])
+}
+
+model MessageJob {
+  id                  String           @id @default(cuid())
+  tenantId            String
+  requestedById       String
+  sessionId           String
+  apiKeyId            String?
+  mediaId             String?
+  operation           String
+  idempotencyKey      String
+  requestHash         String
+  requestPayload      Json
+  type                MessageJobType
+  recipient           String
+  text                String?          @db.Text
+  caption             String?          @db.Text
+  status              MessageJobStatus @default(QUEUED)
+  priority            Int              @default(0)
+  availableAt         DateTime         @default(now())
+  attempts            Int              @default(0)
+  maxAttempts         Int              @default(5)
+  lockedBy            String?
+  leaseExpiresAt      DateTime?
+  heartbeatAt         DateTime?
+  whatsappMessageId   String?          @unique
+  quotaReservationKey String
+  safeErrorCode       String?
+  safeErrorMessage    String?          @db.Text
+  lastErrorAt         DateTime?
+  sentAt              DateTime?
+  deliveredAt         DateTime?
+  readAt              DateTime?
+  failedAt            DateTime?
+  deadLetteredAt      DateTime?
+  cancelledAt         DateTime?
+  createdAt           DateTime         @default(now())
+  updatedAt           DateTime         @updatedAt
+
+  tenant              User                   @relation("MessageJobTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  requestedBy         User                   @relation("MessageJobRequester", fields: [requestedById], references: [id], onDelete: Restrict)
+  session             Session                @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  apiKey              ApiKey?                @relation(fields: [apiKeyId], references: [id], onDelete: SetNull)
+  media               PrivateMedia?          @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  attemptsLog         MessageJobAttempt[]
+  deliveryEvents      MessageDeliveryEvent[]
+  message             Message?
+  idempotencyRecord   IdempotencyRecord?
+  scheduleExecution   ScheduleExecution?
+  broadcastRecipient  BroadcastRecipient?
+  autoReplyTriggerLog AutoReplyTriggerLog?
+
+  @@unique([tenantId, operation, idempotencyKey])
+  @@index([status, availableAt, priority])
+  @@index([status, leaseExpiresAt])
+  @@index([sessionId, status, createdAt])
+  @@index([tenantId, createdAt])
+}
+
+model MessageJobAttempt {
+  id               String               @id @default(cuid())
+  jobId            String
+  attemptNumber    Int
+  workerId         String
+  status           MessageAttemptStatus @default(PROCESSING)
+  safeErrorCode    String?
+  safeErrorMessage String?              @db.Text
+  startedAt        DateTime             @default(now())
+  finishedAt       DateTime?
+
+  job MessageJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, attemptNumber])
+  @@index([status, startedAt])
+}
+
+model MessageDeliveryEvent {
+  id                String                   @id @default(cuid())
+  jobId             String
+  type              MessageDeliveryEventType
+  whatsappMessageId String
+  occurredAt        DateTime                 @default(now())
+  payload           Json?
+
+  job MessageJob @relation(fields: [jobId], references: [id], onDelete: Cascade)
+
+  @@unique([jobId, type, whatsappMessageId])
+  @@index([whatsappMessageId, occurredAt])
+}
+
+model PrivateMedia {
+  id             String             @id @default(cuid())
+  tenantId       String
+  uploaderId     String
+  sessionId      String?
+  originalName   String
+  storedName     String             @unique
+  storagePath    String             @unique
+  mimeType       String
+  mediaType      MessageJobType
+  extension      String
+  sizeBytes      BigInt
+  checksumSha256 String
+  status         PrivateMediaStatus @default(ACTIVE)
+  expiresAt      DateTime?
+  deletedAt      DateTime?
+  createdAt      DateTime           @default(now())
+  updatedAt      DateTime           @updatedAt
+
+  tenant            User               @relation("PrivateMediaTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  uploader          User               @relation("PrivateMediaUploader", fields: [uploaderId], references: [id], onDelete: Restrict)
+  session           Session?           @relation(fields: [sessionId], references: [id], onDelete: SetNull)
+  messageJobs       MessageJob[]
+  scheduledMessages ScheduledMessage[]
+  broadcasts        BroadcastLog[]
+  campaignVersions  CampaignVersion[]
+  autoReplies       AutoReply[]
+
+  @@index([tenantId, status, createdAt])
+  @@index([expiresAt, status])
+  @@index([checksumSha256])
+}
+
+model IdempotencyRecord {
+  id           String   @id @default(cuid())
+  tenantId     String
+  messageJobId String   @unique
+  operation    String
+  key          String
+  requestHash  String
+  expiresAt    DateTime
+  createdAt    DateTime @default(now())
+
+  tenant     User       @relation("IdempotencyTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  messageJob MessageJob @relation(fields: [messageJobId], references: [id], onDelete: Cascade)
+
+  @@unique([tenantId, operation, key])
+  @@index([expiresAt])
+}
+
+model Session {
+  id        String       @id @default(cuid())
+  userId    String
+  name      String // e.g. "Marketing WA"
+  sessionId String       @unique // The unique ID used for Baileys auth
+  status    DeviceStatus @default(STOPPED)
+  qr        String?      @db.Text
+  config    Json? // Store instance specific config (e.g. "read_receipts": true)
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  user                     User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  contacts                 Contact[]
+  messages                 Message[]
+  groups                   Group[]
+  autoReplies              AutoReply[]
+  stories                  Story[]
+  scheduledMessages        ScheduledMessage[]
+  webhooks                 Webhook[]
+  webhookOutboxEvents      WebhookOutboxEvent[]
+  integrationTokens        IntegrationToken[]
+  botConfig                BotConfig?
+  sessionAccesses          SessionAccess[]
+  runtimeLock              SessionRuntimeLock?
+  messageJobs              MessageJob[]
+  privateMedia             PrivateMedia[]
+  broadcasts               BroadcastLog[]
+  primaryCampaignVersions  CampaignVersion[]     @relation("CampaignPrimarySession")
+  fallbackCampaignVersions CampaignVersion[]     @relation("CampaignFallbackSession")
+  autoReplyTriggerLogs     AutoReplyTriggerLog[]
+  autoReplyCooldowns       AutoReplyCooldown[]
+}
+
+model PasswordResetToken {
+  id        String    @id @default(cuid())
+  userId    String
+  tokenHash String    @unique
+  expiresAt DateTime
+  usedAt    DateTime?
+  createdAt DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+model SessionRuntimeLock {
+  sessionId   String   @id
+  workerId    String
+  acquiredAt  DateTime @default(now())
+  heartbeatAt DateTime @default(now())
+  expiresAt   DateTime
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@index([expiresAt])
+  @@index([workerId])
+}
+
+model Contact {
+  id               String               @id @default(cuid())
+  sessionId        String
+  jid              String // remoteJid (123456@s.whatsapp.net)
+  lid              String? // LID JID
+  name             String?
+  notify           String? // Pushname
+  verifiedName     String? // Business Name
+  remoteJidAlt     String? // Alternate JID (e.g. Phone if JID is LID)
+  profilePic       String?              @db.Text
+  data             Json? // Detailed contact data
+  consentStatus    ContactConsentStatus @default(UNKNOWN)
+  consentAt        DateTime?
+  consentSource    String?
+  source           String               @default("WHATSAPP")
+  lastActivityAt   DateTime?
+  customAttributes Json?
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  session            Session                @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  messages           Message[]
+  tagAssignments     ContactTagAssignment[]
+  campaignRecipients CampaignRecipient[]
+
+  @@unique([sessionId, jid])
+  @@index([sessionId, consentStatus, lastActivityAt])
+  @@index([sessionId, source, updatedAt])
+}
+
+model Message {
+  id        String        @id @default(cuid())
+  sessionId String
+  remoteJid String // Receiver or Group Jid
+  senderJid String? // If group, who sent it. If private, same as remoteJid (incoming) or me (outgoing)
+  fromMe    Boolean
+  keyId     String // WhatsApp Message Key ID
+  pushName  String?
+  type      MessageType   @default(TEXT)
+  content   String?       @db.Text // Text content or Caption
+  mediaUrl  String?       @db.Text // Path to file if media
+  status    MessageStatus @default(PENDING)
+  timestamp DateTime      @default(now())
+
+  quoteId      String? // For replies
+  messageJobId String? @unique
+
+  contactId  String?
+  contract   Contact?    @relation(fields: [contactId], references: [id])
+  session    Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  messageJob MessageJob? @relation(fields: [messageJobId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, keyId])
+  @@index([sessionId, remoteJid])
+  @@index([sessionId, remoteJid, timestamp])
+}
+
+model Group {
+  id           String    @id @default(cuid())
+  sessionId    String
+  jid          String
+  subject      String?
+  description  String?   @db.Text
+  ownerJid     String?
+  participants Json? // Stored as JSON for now: [{id: '123@s.whatsapp.net', admin: 'admin' | null}]
+  creation     DateTime?
+  restrict     Boolean? // Only admins can edit group info
+  announce     Boolean? // Only admins can send messages
+
+  metadata Json? // Raw full metadata dump
+
+  inviteCode String?
+
+  // Community Features
+  isCommunity     Boolean @default(false)
+  linkedParentJid String? // JID of the community parent group if it belongs to one
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, jid])
+}
+
+model AutoReply {
+  id                     String               @id @default(cuid())
+  sessionId              String
+  createdById            String?
+  mediaId                String?
+  name                   String?
+  keyword                String
+  matchType              AutoReplyMatchType
+  response               String?              @db.Text
+  isMedia                Boolean              @default(false)
+  mediaUrl               String?              @db.Text // Legacy only; durable rules use mediaId.
+  mediaType              String? // Legacy only; durable rules derive type from PrivateMedia.
+  triggerType            AutoReplyTriggerType @default(ALL)
+  priority               Int                  @default(100)
+  version                Int                  @default(1)
+  timezone               String               @default("Asia/Jakarta")
+  activeDays             Json?
+  activeStartTime        String?
+  activeEndTime          String?
+  cooldownSeconds        Int                  @default(30)
+  rateLimitCount         Int                  @default(5)
+  rateLimitWindowSeconds Int                  @default(60)
+  maxChainDepth          Int                  @default(3)
+  isEnabled              Boolean              @default(true)
+  deletedAt              DateTime?
+  createdAt              DateTime             @default(now())
+  updatedAt              DateTime             @updatedAt
+
+  session     Session               @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  createdBy   User?                 @relation("AutoReplyCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  media       PrivateMedia?         @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  triggerLogs AutoReplyTriggerLog[]
+  cooldowns   AutoReplyCooldown[]
+
+  @@index([sessionId, isEnabled, deletedAt, priority])
+  @@index([createdById, createdAt])
+  @@index([mediaId])
+}
+
+model AutoReplyTriggerLog {
+  id                  String                 @id @default(cuid())
+  tenantId            String
+  sessionId           String
+  ruleId              String?
+  messageJobId        String?                @unique
+  eventKey            String                 @db.VarChar(64)
+  sourceMessageId     String                 @db.VarChar(191)
+  sourceText          String?                @db.Text
+  recipientJid        String                 @db.VarChar(191)
+  senderJid           String                 @db.VarChar(191)
+  isGroup             Boolean                @default(false)
+  ruleVersion         Int?
+  chainDepth          Int                    @default(0)
+  snapshotResponse    String?                @db.Text
+  snapshotMediaId     String?
+  snapshotMessageType MessageJobType?
+  status              AutoReplyTriggerStatus @default(PENDING)
+  availableAt         DateTime               @default(now())
+  reasonCode          String?
+  safeErrorMessage    String?                @db.Text
+  attempts            Int                    @default(0)
+  lockedBy            String?
+  leaseExpiresAt      DateTime?
+  heartbeatAt         DateTime?
+  enqueuedAt          DateTime?
+  finishedAt          DateTime?
+  createdAt           DateTime               @default(now())
+  updatedAt           DateTime               @updatedAt
+
+  tenant     User        @relation("AutoReplyLogTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  session    Session     @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  rule       AutoReply?  @relation(fields: [ruleId], references: [id], onDelete: SetNull)
+  messageJob MessageJob? @relation(fields: [messageJobId], references: [id], onDelete: SetNull)
+
+  @@unique([sessionId, eventKey])
+  @@index([status, availableAt, leaseExpiresAt, createdAt], map: "AutoReplyTriggerLog_status_available_lease_idx")
+  @@index([tenantId, sessionId, createdAt])
+  @@index([ruleId, createdAt])
+}
+
+model AutoReplyCooldown {
+  id              String   @id @default(cuid())
+  ruleId          String
+  sessionId       String
+  contactJid      String   @db.VarChar(191)
+  windowStartedAt DateTime
+  triggerCount    Int      @default(0)
+  lastTriggeredAt DateTime
+  expiresAt       DateTime
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  rule    AutoReply @relation(fields: [ruleId], references: [id], onDelete: Cascade)
+  session Session   @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+
+  @@unique([ruleId, contactJid])
+  @@index([sessionId, contactJid, expiresAt])
+  @@index([expiresAt])
+}
+
+model Story {
+  id        String   @id @default(cuid())
+  sessionId String
+  jid       String // User who posted the story or Broadcast JID
+  content   String?  @db.Text
+  mediaUrl  String?  @db.Text
+  type      String // IMAGE, VIDEO, TEXT
+  timestamp DateTime @default(now())
+  viewed    Boolean  @default(false)
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model ScheduledMessage {
+  id                  String          @id @default(cuid())
+  createdById         String?
+  sessionId           String
+  mediaId             String?
+  jid                 String
+  content             String?         @db.Text
+  mediaUrl            String?         @db.Text // Legacy compatibility only; new schedules use mediaId.
+  mediaType           String?
+  nextRunAt           DateTime        @map("sendAt")
+  startAt             DateTime
+  timezone            String          @default("Asia/Jakarta")
+  kind                ScheduleKind    @default(ONE_TIME)
+  cronExpression      String?
+  recurrenceRule      String?         @db.Text
+  missedRunPolicy     MissedRunPolicy @default(SEND_LATE)
+  misfireGraceSeconds Int             @default(300)
+  status              ScheduleStatus  @default(ACTIVE)
+  version             Int             @default(1)
+  lockedBy            String?
+  leaseExpiresAt      DateTime?
+  heartbeatAt         DateTime?
+  lastRunAt           DateTime?
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  safeErrorCode       String?
+  safeErrorMessage    String?         @db.Text
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  creator    User?               @relation("ScheduleCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  session    Session             @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  media      PrivateMedia?       @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  executions ScheduleExecution[]
+
+  @@index([status, nextRunAt])
+  @@index([status, leaseExpiresAt])
+  @@index([sessionId, status, nextRunAt])
+  @@index([createdById, createdAt])
+}
+
+model ScheduleExecution {
+  id               String                  @id @default(cuid())
+  scheduleId       String
+  messageJobId     String?                 @unique
+  occurrenceKey    String
+  scheduledFor     DateTime
+  status           ScheduleExecutionStatus @default(CLAIMED)
+  attempt          Int                     @default(1)
+  workerId         String
+  claimToken       String
+  safeErrorCode    String?
+  safeErrorMessage String?                 @db.Text
+  startedAt        DateTime                @default(now())
+  enqueuedAt       DateTime?
+  finishedAt       DateTime?
+  createdAt        DateTime                @default(now())
+  updatedAt        DateTime                @updatedAt
+
+  schedule   ScheduledMessage @relation(fields: [scheduleId], references: [id], onDelete: Cascade)
+  messageJob MessageJob?      @relation(fields: [messageJobId], references: [id], onDelete: SetNull)
+
+  @@unique([scheduleId, occurrenceKey])
+  @@index([status, startedAt])
+  @@index([scheduleId, scheduledFor])
+}
+
+// Store for Baileys MultiFileAuthState (in DB) — values encrypted with AES-256-GCM (Gate 0)
+model AuthState {
+  id        String  @id @default(cuid())
+  sessionId String
+  key       String // e.g. "creds-me", "pre-key-1"
+  value     Json? // legacy plaintext (deprecated, nullable for migration)
+  encValue  String? @db.Text // base64 ciphertext (AES-256-GCM)
+  iv        String? // base64 IV (12 bytes)
+  authTag   String? // base64 auth tag (16 bytes)
+
+  @@unique([sessionId, key])
+}
+
+model AuditLog {
+  id         String   @id @default(cuid())
+  userId     String?
+  userEmail  String?
+  action     String
+  resource   String
+  resourceId String?
+  ip         String?
+  userAgent  String?
+  meta       Json?
+  createdAt  DateTime @default(now())
+
+  user User? @relation(fields: [userId], references: [id], onDelete: SetNull)
+
+  @@index([userId, createdAt])
+  @@index([resource, resourceId])
+  @@index([createdAt])
+  @@index([action])
+}
+
+model RuntimeHeartbeat {
+  id               String               @id @default(cuid())
+  instanceId       String               @unique
+  processType      RuntimeProcessType
+  status           RuntimeProcessStatus @default(STARTING)
+  hostname         String
+  pid              Int
+  version          String?
+  startedAt        DateTime             @default(now())
+  heartbeatAt      DateTime             @default(now())
+  stoppedAt        DateTime?
+  metadata         Json?
+  lastErrorCode    String?
+  lastErrorMessage String?              @db.Text
+  createdAt        DateTime             @default(now())
+  updatedAt        DateTime             @updatedAt
+
+  @@index([processType, heartbeatAt])
+  @@index([status, heartbeatAt])
+  @@index([hostname, processType])
+}
+
+model OperationalAlert {
+  id                  String                   @id @default(cuid())
+  fingerprint         String                   @unique
+  kind                String
+  source              String
+  severity            OperationalAlertSeverity
+  status              OperationalAlertStatus   @default(OPEN)
+  title               String
+  message             String                   @db.Text
+  occurrences         Int                      @default(1)
+  firstSeenAt         DateTime                 @default(now())
+  lastSeenAt          DateTime                 @default(now())
+  cooldownUntil       DateTime?
+  acknowledgedByEmail String?
+  acknowledgedAt      DateTime?
+  resolvedAt          DateTime?
+  meta                Json?
+  createdAt           DateTime                 @default(now())
+  updatedAt           DateTime                 @updatedAt
+
+  @@index([status, severity, lastSeenAt])
+  @@index([kind, source, lastSeenAt])
+  @@index([cooldownUntil])
+}
+
+// Webhook configuration for external event notifications
+model Webhook {
+  id                       String    @id @default(cuid())
+  userId                   String
+  tenantId                 String
+  sessionId                String? // Optional: specific session, null = all sessions
+  name                     String
+  url                      String    @db.Text
+  secret                   String?   @db.Text // Deprecated plaintext column; Phase 8 never writes it.
+  secretCiphertext         String?   @db.Text
+  secretIv                 String?
+  secretTag                String?
+  previousSecretCiphertext String?   @db.Text
+  previousSecretIv         String?
+  previousSecretTag        String?
+  previousSecretExpiresAt  DateTime?
+  secretVersion            Int       @default(1)
+  secretRotatedAt          DateTime?
+  events                   Json // Compatibility projection of active subscriptions.
+  payloadVersion           String    @default("2026-09-04")
+  maxAttempts              Int       @default(8)
+  timeoutMs                Int       @default(10000)
+  isActive                 Boolean   @default(true)
+  createdAt                DateTime  @default(now())
+  updatedAt                DateTime  @updatedAt
+
+  user          User                  @relation("WebhookCreator", fields: [userId], references: [id], onDelete: Cascade)
+  tenant        User                  @relation("WebhookTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  session       Session?              @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  logs          WebhookLog[]
+  subscriptions WebhookSubscription[]
+  deliveries    WebhookDelivery[]
+
+  @@index([tenantId, isActive, createdAt])
+  @@index([sessionId, isActive])
+}
+
+model WebhookSubscription {
+  id        String   @id @default(cuid())
+  webhookId String
+  eventType String
+  isActive  Boolean  @default(true)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@unique([webhookId, eventType])
+  @@index([eventType, isActive])
+}
+
+model WebhookOutboxEvent {
+  id               String              @id @default(cuid())
+  tenantId         String
+  sessionId        String?
+  eventType        String
+  eventKey         String
+  payloadVersion   String              @default("2026-09-04")
+  payload          Json
+  status           WebhookOutboxStatus @default(PENDING)
+  availableAt      DateTime            @default(now())
+  attempts         Int                 @default(0)
+  maxAttempts      Int                 @default(5)
+  lockedBy         String?
+  leaseExpiresAt   DateTime?
+  heartbeatAt      DateTime?
+  safeErrorCode    String?
+  safeErrorMessage String?             @db.Text
+  dispatchedAt     DateTime?
+  deadLetteredAt   DateTime?
+  createdAt        DateTime            @default(now())
+  updatedAt        DateTime            @updatedAt
+
+  tenant     User              @relation("WebhookEventTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  session    Session?          @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  deliveries WebhookDelivery[]
+
+  @@unique([tenantId, eventKey])
+  @@index([status, availableAt])
+  @@index([status, leaseExpiresAt])
+  @@index([tenantId, createdAt])
+  @@index([sessionId, eventType, createdAt])
+}
+
+model WebhookDelivery {
+  id                 String                @id @default(cuid())
+  eventId            String
+  webhookId          String
+  deliveryKey        String                @unique
+  replayOfId         String?
+  status             WebhookDeliveryStatus @default(PENDING)
+  availableAt        DateTime              @default(now())
+  attempts           Int                   @default(0)
+  maxAttempts        Int                   @default(8)
+  lockedBy           String?
+  leaseExpiresAt     DateTime?
+  heartbeatAt        DateTime?
+  responseStatusCode Int?
+  responseTimeMs     Int?
+  responseSizeBytes  Int?
+  safeErrorCode      String?
+  safeErrorMessage   String?               @db.Text
+  lastAttemptAt      DateTime?
+  succeededAt        DateTime?
+  deadLetteredAt     DateTime?
+  createdAt          DateTime              @default(now())
+  updatedAt          DateTime              @updatedAt
+
+  event       WebhookOutboxEvent       @relation(fields: [eventId], references: [id], onDelete: Cascade)
+  webhook     Webhook                  @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+  attemptsLog WebhookDeliveryAttempt[]
+  replayOf    WebhookDelivery?         @relation("WebhookDeliveryReplay", fields: [replayOfId], references: [id], onDelete: SetNull)
+  replays     WebhookDelivery[]        @relation("WebhookDeliveryReplay")
+
+  @@index([status, availableAt])
+  @@index([status, leaseExpiresAt])
+  @@index([webhookId, createdAt])
+  @@index([eventId, createdAt])
+}
+
+model WebhookDeliveryAttempt {
+  id                 String               @id @default(cuid())
+  deliveryId         String
+  attemptNumber      Int
+  workerId           String
+  status             WebhookAttemptStatus @default(PROCESSING)
+  responseStatusCode Int?
+  responseTimeMs     Int?
+  responseSizeBytes  Int?
+  safeErrorCode      String?
+  safeErrorMessage   String?              @db.Text
+  startedAt          DateTime             @default(now())
+  finishedAt         DateTime?
+
+  delivery WebhookDelivery @relation(fields: [deliveryId], references: [id], onDelete: Cascade)
+
+  @@unique([deliveryId, attemptNumber])
+  @@index([deliveryId, startedAt])
+}
+
+model IntegrationToken {
+  id           String          @id @default(cuid())
+  tenantId     String
+  createdById  String
+  sessionId    String
+  name         String
+  type         IntegrationType
+  tokenHash    String          @unique
+  tokenPreview String
+  scopes       Json
+  mapping      Json?
+  expiresAt    DateTime?
+  revokedAt    DateTime?
+  lastUsedAt   DateTime?
+  createdAt    DateTime        @default(now())
+  updatedAt    DateTime        @updatedAt
+
+  tenant    User                  @relation("IntegrationTokenTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  creator   User                  @relation("IntegrationTokenCreator", fields: [createdById], references: [id], onDelete: Cascade)
+  session   Session               @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  usageLogs IntegrationUsageLog[]
+
+  @@index([tenantId, type, revokedAt])
+  @@index([sessionId, revokedAt])
+  @@index([expiresAt])
+}
+
+model IntegrationUsageLog {
+  id             String   @id @default(cuid())
+  tokenId        String
+  requestId      String
+  idempotencyKey String
+  payloadHash    String
+  status         String
+  messageJobId   String?
+  safeErrorCode  String?
+  remoteIp       String?
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
+
+  token IntegrationToken @relation(fields: [tokenId], references: [id], onDelete: Cascade)
+
+  @@unique([tokenId, idempotencyKey])
+  @@index([tokenId, createdAt])
+  @@index([requestId])
+}
+
+// Webhook delivery logs — tracks every webhook request attempt
+model WebhookLog {
+  id                 String   @id @default(cuid())
+  webhookId          String
+  event              String // The event that triggered this webhook
+  status             String // SUCCESS, FAILED
+  requestUrl         String   @db.Text
+  requestHeaders     Json?
+  requestBody        Json?
+  responseStatusCode Int?
+  responseBody       String?  @db.Text
+  responseTimeMs     Int?
+  errorMessage       String?  @db.Text
+  createdAt          DateTime @default(now())
+
+  webhook Webhook @relation(fields: [webhookId], references: [id], onDelete: Cascade)
+
+  @@index([webhookId])
+  @@index([webhookId, createdAt])
+}
+
+enum AccessMode {
+  ALL
+  OWNER
+  SPECIFIC
+  BLACKLIST
+}
+
+model BotConfig {
+  id        String  @id @default(cuid())
+  sessionId String  @unique
+  enabled   Boolean @default(true)
+
+  // Bot Command Access
+  botName        String     @default("PesanPro Bot")
+  botMode        AccessMode @default(OWNER)
+  botAllowedJids Json? // Array of JIDs ["628123@s.whatsapp.net"]
+  botBlockedJids Json? // Array of JIDs ["628123@s.whatsapp.net"] for BLACKLIST mode
+
+  // Auto Reply Access
+  autoReplyMode        AccessMode @default(ALL)
+  autoReplyAllowedJids Json?
+  autoReplyBlockedJids Json? // Array of JIDs for BLACKLIST mode
+
+  enableSticker      Boolean @default(true)
+  enableVideoSticker Boolean @default(true)
+  maxStickerDuration Int     @default(10) // in seconds
+  enablePing         Boolean @default(true)
+  enableUptime       Boolean @default(true)
+  removeBgApiKey     String?
+  prefix             String  @default("#")
+
+  // Anti-Spam / Rate Limit
+  antiSpamEnabled Boolean @default(false)
+  spamLimit       Int     @default(5) // Messages allowed in window
+  spamInterval    Int     @default(10) // Seconds window
+  spamDelayMin    Int     @default(1000) // MS min delay
+  spamDelayMax    Int     @default(3000) // MS max delay
+
+  // Automation & Presence
+  welcomeMessage String? @db.Text
+  autoRead       Boolean @default(false)
+  alwaysOnline   Boolean @default(false)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+}
+
+model SystemConfig {
+  id                 String  @id @default("default") // Singleton ID
+  appName            String  @default("PesanPro")
+  logoUrl            String?
+  faviconUrl         String?
+  timezone           String  @default("Asia/Jakarta")
+  enableRegistration Boolean @default(true)
+
+  updatedAt DateTime @updatedAt
+}
+
+// Labels/Tags for organizing chats
+model Label {
+  id        String   @id @default(cuid())
+  sessionId String
+  name      String
+  color     Int      @default(0) // 0-19 for WhatsApp color codes
+  colorHex  String   @default("#FF0000") // Hex representation
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  chatLabels ChatLabel[]
+
+  @@unique([sessionId, name]) // Unique label name per session
+  @@index([sessionId])
+}
+
+// Many-to-many relationship between chats and labels
+model ChatLabel {
+  id        String   @id @default(cuid())
+  labelId   String
+  chatJid   String // The JID of the chat
+  createdAt DateTime @default(now())
+
+  label Label @relation(fields: [labelId], references: [id], onDelete: Cascade)
+
+  @@unique([labelId, chatJid]) // Prevent duplicate label assignments
+  @@index([chatJid])
+  @@index([labelId])
+}
+
+model Notification {
+  id      String  @id @default(cuid())
+  userId  String
+  title   String
+  message String  @db.Text
+  type    String  @default("INFO") // INFO, WARNING, SUCCESS, SYSTEM
+  read    Boolean @default(false)
+  href    String?
+
+  createdAt DateTime @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+// Shared session access — allows session owners to grant access to other users
+model SessionAccess {
+  id        String   @id @default(cuid())
+  sessionId String
+  userId    String
+  createdAt DateTime @default(now())
+
+  session Session @relation(fields: [sessionId], references: [id], onDelete: Cascade)
+  user    User    @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@unique([sessionId, userId])
+  @@index([userId])
+  @@index([sessionId])
+}
+
+// Durable broadcast aggregate. Legacy column names are mapped to preserve data.
+model BroadcastLog {
+  id               String          @id @default(cuid())
+  tenantId         String?
+  createdById      String?
+  sessionDbId      String?
+  campaignId       String?         @unique
+  sessionId        String // Legacy public WA session ID.
+  createKey        String?
+  requestHash      String?
+  name             String?
+  message          String          @db.Text
+  mediaId          String?
+  mediaType        String?
+  total            Int
+  enqueued         Int             @default(0) @map("sent")
+  failed           Int             @default(0)
+  skipped          Int             @default(0)
+  cancelled        Int             @default(0)
+  status           BroadcastStatus @default(QUEUED)
+  delayMinMs       Int             @default(2000) @map("delay")
+  delayMaxMs       Int             @default(3000)
+  jitterSeed       String
+  requireOptIn     Boolean         @default(false)
+  lockedBy         String?
+  leaseExpiresAt   DateTime?
+  heartbeatAt      DateTime?
+  nextDispatchAt   DateTime        @default(now())
+  safeErrorCode    String?
+  safeErrorMessage String?         @db.Text
+  startedAt        DateTime        @default(now())
+  pausedAt         DateTime?
+  completedAt      DateTime?
+  cancelledAt      DateTime?
+  failedAt         DateTime?
+  createdAt        DateTime        @default(now())
+  updatedAt        DateTime        @updatedAt
+
+  tenant     User?                @relation("BroadcastTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  creator    User?                @relation("BroadcastCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  session    Session?             @relation(fields: [sessionDbId], references: [id], onDelete: Cascade)
+  media      PrivateMedia?        @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  campaign   Campaign?            @relation(fields: [campaignId], references: [id], onDelete: SetNull)
+  recipients BroadcastRecipient[]
+
+  @@unique([tenantId, createKey])
+  @@index([status, nextDispatchAt])
+  @@index([status, leaseExpiresAt])
+  @@index([tenantId, createdAt])
+  @@index([sessionDbId, status, createdAt])
+  @@index([sessionId, startedAt])
+}
+
+model BroadcastRecipient {
+  id               String                   @id @default(cuid())
+  broadcastLogId   String
+  messageJobId     String?                  @unique
+  position         Int                      @default(0)
+  jid              String
+  variables        Json?
+  renderedMessage  String?                  @db.Text
+  status           BroadcastRecipientStatus @default(PENDING)
+  attempt          Int                      @default(0)
+  safeErrorCode    String?
+  safeErrorMessage String?                  @map("error") @db.Text
+  enqueuedAt       DateTime?
+  skippedAt        DateTime?
+  sentAt           DateTime?
+  failedAt         DateTime?
+  createdAt        DateTime                 @default(now())
+  updatedAt        DateTime                 @updatedAt
+
+  broadcastLog      BroadcastLog       @relation(fields: [broadcastLogId], references: [id], onDelete: Cascade)
+  messageJob        MessageJob?        @relation(fields: [messageJobId], references: [id], onDelete: SetNull)
+  campaignRecipient CampaignRecipient?
+
+  @@index([broadcastLogId, status, position])
+  @@index([status, updatedAt])
+}
+
+model Segment {
+  id          String   @id @default(cuid())
+  tenantId    String
+  createdById String?
+  name        String
+  description String?  @db.Text
+  definition  Json
+  version     Int      @default(1)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant           User              @relation("SegmentTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  creator          User?             @relation("SegmentCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  campaignVersions CampaignVersion[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, isActive, updatedAt])
+}
+
+model ContactTag {
+  id          String   @id @default(cuid())
+  tenantId    String
+  createdById String?
+  name        String
+  color       String   @default("#0f766e")
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  tenant      User                   @relation("ContactTagTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  creator     User?                  @relation("ContactTagCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  assignments ContactTagAssignment[]
+
+  @@unique([tenantId, name])
+  @@index([tenantId, updatedAt])
+}
+
+model ContactTagAssignment {
+  id        String   @id @default(cuid())
+  contactId String
+  tagId     String
+  createdAt DateTime @default(now())
+
+  contact Contact    @relation(fields: [contactId], references: [id], onDelete: Cascade)
+  tag     ContactTag @relation(fields: [tagId], references: [id], onDelete: Cascade)
+
+  @@unique([contactId, tagId])
+  @@index([tagId, createdAt])
+}
+
+model Campaign {
+  id                  String         @id @default(cuid())
+  tenantId            String
+  createdById         String?
+  createKey           String?
+  requestHash         String?
+  name                String
+  description         String?        @db.Text
+  status              CampaignStatus @default(DRAFT)
+  currentVersion      Int            @default(1)
+  scheduledAt         DateTime?
+  timezone            String?
+  lockedBy            String?
+  leaseExpiresAt      DateTime?
+  heartbeatAt         DateTime?
+  safeErrorCode       String?
+  safeErrorMessage    String?        @db.Text
+  materializeAttempts Int            @default(0)
+  total               Int            @default(0)
+  queued              Int            @default(0)
+  sent                Int            @default(0)
+  delivered           Int            @default(0)
+  read                Int            @default(0)
+  failed              Int            @default(0)
+  skipped             Int            @default(0)
+  unsubscribed        Int            @default(0)
+  cancelled           Int            @default(0)
+  startedAt           DateTime?
+  pausedAt            DateTime?
+  completedAt         DateTime?
+  cancelledAt         DateTime?
+  failedAt            DateTime?
+  createdAt           DateTime       @default(now())
+  updatedAt           DateTime       @updatedAt
+
+  tenant    User              @relation("CampaignTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  creator   User?             @relation("CampaignCreator", fields: [createdById], references: [id], onDelete: SetNull)
+  versions  CampaignVersion[]
+  broadcast BroadcastLog?
+
+  @@unique([tenantId, createKey])
+  @@index([tenantId, status, createdAt])
+  @@index([status, scheduledAt, leaseExpiresAt])
+}
+
+model CampaignVersion {
+  id                String                 @id @default(cuid())
+  campaignId        String
+  version           Int
+  primarySessionId  String
+  fallbackSessionId String?
+  fallbackPolicy    CampaignFallbackPolicy @default(PRIMARY_ONLY)
+  segmentId         String?
+  mediaId           String?
+  message           String                 @db.Text
+  delayMinMs        Int                    @default(2000)
+  delayMaxMs        Int                    @default(3000)
+  requireOptIn      Boolean                @default(false)
+  segmentDefinition Json
+  configurationHash String
+  createdAt         DateTime               @default(now())
+
+  campaign        Campaign            @relation(fields: [campaignId], references: [id], onDelete: Cascade)
+  primarySession  Session             @relation("CampaignPrimarySession", fields: [primarySessionId], references: [id], onDelete: Restrict)
+  fallbackSession Session?            @relation("CampaignFallbackSession", fields: [fallbackSessionId], references: [id], onDelete: Restrict)
+  segment         Segment?            @relation(fields: [segmentId], references: [id], onDelete: SetNull)
+  media           PrivateMedia?       @relation(fields: [mediaId], references: [id], onDelete: Restrict)
+  recipients      CampaignRecipient[]
+
+  @@unique([campaignId, version])
+  @@index([segmentId, createdAt])
+  @@index([primarySessionId, createdAt])
+}
+
+model CampaignRecipient {
+  id                   String                  @id @default(cuid())
+  campaignVersionId    String
+  contactId            String?
+  broadcastRecipientId String?                 @unique
+  jid                  String
+  position             Int
+  status               CampaignRecipientStatus @default(PENDING)
+  safeErrorCode        String?
+  safeErrorMessage     String?                 @db.Text
+  createdAt            DateTime                @default(now())
+  updatedAt            DateTime                @updatedAt
+
+  campaignVersion    CampaignVersion     @relation(fields: [campaignVersionId], references: [id], onDelete: Cascade)
+  contact            Contact?            @relation(fields: [contactId], references: [id], onDelete: SetNull)
+  broadcastRecipient BroadcastRecipient? @relation(fields: [broadcastRecipientId], references: [id], onDelete: SetNull)
+
+  @@unique([campaignVersionId, jid])
+  @@index([campaignVersionId, status, position])
+}
+
+model SuppressionEntry {
+  id              String            @id @default(cuid())
+  tenantId        String
+  jid             String
+  reason          SuppressionReason @default(MANUAL)
+  sourceMessageId String?
+  createdById     String?
+  removedAt       DateTime?
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
+
+  tenant  User  @relation("SuppressionTenant", fields: [tenantId], references: [id], onDelete: Cascade)
+  creator User? @relation("SuppressionCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@unique([tenantId, jid])
+  @@index([tenantId, removedAt, createdAt])
+}
