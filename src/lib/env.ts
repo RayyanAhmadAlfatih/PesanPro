@@ -38,6 +38,7 @@ const envSchema = z.object({
   AUTOREPLY_WORKER_MODE: z.enum(["embedded", "external", "disabled"]).default("embedded"),
   AUTOREPLY_WORKER_POLL_MS: z.coerce.number().int().min(100).max(60_000).default(1000),
   AUTOREPLY_WORKER_LEASE_MS: z.coerce.number().int().min(5000).max(300_000).default(30_000),
+  AUTOREPLY_TRIGGER_LOG_RETENTION_DAYS: z.coerce.number().int().min(1).max(365).default(30),
   WEBHOOK_WORKER_MODE: z.enum(["embedded", "external", "disabled"]).default("embedded"),
   WEBHOOK_WORKER_POLL_MS: z.coerce.number().int().min(100).max(60_000).default(1000),
   WEBHOOK_WORKER_LEASE_MS: z.coerce.number().int().min(5000).max(300_000).default(30_000),

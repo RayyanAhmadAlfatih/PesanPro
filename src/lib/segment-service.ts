@@ -30,14 +30,16 @@ async function resolveSession(actor: SegmentActor, publicId: string) {
   return { ...session, tenantId: session.userId };
 }
 
-async function assertReferences(tenantId: string, sessionPublicId: string, definition: SegmentDefinitionInput) {
+async function assertTenantTagReferences(tenantId: string, definition: SegmentDefinitionInput) {
   const tagIds = uniqueIds(definition.tagIds);
-  const labelIds = uniqueIds(definition.labelIds);
-  const [tagCount, labelCount] = await Promise.all([
-    tagIds.length ? prisma.contactTag.count({ where: { id: { in: tagIds }, tenantId } }) : 0,
-    labelIds.length ? prisma.label.count({ where: { id: { in: labelIds }, sessionId: sessionPublicId } }) : 0,
-  ]);
+  const tagCount = tagIds.length ? await prisma.contactTag.count({ where: { id: { in: tagIds }, tenantId } }) : 0;
   if (tagCount !== tagIds.length) throw new MessageJobError("INVALID_SEGMENT_TAG", "One or more tags do not belong to this tenant", 422, false);
+}
+
+async function assertReferences(tenantId: string, sessionPublicId: string, definition: SegmentDefinitionInput) {
+  await assertTenantTagReferences(tenantId, definition);
+  const labelIds = uniqueIds(definition.labelIds);
+  const labelCount = labelIds.length ? await prisma.label.count({ where: { id: { in: labelIds }, sessionId: sessionPublicId } }) : 0;
   if (labelCount !== labelIds.length) throw new MessageJobError("INVALID_SEGMENT_LABEL", "One or more labels do not belong to this device", 422, false);
 }
 
@@ -127,6 +129,7 @@ export async function createSegment(actor: SegmentActor, input: { name: string; 
   const tenantId = await actorTenant(actor);
   const definition = segmentDefinitionSchema.parse(input.definition);
   assertSegmentComplexity(definition);
+  await assertTenantTagReferences(tenantId, definition);
   return prisma.segment.create({
     data: { tenantId, createdById: actor.id, name: input.name, description: input.description, definition: definition as Prisma.InputJsonValue },
   });
@@ -136,6 +139,7 @@ export async function updateSegment(actor: SegmentActor, id: string, input: { na
   const tenantId = await actorTenant(actor);
   const definition = segmentDefinitionSchema.parse(input.definition);
   assertSegmentComplexity(definition);
+  await assertTenantTagReferences(tenantId, definition);
   const changed = await prisma.segment.updateMany({
     where: { id, tenantId, isActive: true },
     data: { name: input.name, description: input.description, definition: definition as Prisma.InputJsonValue, version: { increment: 1 } },

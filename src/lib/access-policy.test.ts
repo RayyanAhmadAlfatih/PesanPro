@@ -53,6 +53,7 @@ describe("access policy", () => {
   it("keeps normal tenant pages available to authenticated users", () => {
     expect(canAccessDashboardPath("USER", "/dashboard")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/billing")).toBe(true);
+    expect(canAccessDashboardPath("USER", "/dashboard/developer")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/media")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/labels")).toBe(true);
     expect(isSuperadmin("USER")).toBe(false);

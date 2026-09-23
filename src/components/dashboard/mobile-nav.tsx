@@ -24,6 +24,7 @@ import {
     BadgeDollarSign,
     ListRestart,
     Send,
+    Code2,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -64,13 +65,14 @@ const navGroups: NavGroup[] = [
         items: [
             { href: "/dashboard/autoreply", label: "Auto Reply", icon: MessageCircleReply },
             { href: "/dashboard/scheduler", label: "Scheduler", icon: CalendarClock },
-            { href: "/dashboard/webhooks", label: "Webhooks & API", icon: Webhook },
         ],
     },
     {
         label: "Developer",
         items: [
-            { href: "/dashboard/billing", label: "Billing & API Keys", icon: CreditCard },
+            { href: "/dashboard/developer", label: "Developer", icon: Code2 },
+            { href: "/dashboard/webhooks", label: "Webhooks", icon: Webhook },
+            { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
         ],
     },
     {

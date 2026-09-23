@@ -120,12 +120,17 @@ describe("durable auto-reply queue handoff", () => {
   it("records global disable as SKIPPED without queue handoff", async () => {
     expect(await processClaimedAutoReply(claim({ snapshot: false, botEnabled: false }))).toMatchObject({ action: "SKIPPED", reasonCode: "BOT_DISABLED" });
     expect(mocks.enqueueMessage).not.toHaveBeenCalled();
+    expect(mocks.triggerUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ sourceText: null, senderJid: "[redacted]" }),
+    }));
   });
 
   it("treats entitlement denial as a terminal skip rather than a retry storm", async () => {
     const current = claim({ attempts: 1 });
     const result = await failClaimedAutoReply(current, new EntitlementDeniedError("AUTOREPLY_RULES"));
     expect(result).toEqual({ retrying: false, code: "ENTITLEMENT_DENIED" });
-    expect(mocks.triggerUpdateMany).toHaveBeenCalledWith(expect.objectContaining({ data: expect.objectContaining({ status: "SKIPPED" }) }));
+    expect(mocks.triggerUpdateMany).toHaveBeenCalledWith(expect.objectContaining({
+      data: expect.objectContaining({ status: "SKIPPED", sourceText: null, senderJid: "[redacted]" }),
+    }));
   });
 });

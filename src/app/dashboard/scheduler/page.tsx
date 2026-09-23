@@ -230,16 +230,16 @@ export default function SchedulerPage() {
   const history = schedules.filter((schedule) => schedule.status !== "ACTIVE");
 
   const scheduleCards = (items: Schedule[]) => items.length === 0 ? (
-    <div className="rounded-2xl border border-dashed border-slate-300 bg-white/60 px-6 py-14 text-center text-sm text-slate-500">
-      No schedules in this view.
+    <div className="rounded-xl border border-dashed bg-muted/20 px-6 py-14 text-center text-sm text-muted-foreground">
+      Belum ada jadwal pada tampilan ini.
     </div>
   ) : (
     <div className="grid gap-4 lg:grid-cols-2">
       {items.map((schedule) => {
         const latest = schedule.executions[0];
         return (
-          <Card key={schedule.id} className="overflow-hidden border-slate-200 bg-white/90 shadow-sm">
-            <div className={`h-1.5 ${schedule.status === "ACTIVE" ? "bg-[var(--pp-mint)]" : schedule.status === "FAILED" ? "bg-rose-500" : "bg-slate-300"}`} />
+          <Card key={schedule.id} className="overflow-hidden border-[var(--pp-line)] shadow-none">
+            <div className={`h-1 ${schedule.status === "ACTIVE" ? "bg-[var(--pp-ink)]" : schedule.status === "FAILED" ? "bg-destructive" : "bg-muted"}`} />
             <CardHeader className="pb-3">
               <div className="flex items-start justify-between gap-3">
                 <div className="min-w-0">
@@ -250,16 +250,16 @@ export default function SchedulerPage() {
               </div>
             </CardHeader>
             <CardContent className="space-y-4">
-              <div className="grid grid-cols-2 gap-3 rounded-xl bg-slate-50 p-3 text-xs">
-                <div><span className="block text-slate-500">Next run</span><strong>{formatInZone(schedule.nextRunAt, schedule.timezone)}</strong></div>
-                <div><span className="block text-slate-500">Timezone</span><strong>{schedule.timezone}</strong></div>
-                <div><span className="block text-slate-500">Mode</span><strong>{schedule.kind === "RECURRING" ? schedule.cronExpression : "One time"}</strong></div>
-                <div><span className="block text-slate-500">Missed run</span><strong>{schedule.missedRunPolicy} / {schedule.misfireGraceSeconds}s</strong></div>
+              <div className="grid grid-cols-2 gap-3 rounded-lg bg-muted/30 p-3 text-xs">
+                <div><span className="block text-muted-foreground">Next run</span><strong>{formatInZone(schedule.nextRunAt, schedule.timezone)}</strong></div>
+                <div><span className="block text-muted-foreground">Timezone</span><strong>{schedule.timezone}</strong></div>
+                <div><span className="block text-muted-foreground">Mode</span><strong>{schedule.kind === "RECURRING" ? schedule.cronExpression : "One time"}</strong></div>
+                <div><span className="block text-muted-foreground">Missed run</span><strong>{schedule.missedRunPolicy} / {schedule.misfireGraceSeconds}s</strong></div>
               </div>
-              {schedule.error && <div className="rounded-lg border border-rose-200 bg-rose-50 p-3 text-xs text-rose-800"><strong>{schedule.error.code}</strong>: {schedule.error.message}</div>}
+              {schedule.error && <div className="rounded-lg border border-destructive/30 bg-destructive/10 p-3 text-xs text-destructive"><strong>{schedule.error.code}</strong>: {schedule.error.message}</div>}
               {latest && (
-                <div className="flex items-center gap-2 text-xs text-slate-500">
-                  {latest.status === "ENQUEUED" ? <CheckCircle2 className="h-4 w-4 text-[var(--pp-ink)]" /> : latest.status === "FAILED" ? <XCircle className="h-4 w-4 text-rose-600" /> : <History className="h-4 w-4" />}
+                <div className="flex items-center gap-2 text-xs text-muted-foreground">
+                  {latest.status === "ENQUEUED" ? <CheckCircle2 className="h-4 w-4 text-[var(--pp-ink)]" /> : latest.status === "FAILED" ? <XCircle className="h-4 w-4 text-destructive" /> : <History className="h-4 w-4" />}
                   Latest occurrence: {latest.status}, attempt {latest.attempt}
                   {latest.messageJob && `, job ${latest.messageJob.status}`}
                 </div>
@@ -267,7 +267,7 @@ export default function SchedulerPage() {
               {schedule.status === "ACTIVE" && (
                 <div className="flex justify-end gap-2 border-t pt-3">
                   <Button variant="outline" size="sm" onClick={() => editSchedule(schedule)}><Pencil className="mr-2 h-3.5 w-3.5" />Edit</Button>
-                  <Button variant="outline" size="sm" className="text-rose-700" onClick={() => setCancelId(schedule.id)}><Trash2 className="mr-2 h-3.5 w-3.5" />Cancel</Button>
+                  <Button variant="outline" size="sm" className="text-destructive" onClick={() => setCancelId(schedule.id)}><Trash2 className="mr-2 h-3.5 w-3.5" />Cancel</Button>
                 </div>
               )}
             </CardContent>
@@ -279,51 +279,50 @@ export default function SchedulerPage() {
 
   return (
     <SessionGuard>
-      <div className="relative space-y-6 pb-10">
-        <div className="pointer-events-none absolute -left-8 -top-8 -z-10 h-72 w-72 rounded-full bg-[var(--pp-mint)] blur-3xl" />
+      <div className="space-y-6 pb-10">
         <div className="flex flex-col justify-between gap-4 lg:flex-row lg:items-end">
           <div>
-            <Badge className="mb-3 bg-slate-900 text-white hover:bg-slate-900"><ShieldCheck className="mr-1.5 h-3.5 w-3.5" />Durable scheduler</Badge>
-            <h1 className="font-serif text-3xl font-bold tracking-tight text-slate-950 sm:text-4xl">Scheduled delivery, without guesswork.</h1>
-            <p className="mt-2 max-w-2xl text-sm text-slate-600">Timezone-aware execution, private media, missed-run policy, and durable queue handoff.</p>
+            <Badge variant="outline" className="mb-3"><ShieldCheck className="mr-1.5 h-3.5 w-3.5" />Durable scheduler</Badge>
+            <h1 className="text-3xl font-bold tracking-tight text-foreground sm:text-4xl">Scheduled delivery, without guesswork.</h1>
+            <p className="mt-2 max-w-2xl text-sm text-muted-foreground">Timezone-aware execution, private media, missed-run policy, and durable queue handoff.</p>
           </div>
           <Button variant="outline" onClick={() => loadSchedules()} disabled={loading || !sessionId}>
             <RefreshCw className={`mr-2 h-4 w-4 ${loading ? "animate-spin" : ""}`} />Refresh
           </Button>
         </div>
 
-        <Card className="border-0 bg-slate-950 text-white shadow-none shadow-slate-300/40">
+        <Card className="border-[var(--pp-line)] shadow-none">
           <CardHeader>
             <CardTitle className="flex items-center gap-2"><CalendarClock className="h-5 w-5 text-[var(--pp-ink)]" />{editingId ? "Edit schedule" : "Create a schedule"}</CardTitle>
-            <CardDescription className="text-slate-400">Local time is interpreted in the selected IANA timezone. A recurring cron uses five fields.</CardDescription>
+            <CardDescription>Local time is interpreted in the selected IANA timezone. A recurring cron uses five fields.</CardDescription>
           </CardHeader>
           <CardContent className="grid gap-5 lg:grid-cols-2">
-            <div className="space-y-2"><Label htmlFor="recipient">Recipient</Label><Input id="recipient" value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="628123456789 or group JID" className="border-slate-700 bg-slate-900" /></div>
-            <div className="space-y-2"><Label htmlFor="local-time">First run (local time)</Label><Input id="local-time" type="datetime-local" step="1" value={localDateTime} onChange={(event) => setLocalDateTime(event.target.value)} className="border-slate-700 bg-slate-900" /></div>
-            <div className="space-y-2 lg:col-span-2"><Label htmlFor="message">Message</Label><Textarea id="message" value={text} onChange={(event) => setText(event.target.value)} placeholder="Message text or caption" className="min-h-24 border-slate-700 bg-slate-900" /></div>
-            <div className="space-y-2"><Label htmlFor="timezone">IANA timezone</Label><Input id="timezone" list="schedule-timezones" value={timezone} onChange={(event) => setTimezone(event.target.value)} className="border-slate-700 bg-slate-900" /><datalist id="schedule-timezones">{TIMEZONES.map((value) => <option key={value} value={value} />)}</datalist></div>
-            <div className="space-y-2"><Label>Schedule type</Label><Select value={kind} onValueChange={(value: "ONE_TIME" | "RECURRING") => setKind(value)}><SelectTrigger className="border-slate-700 bg-slate-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ONE_TIME">One time</SelectItem><SelectItem value="RECURRING">Recurring cron</SelectItem></SelectContent></Select></div>
-            {kind === "RECURRING" && <div className="space-y-2 lg:col-span-2"><Label htmlFor="cron">Cron expression</Label><Input id="cron" value={cronExpression} onChange={(event) => setCronExpression(event.target.value)} placeholder="0 9 * * *" className="border-slate-700 bg-slate-900 font-mono" /><p className="text-xs text-slate-400">Example: <code>0 9 * * 1-5</code> runs at 09:00 every weekday in the chosen timezone.</p></div>}
-            <div className="space-y-2"><Label>Missed-run policy</Label><Select value={missedRunPolicy} onValueChange={(value: "SEND_LATE" | "SKIP" | "CANCEL") => setMissedRunPolicy(value)}><SelectTrigger className="border-slate-700 bg-slate-900"><SelectValue /></SelectTrigger><SelectContent><SelectItem value="SEND_LATE">Send late</SelectItem><SelectItem value="SKIP">Skip occurrence</SelectItem><SelectItem value="CANCEL">Cancel schedule</SelectItem></SelectContent></Select></div>
-            <div className="space-y-2"><Label htmlFor="grace">Grace period (seconds)</Label><Input id="grace" type="number" min="0" max="86400" value={misfireGraceSeconds} onChange={(event) => setMisfireGraceSeconds(event.target.value)} className="border-slate-700 bg-slate-900" /></div>
-            <div className="space-y-2"><Label htmlFor="media"><FileUp className="mr-1.5 inline h-4 w-4" />Private media upload</Label><Input key={fileInputKey} id="media" type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} className="border-slate-700 bg-slate-900 file:text-slate-200" /></div>
-            <div className="space-y-2"><Label htmlFor="media-id">Existing media ID</Label><Input id="media-id" value={mediaId} onChange={(event) => setMediaId(event.target.value)} placeholder="Optional private media ID" className="border-slate-700 bg-slate-900 font-mono" /></div>
+            <div className="space-y-2"><Label htmlFor="recipient">Recipient</Label><Input id="recipient" value={recipient} onChange={(event) => setRecipient(event.target.value)} placeholder="628123456789 or group JID" /></div>
+            <div className="space-y-2"><Label htmlFor="local-time">First run (local time)</Label><Input id="local-time" type="datetime-local" step="1" value={localDateTime} onChange={(event) => setLocalDateTime(event.target.value)} /></div>
+            <div className="space-y-2 lg:col-span-2"><Label htmlFor="message">Message</Label><Textarea id="message" value={text} onChange={(event) => setText(event.target.value)} placeholder="Message text or caption" className="min-h-24" /></div>
+            <div className="space-y-2"><Label htmlFor="timezone">IANA timezone</Label><Input id="timezone" list="schedule-timezones" value={timezone} onChange={(event) => setTimezone(event.target.value)} /><datalist id="schedule-timezones">{TIMEZONES.map((value) => <option key={value} value={value} />)}</datalist></div>
+            <div className="space-y-2"><Label>Schedule type</Label><Select value={kind} onValueChange={(value: "ONE_TIME" | "RECURRING") => setKind(value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ONE_TIME">One time</SelectItem><SelectItem value="RECURRING">Recurring cron</SelectItem></SelectContent></Select></div>
+            {kind === "RECURRING" && <div className="space-y-2 lg:col-span-2"><Label htmlFor="cron">Cron expression</Label><Input id="cron" value={cronExpression} onChange={(event) => setCronExpression(event.target.value)} placeholder="0 9 * * *" className="font-mono" /><p className="text-xs text-muted-foreground">Example: <code>0 9 * * 1-5</code> runs at 09:00 every weekday in the chosen timezone.</p></div>}
+            <div className="space-y-2"><Label>Missed-run policy</Label><Select value={missedRunPolicy} onValueChange={(value: "SEND_LATE" | "SKIP" | "CANCEL") => setMissedRunPolicy(value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="SEND_LATE">Send late</SelectItem><SelectItem value="SKIP">Skip occurrence</SelectItem><SelectItem value="CANCEL">Cancel schedule</SelectItem></SelectContent></Select></div>
+            <div className="space-y-2"><Label htmlFor="grace">Grace period (seconds)</Label><Input id="grace" type="number" min="0" max="86400" value={misfireGraceSeconds} onChange={(event) => setMisfireGraceSeconds(event.target.value)} /></div>
+            <div className="space-y-2"><Label htmlFor="media"><FileUp className="mr-1.5 inline h-4 w-4" />Private media upload</Label><Input key={fileInputKey} id="media" type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></div>
+            <div className="space-y-2"><Label htmlFor="media-id">Existing media ID</Label><Input id="media-id" value={mediaId} onChange={(event) => setMediaId(event.target.value)} placeholder="Optional private media ID" className="font-mono" /></div>
             <div className="flex flex-wrap justify-end gap-2 lg:col-span-2">
-              {editingId && <Button variant="outline" className="border-slate-700 bg-transparent text-white hover:bg-slate-800 hover:text-white" onClick={resetForm}><RotateCcw className="mr-2 h-4 w-4" />Discard edit</Button>}
-              <Button className="bg-[var(--pp-teal)] text-slate-950 hover:bg-[var(--pp-highlight)]" onClick={saveSchedule} disabled={saving}><Clock3 className="mr-2 h-4 w-4" />{saving ? "Saving..." : editingId ? "Update schedule" : "Schedule message"}</Button>
+              {editingId && <Button variant="outline" onClick={resetForm}><RotateCcw className="mr-2 h-4 w-4" />Discard edit</Button>}
+              <Button onClick={saveSchedule} disabled={saving}><Clock3 className="mr-2 h-4 w-4" />{saving ? "Saving..." : editingId ? "Update schedule" : "Schedule message"}</Button>
             </div>
           </CardContent>
         </Card>
 
         <Tabs defaultValue="active">
-          <TabsList className="bg-slate-100"><TabsTrigger value="active">Active ({active.length})</TabsTrigger><TabsTrigger value="history">History ({history.length})</TabsTrigger></TabsList>
-          <TabsContent value="active" className="mt-4">{loading ? <div className="py-12 text-center text-sm text-slate-500">Loading schedules...</div> : scheduleCards(active)}</TabsContent>
-          <TabsContent value="history" className="mt-4">{loading ? <div className="py-12 text-center text-sm text-slate-500">Loading schedules...</div> : scheduleCards(history)}</TabsContent>
+          <TabsList><TabsTrigger value="active">Active ({active.length})</TabsTrigger><TabsTrigger value="history">History ({history.length})</TabsTrigger></TabsList>
+          <TabsContent value="active" className="mt-4">{loading ? <div className="py-12 text-center text-sm text-muted-foreground">Loading schedules...</div> : scheduleCards(active)}</TabsContent>
+          <TabsContent value="history" className="mt-4">{loading ? <div className="py-12 text-center text-sm text-muted-foreground">Loading schedules...</div> : scheduleCards(history)}</TabsContent>
         </Tabs>
       </div>
 
       <AlertDialog open={Boolean(cancelId)} onOpenChange={(open) => !open && setCancelId(null)}>
-        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Cancel this schedule?</AlertDialogTitle><AlertDialogDescription>The record and execution history remain available for audit, but no future occurrence will be queued.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep active</AlertDialogCancel><AlertDialogAction className="bg-rose-600 hover:bg-rose-700" onClick={cancelSchedule}>Cancel schedule</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
+        <AlertDialogContent><AlertDialogHeader><AlertDialogTitle>Cancel this schedule?</AlertDialogTitle><AlertDialogDescription>The record and execution history remain available for audit, but no future occurrence will be queued.</AlertDialogDescription></AlertDialogHeader><AlertDialogFooter><AlertDialogCancel>Keep active</AlertDialogCancel><AlertDialogAction className="bg-destructive text-destructive-foreground hover:bg-destructive/90" onClick={cancelSchedule}>Cancel schedule</AlertDialogAction></AlertDialogFooter></AlertDialogContent>
       </AlertDialog>
     </SessionGuard>
   );

@@ -1,9 +1,14 @@
+import { Prisma } from "@prisma/client";
 import { NextRequest, NextResponse } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedUser, isAdmin } from "@/lib/api-auth";
 import { prisma } from "@/lib/prisma";
 import { recordAudit } from "@/lib/audit";
 import { getClientIp } from "@/lib/rate-limit";
+import {
+  PaymentVerificationReviewError,
+  reviewPaymentVerificationInTransaction,
+} from "@/lib/payment-verification-service";
 
 const reviewSchema = z.object({
   status: z.enum(["APPROVED", "REJECTED", "CANCELLED"]),
@@ -17,17 +22,22 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   if (!parsed.success) return NextResponse.json({ error: "Invalid review", details: parsed.error.flatten() }, { status: 400 });
   const { id } = await params;
   const reviewedAt = new Date();
-  const claimed = await prisma.paymentVerification.updateMany({
-    where: { id, status: "PENDING" },
-    data: {
+  let result;
+  try {
+    result = await prisma.$transaction((tx) => reviewPaymentVerificationInTransaction(tx, {
+      verificationId: id,
       status: parsed.data.status,
       reviewNote: parsed.data.reviewNote,
       reviewerEmail: actor.email,
       reviewedAt,
-    },
-  });
-  if (claimed.count === 0) return NextResponse.json({ error: "Pending payment verification not found" }, { status: 409 });
-  const verification = await prisma.paymentVerification.findUnique({ where: { id } });
+    }), { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  } catch (error) {
+    if (error instanceof PaymentVerificationReviewError) {
+      const status = error.code === "PAYMENT_NOT_PENDING" ? 409 : 422;
+      return NextResponse.json({ error: error.message, code: error.code }, { status });
+    }
+    throw error;
+  }
   await recordAudit({
     userId: actor.id,
     userEmail: actor.email,
@@ -36,7 +46,18 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     resourceId: id,
     ip: getClientIp(request.headers),
     userAgent: request.headers.get("user-agent"),
-    meta: { reviewNote: parsed.data.reviewNote },
+    meta: {
+      reviewNote: parsed.data.reviewNote,
+      planId: result.verification.planId,
+      subscriptionId: result.subscription?.id ?? null,
+      subscriptionActivated: Boolean(result.subscription),
+    },
   });
-  return NextResponse.json({ data: verification && { ...verification, amount: verification.amount.toString() } });
+  return NextResponse.json({
+    data: {
+      ...result.verification,
+      amount: result.verification.amount.toString(),
+      subscription: result.subscription,
+    },
+  });
 }
