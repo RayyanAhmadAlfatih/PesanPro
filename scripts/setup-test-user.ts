@@ -3,9 +3,17 @@ import { prisma } from "@/lib/prisma";
 import bcrypt from "bcryptjs";
 
 async function main() {
-    const email = "test@api.com";
-    const apiKey = "wag_TESTAPIKEY123";
-    const password = await bcrypt.hash("password123", 10);
+    if (process.env.NODE_ENV === "production") {
+        throw new Error("Refusing to create a test superadmin in production");
+    }
+    const email = process.env.PESANPRO_TEST_USER_EMAIL?.trim();
+    const apiKey = process.env.PESANPRO_TEST_API_KEY?.trim();
+    const plainPassword = process.env.PESANPRO_TEST_USER_PASSWORD;
+    if (!email || !apiKey || !plainPassword) {
+        throw new Error("PESANPRO_TEST_USER_EMAIL, PESANPRO_TEST_API_KEY, and PESANPRO_TEST_USER_PASSWORD are required");
+    }
+    if (plainPassword.length < 12) throw new Error("PESANPRO_TEST_USER_PASSWORD must be at least 12 characters");
+    const password = await bcrypt.hash(plainPassword, 12);
 
     const user = await prisma.user.upsert({
         where: { email },
@@ -19,7 +27,7 @@ async function main() {
         }
     });
 
-    console.log(`User ${user.email} ready with API Key: ${user.apiKey}`);
+    console.log(`Test user ${user.email} is ready; API key value was not logged.`);
     
     // Also ensure a session exists for testing
     const session = await prisma.session.upsert({

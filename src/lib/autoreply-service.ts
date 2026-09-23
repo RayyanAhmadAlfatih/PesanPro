@@ -5,6 +5,7 @@ import { selectAutoReplyRule } from "./autoreply-policy";
 import { requireEntitlement, resolveTenantId } from "./billing";
 import { MessageJobError } from "./message-job-errors";
 import { prisma } from "./prisma";
+import { maskAutoReplyJid } from "./autoreply-privacy";
 
 export type AutoReplyActor = { id: string; role: Role; ownerId?: string | null };
 type RuleWithMedia = AutoReply & { media: Pick<PrivateMedia, "id" | "originalName" | "mediaType" | "status"> | null };
@@ -182,7 +183,7 @@ export async function previewAutoReply(actor: AutoReplyActor, rawInput: AutoRepl
 
 export async function listAutoReplyLogs(actor: AutoReplyActor, publicSessionId: string, limit = 50) {
   const session = await getAccessibleSession(actor, publicSessionId);
-  return prisma.autoReplyTriggerLog.findMany({
+  const logs = await prisma.autoReplyTriggerLog.findMany({
     where: { sessionId: session.id },
     select: {
       id: true, sourceMessageId: true, sourceText: true, recipientJid: true, senderJid: true, isGroup: true,
@@ -192,4 +193,5 @@ export async function listAutoReplyLogs(actor: AutoReplyActor, publicSessionId: 
     orderBy: { createdAt: "desc" },
     take: Math.min(200, Math.max(1, Number.isInteger(limit) ? limit : 50)),
   });
+  return logs.map((log) => ({ ...log, senderJid: maskAutoReplyJid(log.senderJid) }));
 }

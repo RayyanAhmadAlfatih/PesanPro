@@ -1,11 +1,18 @@
 #!/bin/bash
 
-API_KEY="wag_TESTAPIKEY123"
-# Production/Dev URL
-BASE_URL="https://wagateway.kingofcoding.my.id/api"
+: "${PESANPRO_TEST_API_KEY:?Set PESANPRO_TEST_API_KEY to a disposable test credential}"
+: "${PESANPRO_ALLOW_MUTATING_TESTS:?Set PESANPRO_ALLOW_MUTATING_TESTS=yes to acknowledge that this script changes data}"
+
+if [ "$PESANPRO_ALLOW_MUTATING_TESTS" != "yes" ]; then
+  echo "Refusing to run: PESANPRO_ALLOW_MUTATING_TESTS must equal yes." >&2
+  exit 1
+fi
+
+API_KEY="$PESANPRO_TEST_API_KEY"
+BASE_URL="${PESANPRO_TEST_BASE_URL:-http://127.0.0.1:3000/api}"
 
 echo "Testing APIs against: $BASE_URL"
-echo "Using API Key: $API_KEY"
+echo "Using API key from environment (value hidden)."
 
 # Helper function for separator
 sep() { echo -e "\n\n--------------------------------------------\n$1"; }

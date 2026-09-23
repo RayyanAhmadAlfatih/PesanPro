@@ -17,6 +17,7 @@ import { decideAutoReplyThrottle } from "./autoreply-throttle";
 import { isRecipientSuppressed } from "./suppression";
 import { QuotaExceededError } from "./usage";
 import { getAutoReplyAccessReason } from "./autoreply-access";
+import { minimizedSkippedAutoReplyData } from "./autoreply-privacy";
 
 export const DEFAULT_AUTOREPLY_LEASE_MS = 30_000;
 export const MAX_AUTOREPLY_ATTEMPTS = 5;
@@ -78,7 +79,7 @@ async function finishSkipped(claim: ClaimedAutoReplyTrigger, reasonCode: string,
   const now = new Date();
   const changed = await prisma.autoReplyTriggerLog.updateMany({
     where: { id: claim.trigger.id, status: "PROCESSING", lockedBy: claim.claimToken },
-    data: { status: "SKIPPED", reasonCode, safeErrorMessage: message, finishedAt: now, lockedBy: null, leaseExpiresAt: null, heartbeatAt: null },
+    data: { status: "SKIPPED", reasonCode, safeErrorMessage: message, finishedAt: now, lockedBy: null, leaseExpiresAt: null, heartbeatAt: null, ...minimizedSkippedAutoReplyData },
   });
   return { action: changed.count === 1 ? "SKIPPED" as const : "CLAIM_LOST" as const, reasonCode };
 }
@@ -126,7 +127,7 @@ async function snapshotRuleWithThrottle(claim: ClaimedAutoReplyTrigger, rule: Ru
         if (!decision.allowed) {
           await tx.autoReplyTriggerLog.update({
             where: { id: claim.trigger.id },
-            data: { status: "SKIPPED", ruleId: rule.id, ruleVersion: rule.version, chainDepth: decision.chainDepth, reasonCode: decision.reasonCode, safeErrorMessage: "Auto-reply contact protection blocked this trigger", finishedAt: now, lockedBy: null, leaseExpiresAt: null, heartbeatAt: null },
+            data: { status: "SKIPPED", ruleId: rule.id, ruleVersion: rule.version, chainDepth: decision.chainDepth, reasonCode: decision.reasonCode, safeErrorMessage: "Auto-reply contact protection blocked this trigger", finishedAt: now, lockedBy: null, leaseExpiresAt: null, heartbeatAt: null, ...minimizedSkippedAutoReplyData },
           });
           return { action: "SKIPPED" as const, reasonCode: decision.reasonCode };
         }
@@ -236,6 +237,7 @@ export async function failClaimedAutoReply(claim: ClaimedAutoReplyTrigger, error
       lockedBy: null,
       leaseExpiresAt: null,
       heartbeatAt: null,
+      ...(nonRetryableBilling ? minimizedSkippedAutoReplyData : {}),
     } : {
       status: "PENDING",
       availableAt: new Date(now.getTime() + Math.min(60_000, 2 ** claim.trigger.attempts * 1000)),

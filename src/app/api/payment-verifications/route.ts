@@ -40,8 +40,11 @@ export async function POST(request: NextRequest) {
   const parsed = submissionSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid payment proof", details: parsed.error.flatten() }, { status: 400 });
 
-  const plan = await prisma.plan.findFirst({ where: { id: parsed.data.planId, isActive: true } });
+  const plan = await prisma.plan.findFirst({ where: { id: parsed.data.planId, isActive: true, priceMonthly: { gt: 0 } } });
   if (!plan) return NextResponse.json({ error: "Active plan not found" }, { status: 404 });
+  if (!plan.priceMonthly?.equals(parsed.data.amount)) {
+    return NextResponse.json({ error: "Payment amount must match the selected plan price", code: "PAYMENT_AMOUNT_MISMATCH" }, { status: 400 });
+  }
   const submission = await prisma.paymentVerification.create({
     data: {
       userId: session.user.id,
