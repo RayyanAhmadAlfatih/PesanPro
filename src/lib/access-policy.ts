@@ -10,6 +10,22 @@ const SUPERADMIN_DASHBOARD_PREFIXES = [
   "/dashboard/notifications",
 ] as const;
 
+const TENANT_DASHBOARD_PREFIXES = [
+  "/dashboard/sessions",
+  "/dashboard/chat",
+  "/dashboard/inbox",
+  "/dashboard/message-queue",
+  "/dashboard/broadcast",
+  "/dashboard/campaigns",
+  "/dashboard/media",
+  "/dashboard/labels",
+  "/dashboard/autoreply",
+  "/dashboard/scheduler",
+  "/dashboard/developer",
+  "/dashboard/webhooks",
+  "/dashboard/billing",
+] as const;
+
 const REMOVED_DASHBOARD_FEATURE_PREFIXES = [
   "/dashboard/sticker",
   "/dashboard/contacts",
@@ -40,9 +56,16 @@ export function isRemovedDashboardFeaturePath(pathname: string): boolean {
   );
 }
 
+export function isTenantDashboardPath(pathname: string): boolean {
+  return TENANT_DASHBOARD_PREFIXES.some(
+    (prefix) => pathname === prefix || pathname.startsWith(`${prefix}/`),
+  );
+}
+
 export function canAccessDashboardPath(role: unknown, pathname: string): boolean {
   if (isRemovedDashboardFeaturePath(pathname)) return false;
-  return !isSuperadminDashboardPath(pathname) || isSuperadmin(role);
+  if (isSuperadmin(role)) return !isTenantDashboardPath(pathname);
+  return !isSuperadminDashboardPath(pathname);
 }
 
 export function isCommercialFeatureVisible(feature: string): boolean {

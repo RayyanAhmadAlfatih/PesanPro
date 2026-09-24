@@ -38,26 +38,29 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     }
     throw error;
   }
-  await recordAudit({
-    userId: actor.id,
-    userEmail: actor.email,
-    action: `payment_verification.${parsed.data.status.toLowerCase()}`,
-    resource: "payment_verification",
-    resourceId: id,
-    ip: getClientIp(request.headers),
-    userAgent: request.headers.get("user-agent"),
-    meta: {
-      reviewNote: parsed.data.reviewNote,
-      planId: result.verification.planId,
-      subscriptionId: result.subscription?.id ?? null,
-      subscriptionActivated: Boolean(result.subscription),
-    },
-  });
+  if (!result.idempotent) {
+    await recordAudit({
+      userId: actor.id,
+      userEmail: actor.email,
+      action: `payment_verification.${parsed.data.status.toLowerCase()}`,
+      resource: "payment_verification",
+      resourceId: id,
+      ip: getClientIp(request.headers),
+      userAgent: request.headers.get("user-agent"),
+      meta: {
+        reviewNote: parsed.data.reviewNote,
+        planId: result.verification.planId,
+        subscriptionId: result.subscription?.id ?? null,
+        subscriptionActivated: Boolean(result.subscription),
+      },
+    });
+  }
   return NextResponse.json({
     data: {
       ...result.verification,
       amount: result.verification.amount.toString(),
       subscription: result.subscription,
+      idempotent: result.idempotent,
     },
   });
 }

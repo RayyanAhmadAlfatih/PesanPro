@@ -24,7 +24,7 @@ async function resolveSession(actor: SegmentActor, publicId: string) {
   });
   if (!session) throw new MessageJobError("SESSION_NOT_FOUND", "Device was not found", 404, false);
   const tenantId = await actorTenant(actor);
-  if (actor.role !== "SUPERADMIN" && session.userId !== tenantId) {
+  if (session.userId !== tenantId) {
     throw new MessageJobError("TENANT_MISMATCH", "Device does not belong to this tenant", 403, false);
   }
   return { ...session, tenantId: session.userId };
@@ -181,7 +181,7 @@ export async function updateContactProfile(actor: SegmentActor, contactId: strin
 }) {
   const tenantId = await actorTenant(actor);
   const contact = await prisma.contact.findUnique({ where: { id: contactId }, include: { session: { select: { sessionId: true, userId: true } } } });
-  if (!contact || !await canAccessSession(actor.id, actor.role, contact.session.sessionId) || (actor.role !== "SUPERADMIN" && contact.session.userId !== tenantId)) {
+  if (!contact || !await canAccessSession(actor.id, actor.role, contact.session.sessionId) || contact.session.userId !== tenantId) {
     throw new MessageJobError("CONTACT_NOT_FOUND", "Contact was not found", 404, false);
   }
   const tagIds = uniqueIds(input.tagIds ?? []);

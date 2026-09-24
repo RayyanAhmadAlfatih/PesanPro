@@ -1,7 +1,7 @@
 "use client";
 
 import { useCallback, useEffect, useState } from "react";
-import { CheckCircle2, CreditCard, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
+import { CheckCircle2, CreditCard, FileUp, Loader2, RefreshCw, ShieldCheck } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -53,7 +53,8 @@ export default function BillingPage() {
   const [paymentPlanId, setPaymentPlanId] = useState("");
   const [paymentAmount, setPaymentAmount] = useState("");
   const [paymentReference, setPaymentReference] = useState("");
-  const [paymentProofUrl, setPaymentProofUrl] = useState("");
+  const [paymentProof, setPaymentProof] = useState<File | null>(null);
+  const [proofInputKey, setProofInputKey] = useState(0);
 
   const load = useCallback(async () => {
     setLoading(true);
@@ -87,10 +88,13 @@ export default function BillingPage() {
   const submitPayment = async () => {
     setSubmitting(true);
     try {
+      const form = new FormData();
+      form.set("planId", paymentPlanId);
+      form.set("reference", paymentReference);
+      if (paymentProof) form.set("proof", paymentProof);
       const response = await fetch("/api/payment-verifications", {
         method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ planId: paymentPlanId, amount: paymentAmount, reference: paymentReference, proofUrl: paymentProofUrl }),
+        body: form,
       });
       const body = await response.json();
       if (!response.ok) throw new Error(body.error ?? "Unable to submit payment proof");
@@ -98,7 +102,8 @@ export default function BillingPage() {
       setPaymentPlanId("");
       setPaymentAmount("");
       setPaymentReference("");
-      setPaymentProofUrl("");
+      setPaymentProof(null);
+      setProofInputKey((current) => current + 1);
       await load();
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to submit payment proof");
@@ -162,10 +167,10 @@ export default function BillingPage() {
             <CardHeader><CardTitle>Submit payment proof</CardTitle><CardDescription>Setelah bukti disetujui, plan terpilih otomatis aktif untuk satu periode bulanan.</CardDescription></CardHeader>
             <CardContent className="space-y-3">
               <div><Label htmlFor="payment-plan">Plan</Label><select id="payment-plan" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={paymentPlanId} onChange={(event) => { const selected = plans.find((plan) => plan.id === event.target.value); setPaymentPlanId(event.target.value); setPaymentAmount(selected?.priceMonthly ?? ""); }}><option value="">Choose plan</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {plan.priceMonthly ?? "0"} {plan.currency}</option>)}</select></div>
-              <div><Label htmlFor="payment-amount">Amount</Label><Input id="payment-amount" value={paymentAmount} readOnly /><p className="mt-1 text-xs text-muted-foreground">Nominal dikunci ke harga plan untuk mencegah salah verifikasi.</p></div>
+              <div><Label htmlFor="payment-amount">Nominal sesuai paket</Label><Input id="payment-amount" value={paymentAmount} readOnly /><p className="mt-1 text-xs text-muted-foreground">Nominal ditentukan oleh server sesuai harga paket dan memang tidak dapat diubah.</p></div>
               <div><Label htmlFor="payment-reference">Payment reference</Label><Input id="payment-reference" value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} maxLength={120} /></div>
-              <div><Label htmlFor="payment-proof">HTTPS proof URL</Label><Input id="payment-proof" type="url" value={paymentProofUrl} onChange={(event) => setPaymentProofUrl(event.target.value)} placeholder="https://..." /></div>
-              <Button className="w-full" disabled={submitting || !paymentPlanId || paymentReference.trim().length < 3 || !paymentProofUrl.startsWith("https://")} onClick={() => void submitPayment()}>{submitting && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Submit for verification</Button>
+              <div><Label htmlFor="payment-proof">Bukti pembayaran</Label><Input key={proofInputKey} id="payment-proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => setPaymentProof(event.target.files?.[0] ?? null)} /><p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP, atau PDF. Maksimal 5 MB dan tersimpan privat.</p></div>
+              <Button className="w-full" disabled={submitting || !paymentPlanId || paymentReference.trim().length < 3 || !paymentProof || paymentProof.size > 5 * 1024 * 1024} onClick={() => void submitPayment()}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}Kirim untuk diverifikasi</Button>
             </CardContent>
           </Card>
 
@@ -173,7 +178,7 @@ export default function BillingPage() {
             <CardHeader><CardTitle>Payment history</CardTitle><CardDescription>Status dan catatan verifikator tersedia sebagai jejak audit.</CardDescription></CardHeader>
             <CardContent className="space-y-3">
               {payments.length === 0 && <p className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">Belum ada pembayaran. Pilih plan untuk mengirim bukti pertama.</p>}
-              {payments.map((payment) => <div key={payment.id} className="rounded-lg border p-4"><div className="flex items-center justify-between gap-2"><p className="font-semibold">{payment.plan?.name ?? "Plan"}</p><Badge variant={payment.status === "PENDING" ? "outline" : "secondary"}>{payment.status}</Badge></div><p className="text-sm text-muted-foreground">{payment.amount} {payment.currency} · {payment.reference}</p><p className="text-xs text-muted-foreground">{new Date(payment.createdAt).toLocaleString()}</p>{payment.reviewNote && <p className="mt-2 text-sm">Catatan: {payment.reviewNote}</p>}</div>)}
+              {payments.map((payment) => <div key={payment.id} className="rounded-lg border p-4"><div className="flex items-center justify-between gap-2"><p className="font-semibold">{payment.plan?.name ?? "Plan"}</p><Badge variant={payment.status === "PENDING" ? "outline" : "secondary"}>{payment.status}</Badge></div><p className="text-sm text-muted-foreground">{payment.amount} {payment.currency} · {payment.reference}</p><p className="text-xs text-muted-foreground">{new Date(payment.createdAt).toLocaleString()}</p>{payment.proofUrl && <a className="mt-2 inline-block text-sm font-medium underline" href={payment.proofUrl} target="_blank" rel="noreferrer">Lihat bukti</a>}{payment.reviewNote && <p className="mt-2 text-sm">Catatan: {payment.reviewNote}</p>}</div>)}
             </CardContent>
           </Card>
         </div>

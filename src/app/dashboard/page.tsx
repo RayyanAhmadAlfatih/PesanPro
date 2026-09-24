@@ -13,6 +13,7 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
+  if (session.user.role === "SUPERADMIN") redirect("/dashboard/system-monitor");
 
   const sessions = await getAccessibleSessions(session.user.id!, session.user.role || "USER");
   const totalSessions = sessions.length;

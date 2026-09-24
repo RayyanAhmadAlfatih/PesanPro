@@ -145,13 +145,11 @@ export function isAdmin(userRole: string): boolean {
 
 /**
  * Check if user can access a session
- * - SUPERADMIN can access all sessions
- * - Other users can access their own sessions OR sessions shared with them
+ * Operational device data is tenant-owned. Administrative privileges do not
+ * imply access to a customer's WhatsApp session.
  */
 export async function canAccessSession(userId: string, userRole: string, sessionId: string): Promise<boolean> {
-    if (isAdmin(userRole)) {
-        return true;
-    }
+    if (userRole !== "USER") return false;
 
     const actor = await prisma.user.findUnique({
         where: { id: userId },
@@ -174,10 +172,6 @@ export async function canAccessSession(userId: string, userRole: string, session
  * Used for protecting management endpoints (e.g. granting/revoking access)
  */
 export async function isSessionOwner(userId: string, userRole: string, sessionId: string): Promise<boolean> {
-    if (isAdmin(userRole)) {
-        return true;
-    }
-
     if (userRole !== "USER") return false;
 
     const session = await prisma.session.findFirst({
@@ -194,34 +188,10 @@ export async function isSessionOwner(userId: string, userRole: string, sessionId
 
 /**
  * Get sessions that user can access
- * - SUPERADMIN sees all
- * - Others see only their own
+ * Only customer accounts can own and list WhatsApp sessions.
  */
 export async function getAccessibleSessions(userId: string, userRole: string) {
-    if (isAdmin(userRole)) {
-        return prisma.session.findMany({
-            orderBy: { createdAt: 'desc' },
-            include: {
-                user: {
-                    select: {
-                        name: true,
-                        email: true
-                    }
-                },
-                botConfig: { select: safeBotConfigSelect },
-                webhooks: { select: safeWebhookSelect },
-                _count: {
-                    select: {
-                        contacts: true,
-                        messages: true,
-                        groups: true,
-                        autoReplies: true,
-                        scheduledMessages: true
-                    }
-                }
-            }
-        });
-    }
+    if (userRole !== "USER") return [];
 
     const actor = await prisma.user.findUnique({
         where: { id: userId },

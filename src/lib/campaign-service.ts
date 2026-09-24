@@ -136,7 +136,7 @@ async function resolveConfiguration(actor: CampaignActor, input: CampaignWriteIn
 
 async function findCampaign(actor: CampaignActor, id: string) {
   const tenantId = await actorTenant(actor);
-  const campaign = await prisma.campaign.findFirst({ where: { id, ...(actor.role === "SUPERADMIN" ? {} : { tenantId }) }, include: campaignInclude });
+  const campaign = await prisma.campaign.findFirst({ where: { id, tenantId }, include: campaignInclude });
   if (!campaign) throw new MessageJobError("CAMPAIGN_NOT_FOUND", "Campaign was not found", 404, false);
   return campaign;
 }
@@ -148,7 +148,7 @@ export async function getCampaign(actor: CampaignActor, id: string) {
 export async function listCampaigns(actor: CampaignActor, input: { status?: CampaignStatus; limit?: number } = {}) {
   const tenantId = await actorTenant(actor);
   const rows = await prisma.campaign.findMany({
-    where: { ...(actor.role === "SUPERADMIN" ? {} : { tenantId }), ...(input.status ? { status: input.status } : {}) },
+    where: { tenantId, ...(input.status ? { status: input.status } : {}) },
     orderBy: [{ createdAt: "desc" }, { id: "desc" }],
     take: Math.max(1, Math.min(100, input.limit ?? 25)),
     include: campaignInclude,

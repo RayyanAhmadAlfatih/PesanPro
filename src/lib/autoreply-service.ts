@@ -42,7 +42,7 @@ async function getAccessibleSession(actor: AutoReplyActor, publicId: string) {
     resolveTenantId(actor.id),
     prisma.session.findUnique({ where: { sessionId: publicId }, select: { id: true, userId: true, sessionId: true } }),
   ]);
-  if (!allowed || !session || (actor.role !== "SUPERADMIN" && actorTenantId !== session.userId)) {
+  if (!allowed || !session || actorTenantId !== session.userId) {
     throw new MessageJobError("AUTOREPLY_SESSION_NOT_FOUND", "Device was not found or is not accessible", 404, false);
   }
   return session;

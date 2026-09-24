@@ -123,7 +123,7 @@ async function actorTenant(actor: BroadcastActor) {
 }
 
 function visibleTenantWhere(actor: BroadcastActor, tenantId: string) {
-  return actor.role === "SUPERADMIN" ? {} : { tenantId };
+  return { tenantId };
 }
 
 async function findExistingBroadcast(tenantId: string, createKey: string) {

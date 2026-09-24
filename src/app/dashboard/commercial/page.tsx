@@ -54,6 +54,7 @@ export default function CommercialPage() {
   const [overrides, setOverrides] = useState<OverrideItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
+  const [reviewingPaymentId, setReviewingPaymentId] = useState<string | null>(null);
   const [ownerId, setOwnerId] = useState("");
   const [planId, setPlanId] = useState("");
   const [status, setStatus] = useState("ACTIVE");
@@ -169,15 +170,23 @@ export default function CommercialPage() {
   const reviewPayment = async (id: string, reviewStatus: "APPROVED" | "REJECTED") => {
     const reviewNote = reviewNotes[id]?.trim();
     if (!reviewNote || reviewNote.length < 3) return toast.error("Add a review note first");
-    const response = await fetch(`/api/admin/payment-verifications/${id}`, {
-      method: "PATCH",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ status: reviewStatus, reviewNote }),
-    });
-    const body = await response.json();
-    if (!response.ok) return toast.error(body.error ?? "Unable to review payment");
-    toast.success(reviewStatus === "APPROVED" ? "Payment approved and subscription activated" : "Payment rejected");
-    await load();
+    if (reviewingPaymentId) return;
+    setReviewingPaymentId(id);
+    try {
+      const response = await fetch(`/api/admin/payment-verifications/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: reviewStatus, reviewNote }),
+      });
+      const body = await response.json();
+      if (!response.ok) throw new Error(body.error ?? "Unable to review payment");
+      toast.success(reviewStatus === "APPROVED" ? "Payment approved and subscription activated" : "Payment rejected");
+      await load();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Unable to review payment");
+    } finally {
+      setReviewingPaymentId(null);
+    }
   };
 
   const updatePlan = async (id: string, data: { isActive?: boolean; isDefault?: boolean }) => {
@@ -271,7 +280,7 @@ export default function CommercialPage() {
 
       <Card><CardHeader><CardTitle>Plans</CardTitle><CardDescription>{plans.length} configured commercial packages.</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{plans.map((plan) => <div key={plan.id} className="rounded-xl border p-4"><div className="flex items-center justify-between"><p className="font-semibold">{plan.name}</p><Badge variant={plan.isActive ? "outline" : "secondary"}>{plan.isDefault ? "DEFAULT" : plan.isActive ? "ACTIVE" : "INACTIVE"}</Badge></div><p className="text-sm text-muted-foreground">{plan.code} · {plan.priceMonthly ?? "0"} {plan.currency}/month</p><p className="mt-2 text-xs text-muted-foreground">{plan.entitlements.length} entitlements · {plan.trialDays} trial days</p><div className="mt-3 flex gap-2">{!plan.isActive && <Button size="sm" variant="outline" onClick={() => void updatePlan(plan.id, { isActive: true })}>Activate</Button>}{plan.isActive && !plan.isDefault && <Button size="sm" variant="outline" onClick={() => void updatePlan(plan.id, { isDefault: true })}>Make default</Button>}</div></div>)}</CardContent></Card>
 
-      <Card><CardHeader><CardTitle>Payment verification</CardTitle><CardDescription>Approval activates the selected plan for one monthly billing period and records the change in subscription history.</CardDescription></CardHeader><CardContent className="space-y-3">{payments.length === 0 && <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">No payment submissions.</p>}{payments.map((payment) => <div key={payment.id} className="rounded-xl border p-4"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex items-center gap-2"><p className="font-semibold">{payment.user.email}</p><Badge variant={payment.status === "PENDING" ? "outline" : "secondary"}>{payment.status}</Badge></div><p className="text-sm">{payment.amount} {payment.currency} · {payment.plan?.name ?? "Unknown plan"} · {payment.reference}</p>{payment.proofUrl && <a className="text-sm text-[var(--pp-ink)] underline" href={payment.proofUrl} target="_blank" rel="noreferrer">Open proof</a>}</div>{payment.status === "PENDING" && <div className="flex min-w-0 flex-1 gap-2 lg:max-w-xl"><Input value={reviewNotes[payment.id] ?? ""} onChange={(event) => setReviewNotes((current) => ({ ...current, [payment.id]: event.target.value }))} placeholder="Required review note" /><Button onClick={() => void reviewPayment(payment.id, "APPROVED")}>Approve & activate</Button><Button variant="destructive" onClick={() => void reviewPayment(payment.id, "REJECTED")}>Reject</Button></div>}</div></div>)}</CardContent></Card>
+      <Card><CardHeader><CardTitle>Payment verification</CardTitle><CardDescription>Approval activates the selected plan for one monthly billing period and records the change in subscription history.</CardDescription></CardHeader><CardContent className="space-y-3">{payments.length === 0 && <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">No payment submissions.</p>}{payments.map((payment) => <div key={payment.id} className="rounded-xl border p-4"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex items-center gap-2"><p className="font-semibold">{payment.user.email}</p><Badge variant={payment.status === "PENDING" ? "outline" : "secondary"}>{payment.status}</Badge></div><p className="text-sm">{payment.amount} {payment.currency} · {payment.plan?.name ?? "Unknown plan"} · {payment.reference}</p>{payment.proofUrl && <a className="text-sm text-[var(--pp-ink)] underline" href={payment.proofUrl} target="_blank" rel="noreferrer">Open proof</a>}</div>{payment.status === "PENDING" && <div className="flex min-w-0 flex-1 gap-2 lg:max-w-xl"><Input disabled={reviewingPaymentId === payment.id} value={reviewNotes[payment.id] ?? ""} onChange={(event) => setReviewNotes((current) => ({ ...current, [payment.id]: event.target.value }))} placeholder="Required review note" /><Button disabled={reviewingPaymentId !== null} onClick={() => void reviewPayment(payment.id, "APPROVED")}>{reviewingPaymentId === payment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Approve & activate</Button><Button variant="destructive" disabled={reviewingPaymentId !== null} onClick={() => void reviewPayment(payment.id, "REJECTED")}>Reject</Button></div>}</div></div>)}</CardContent></Card>
     </div>
   );
 }
