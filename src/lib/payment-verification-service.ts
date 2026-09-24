@@ -42,7 +42,20 @@ export async function reviewPaymentVerificationInTransaction(
     },
   });
   if (claimed.count !== 1) {
-    throw new PaymentVerificationReviewError("PAYMENT_NOT_PENDING", "Pending payment verification not found");
+    const existing = await tx.paymentVerification.findUnique({
+      where: { id: input.verificationId },
+      include: {
+        user: { select: { role: true } },
+        plan: { include: { entitlements: { where: { feature: "DEVICES" } } } },
+      },
+    });
+    if (!existing || existing.status !== input.status) {
+      throw new PaymentVerificationReviewError("PAYMENT_NOT_PENDING", "Payment verification has already been reviewed");
+    }
+    const subscription = input.status === "APPROVED"
+      ? await tx.subscription.findUnique({ where: { userId: existing.userId } })
+      : null;
+    return { verification: existing, subscription, idempotent: true };
   }
 
   const verification = await tx.paymentVerification.findUnique({
@@ -55,7 +68,7 @@ export async function reviewPaymentVerificationInTransaction(
   if (!verification) {
     throw new PaymentVerificationReviewError("PAYMENT_NOT_PENDING", "Payment verification not found after review");
   }
-  if (input.status !== "APPROVED") return { verification, subscription: null };
+  if (input.status !== "APPROVED") return { verification, subscription: null, idempotent: false };
   if (verification.user.role !== "USER") {
     throw new PaymentVerificationReviewError("PAYMENT_USER_INVALID", "Payment owner is not an active customer account");
   }
@@ -103,5 +116,5 @@ export async function reviewPaymentVerificationInTransaction(
       data: { deviceLimit: Number(deviceLimit) },
     });
   }
-  return { verification, subscription };
+  return { verification, subscription, idempotent: false };
 }

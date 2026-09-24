@@ -31,25 +31,21 @@ export async function GET(request: NextRequest) {
     if (!user) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
     }
+    if (user.role !== "USER") {
+        return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
+    }
 
     try {
         if (!existsSync(MEDIA_DIR)) {
             return NextResponse.json({ status: true, message: "No media directory", data: { files: [], totalSize: 0, totalCount: 0 } });
         }
 
-        const isSuperAdmin = user.role === "SUPERADMIN";
-
         // Get sessions with owner info
-        const sessions = isSuperAdmin
-            ? await prisma.session.findMany({
-                include: { user: { select: { id: true, name: true, email: true } } },
-                orderBy: { createdAt: "desc" },
-            })
-            : await prisma.session.findMany({
-                where: { userId: user.id },
-                include: { user: { select: { id: true, name: true, email: true } } },
-                orderBy: { createdAt: "desc" },
-            });
+        const sessions = await prisma.session.findMany({
+            where: { userId: user.id },
+            include: { user: { select: { id: true, name: true, email: true } } },
+            orderBy: { createdAt: "desc" },
+        });
 
         // Map sessionId -> session with owner
         const sessionMap = new Map(sessions.map(s => [s.sessionId, {
@@ -64,11 +60,7 @@ export async function GET(request: NextRequest) {
         const ownedFiles: { name: string; parsed: { sessionId: string; keyId: string } | null }[] = [];
         for (const name of filenames) {
             const parsed = parseFilename(name);
-            if (!parsed) {
-                if (isSuperAdmin) ownedFiles.push({ name, parsed: null });
-                continue;
-            }
-            if (isSuperAdmin || sessionMap.has(parsed.sessionId)) {
+            if (parsed && sessionMap.has(parsed.sessionId)) {
                 ownedFiles.push({ name, parsed });
             }
         }
@@ -151,6 +143,9 @@ export async function DELETE(request: NextRequest) {
     if (!user) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
     }
+    if (user.role !== "USER") {
+        return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
+    }
 
     try {
         const body: unknown = await request.json();
@@ -172,13 +167,16 @@ export async function DELETE(request: NextRequest) {
             }
 
             const parsed = parseFilename(filename);
-            if (parsed) {
-                const canAccess = await canAccessSession(user.id, user.role, parsed.sessionId);
-                if (!canAccess) {
-                    errors.push(`Forbidden: ${filename}`);
-                    failed++;
-                    continue;
-                }
+            if (!parsed) {
+                errors.push(`Invalid filename: ${filename}`);
+                failed++;
+                continue;
+            }
+            const canAccess = await canAccessSession(user.id, user.role, parsed.sessionId);
+            if (!canAccess) {
+                errors.push(`Forbidden: ${filename}`);
+                failed++;
+                continue;
             }
 
             const filePath = path.join(MEDIA_DIR, filename);
@@ -191,11 +189,9 @@ export async function DELETE(request: NextRequest) {
             try {
                 const fileSize = (await stat(filePath)).size;
                 await unlink(filePath);
-                if (parsed) {
-                    const targetSession = await prisma.session.findUnique({ where: { sessionId: parsed.sessionId }, select: { userId: true } });
-                    if (targetSession) {
-                        await releaseStorageQuota({ userId: targetSession.userId, bytes: fileSize, sessionId: parsed.sessionId, filename });
-                    }
+                const targetSession = await prisma.session.findUnique({ where: { sessionId: parsed.sessionId }, select: { userId: true } });
+                if (targetSession) {
+                    await releaseStorageQuota({ userId: targetSession.userId, bytes: fileSize, sessionId: parsed.sessionId, filename });
                 }
                 deleted++;
             } catch {

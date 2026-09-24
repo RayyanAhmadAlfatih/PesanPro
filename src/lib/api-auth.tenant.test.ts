@@ -46,4 +46,10 @@ describe("tenant session isolation", () => {
     await expect(canAccessSession("user-a", "USER", "device-a")).resolves.toBe(false);
     expect(mocks.prisma.session.findFirst).not.toHaveBeenCalled();
   });
+
+  it("does not grant superadmins implicit access to customer devices", async () => {
+    await expect(canAccessSession("admin-a", "SUPERADMIN", "device-a")).resolves.toBe(false);
+    expect(mocks.prisma.user.findUnique).not.toHaveBeenCalled();
+    expect(mocks.prisma.session.findFirst).not.toHaveBeenCalled();
+  });
 });

@@ -7,6 +7,7 @@ import {
   isRemovedDashboardFeaturePath,
   isSuperadmin,
   isSuperadminDashboardPath,
+  isTenantDashboardPath,
 } from "./access-policy";
 
 describe("access policy", () => {
@@ -57,6 +58,23 @@ describe("access policy", () => {
     expect(canAccessDashboardPath("USER", "/dashboard/media")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/labels")).toBe(true);
     expect(isSuperadmin("USER")).toBe(false);
+  });
+
+  it("separates superadmin controls from tenant operational pages", () => {
+    const tenantPaths = [
+      "/dashboard/sessions",
+      "/dashboard/chat",
+      "/dashboard/autoreply",
+      "/dashboard/media",
+      "/dashboard/developer",
+      "/dashboard/billing",
+    ];
+    for (const path of tenantPaths) {
+      expect(isTenantDashboardPath(path)).toBe(true);
+      expect(canAccessDashboardPath("USER", path)).toBe(true);
+      expect(canAccessDashboardPath("SUPERADMIN", path)).toBe(false);
+    }
+    expect(canAccessDashboardPath("SUPERADMIN", "/dashboard")).toBe(true);
   });
 
   it("hides legacy commercial features without removing compatibility data", () => {

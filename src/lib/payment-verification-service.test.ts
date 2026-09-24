@@ -24,6 +24,7 @@ function client() {
     },
     subscription: {
       upsert: vi.fn().mockResolvedValue({ id: "subscription-1", userId: "user-1", planId: "plan-pro", status: "ACTIVE" }),
+      findUnique: vi.fn().mockResolvedValue({ id: "subscription-1", userId: "user-1", planId: "plan-pro", status: "ACTIVE" }),
     },
     subscriptionHistory: { create: vi.fn().mockResolvedValue({ id: "history-1" }) },
     user: { update: vi.fn().mockResolvedValue({ id: "user-1" }) },
@@ -71,9 +72,32 @@ describe("manual payment verification", () => {
     expect(tx.subscriptionHistory.create).not.toHaveBeenCalled();
   });
 
-  it("rejects a second review of the same pending proof", async () => {
+  it("treats a repeated approval as an idempotent success", async () => {
     const tx = client();
     tx.paymentVerification.updateMany.mockResolvedValue({ count: 0 });
+    const result = await reviewPaymentVerificationInTransaction(tx as never, {
+      verificationId: "payment-1",
+      status: "APPROVED",
+      reviewNote: "Transfer verified",
+      reviewerEmail: "admin@example.com",
+      reviewedAt,
+    });
+    expect(result.idempotent).toBe(true);
+    expect(result.subscription).toMatchObject({ status: "ACTIVE" });
+    expect(tx.subscription.upsert).not.toHaveBeenCalled();
+    expect(tx.subscriptionHistory.create).not.toHaveBeenCalled();
+  });
+
+  it("rejects a review that conflicts with the final status", async () => {
+    const tx = client();
+    tx.paymentVerification.updateMany.mockResolvedValue({ count: 0 });
+    tx.paymentVerification.findUnique.mockResolvedValue({
+      id: "payment-1",
+      userId: "user-1",
+      status: "REJECTED",
+      plan: { id: "plan-pro", isActive: true, entitlements: [] },
+      user: { role: "USER" },
+    });
     await expect(reviewPaymentVerificationInTransaction(tx as never, {
       verificationId: "payment-1",
       status: "APPROVED",
@@ -81,6 +105,5 @@ describe("manual payment verification", () => {
       reviewerEmail: "admin@example.com",
       reviewedAt,
     })).rejects.toMatchObject({ code: "PAYMENT_NOT_PENDING" });
-    expect(tx.subscription.upsert).not.toHaveBeenCalled();
   });
 });

@@ -15,17 +15,17 @@ export class DevicePermissionError extends Error {
 }
 
 export function canCreateDevice(role: Role): boolean {
-  return role === "USER" || role === "SUPERADMIN";
+  return role === "USER";
 }
 
 export function isWithinDeviceLimit(role: Role, currentCount: number, deviceLimit: number): boolean {
-  return role === "SUPERADMIN" || currentCount < deviceLimit;
+  return role === "USER" && currentCount < deviceLimit;
 }
 
 export function canPerformDeviceAction(role: Role, isOwner: boolean, action: string): boolean {
-  if (role === "SUPERADMIN") return true;
-  if (["pair", "logout", "delete"].includes(action)) return role === "USER" && isOwner;
-  return ["start", "stop", "restart"].includes(action);
+  return role === "USER"
+    && isOwner
+    && ["pair", "start", "stop", "restart", "logout", "delete"].includes(action);
 }
 
 export function shouldRecoverDevice(status: DeviceStatus, hasCredentials: boolean): boolean {
