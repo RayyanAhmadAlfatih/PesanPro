@@ -42,6 +42,7 @@ describe("access policy", () => {
       "/dashboard/groups",
       "/dashboard/bot-settings",
       "/dashboard/profile",
+      "/dashboard/inbox",
     ];
 
     for (const path of removedPaths) {

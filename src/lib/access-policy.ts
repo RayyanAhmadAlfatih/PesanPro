@@ -13,7 +13,6 @@ const SUPERADMIN_DASHBOARD_PREFIXES = [
 const TENANT_DASHBOARD_PREFIXES = [
   "/dashboard/sessions",
   "/dashboard/chat",
-  "/dashboard/inbox",
   "/dashboard/message-queue",
   "/dashboard/broadcast",
   "/dashboard/campaigns",
@@ -32,6 +31,7 @@ const REMOVED_DASHBOARD_FEATURE_PREFIXES = [
   "/dashboard/groups",
   "/dashboard/bot-settings",
   "/dashboard/profile",
+  "/dashboard/inbox",
 ] as const;
 
 const LEGACY_COMMERCIAL_FEATURES = new Set(["STAFF"]);
