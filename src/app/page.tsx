@@ -4,6 +4,11 @@ import { Button } from "@/components/ui/button";
 import fs from "fs";
 import path from "path";
 
+// HTML must always reference the assets from the currently running build.
+// Hashed /_next/static assets remain immutable and cacheable.
+export const dynamic = "force-dynamic";
+export const revalidate = 0;
+
 export const metadata = {
   title: "PesanPro | Premium WhatsApp Gateway",
   description: "A powerful, self-hosted dashboard to manage your WhatsApp sessions, schedules, and auto-replies. Built for modern businesses.",
