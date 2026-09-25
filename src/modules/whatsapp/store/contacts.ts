@@ -3,8 +3,12 @@ import type { WASocket } from "@whiskeysockets/baileys";
 import { logger } from "@/lib/logger";
 
 /**
- * Sync contacts from WhatsApp to database.
- * Uses proper Baileys events for syncing and correct Session.id foreign key.
+ * Keep only contacts that are relevant to a conversation.
+ *
+ * PesanPro intentionally does not import the device's complete address book.
+ * Chat history and live message activity create the minimal contact records
+ * needed by Chat, labels, consent, campaigns, and JID resolution. Contact
+ * update events only enrich records that already exist.
  */
 export function bindContactSync(sock: WASocket, sessionId: string) {
     // First, get the database Session ID (cuid)
@@ -37,16 +41,9 @@ export function bindContactSync(sock: WASocket, sessionId: string) {
             try {
                 if (!update.id) continue;
                 
-                await prisma.contact.upsert({
-                    where: { sessionId_jid: { sessionId: dbSessionId, jid: update.id } },
-                    create: {
-                        sessionId: dbSessionId,
-                        jid: update.id,
-                        name: update.name || update.notify,
-                        notify: update.notify,
-                        profilePic: update.imgUrl
-                    },
-                    update: {
+                await prisma.contact.updateMany({
+                    where: { sessionId: dbSessionId, jid: update.id },
+                    data: {
                         name: update.name || undefined,
                         notify: update.notify || undefined,
                         profilePic: update.imgUrl || undefined
@@ -91,31 +88,11 @@ export function bindContactSync(sock: WASocket, sessionId: string) {
             }
         }
         
-        // Sync explicit contacts
-        if (contacts) {
-            for (const contact of contacts) {
-                try {
-                    if (!contact.id) continue;
-                    
-                    await prisma.contact.upsert({
-                        where: { sessionId_jid: { sessionId: dbSessionId, jid: contact.id } },
-                        create: {
-                            sessionId: dbSessionId,
-                            jid: contact.id,
-                            name: contact.name || contact.notify,
-                            notify: contact.notify
-                        },
-                        update: {
-                            name: contact.name || undefined,
-                            notify: contact.notify || undefined
-                        }
-                    });
-                } catch (e) {
-                    logger.error("Store", `Failed to sync contact ${contact.id}`, e);
-                }
-            }
-        }
-        
-        logger.success("Store", `Synced contacts from messaging history for session ${sessionId}`);
+        // Do not import the complete device address book. `contacts` may contain
+        // people who never interacted with this PesanPro workspace.
+        logger.success(
+            "Store",
+            `Synced ${chats.length} conversation contacts for session ${sessionId}; skipped ${contacts?.length || 0} address-book contacts`,
+        );
     });
 }

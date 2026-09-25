@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { WASocket, WAMessage, Contact } from "@whiskeysockets/baileys";
+import type { WASocket, WAMessage } from "@whiskeysockets/baileys";
 import { normalizeMessageContent } from "@whiskeysockets/baileys";
 import { onMessageReceived, onMessageSent, dispatchWebhook, downloadAndSaveMedia } from "@/lib/webhook";
 import { resolveToPhoneJid, isLidJid, normalizeJid } from "@/lib/jid-utils";
@@ -10,11 +10,6 @@ import { recordMessageDeliveryStatus } from "@/lib/message-queue";
 import { isUnsubscribeText, suppressFromInbound } from "@/lib/suppression";
 import { ingestAutoReplyMessage } from "./autoreply";
 import { MessageStatus, MessageType, Prisma, type BotConfig, type Message } from "@prisma/client";
-
-type SyncedContact = Contact & {
-    lid?: string;
-    verifiedName?: string;
-};
 
 function getContextStanzaId(value: unknown): string | null {
     if (typeof value !== "object" || value === null || !("contextInfo" in value)) return null;
@@ -139,7 +134,9 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
         logger.debug("Store", `Finished syncing messages`);
     });
 
-    // Handle Contacts Upsert
+    // Enrich conversation contacts only. Do not turn a Baileys address-book
+    // snapshot into tenant data: contacts are created from actual chat/message
+    // activity elsewhere in this store.
     sock.ev.on('contacts.upsert', async (contacts) => {
         // Ensure we have the database session ID
         if (!dbSessionId) {
@@ -151,31 +148,21 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
         for (const c of contacts) {
             try {
                 if (!c.id) continue;
-                const syncedContact = c as SyncedContact;
-                await prisma.contact.upsert({
-                    where: { sessionId_jid: { sessionId: dbSessionId, jid: c.id } },
-                    create: {
-                        sessionId: dbSessionId,
-                        jid: c.id,
-                        lid: syncedContact.lid || undefined,
-                        name: c.name || c.notify || c.verifiedName,
-                        notify: c.notify,
-                        verifiedName: syncedContact.verifiedName,
-                        profilePic: c.imgUrl || undefined,
-                        data: c as unknown as Prisma.InputJsonValue
-                    },
-                    update: {
+                const syncedContact = c as typeof c & { lid?: string; verifiedName?: string };
+                const updated = await prisma.contact.updateMany({
+                    where: { sessionId: dbSessionId, jid: c.id },
+                    data: {
                         lid: syncedContact.lid || undefined,
                         name: c.name || undefined,
                         notify: c.notify || undefined,
                         verifiedName: syncedContact.verifiedName || undefined,
                         profilePic: c.imgUrl || undefined,
-                        data: c as unknown as Prisma.InputJsonValue
-                    }
+                    },
                 });
 
-                // Dispatch webhook for contact update
-                dispatchWebhook(sessionId, "contact.update", { jid: c.id, name: c.name, notify: c.notify });
+                if (updated.count > 0) {
+                    dispatchWebhook(sessionId, "contact.update", { jid: c.id, name: c.name, notify: c.notify });
+                }
             } catch (e) {
                 logger.error("Store", "Error saving contact", e);
             }
@@ -501,12 +488,15 @@ async function processAndSaveMessage(
     }
 
 
-    // Download Media First (to save URL to DB)
+    // Only persist media for a live notification. History replay may contain
+    // thousands of old attachments and must stay metadata-only.
     let fileUrl: string | null = null;
-    try {
-        fileUrl = await downloadAndSaveMedia(msg, sessionId);
-    } catch (e) {
-        logger.error("Store", "Error downloading media in store", e);
+    if (triggerWebhook) {
+        try {
+            fileUrl = await downloadAndSaveMedia(msg, sessionId);
+        } catch (e) {
+            logger.error("Store", "Error downloading media in store", e);
+        }
     }
 
     // Extract contextInfo (quoted message ID)
