@@ -3,6 +3,7 @@
 import { useEffect, useEffectEvent, useState } from "react";
 import { Activity, BotMessageSquare, FlaskConical, LoaderCircle, Pencil, Plus, RefreshCw, Save, ShieldCheck, Trash2 } from "lucide-react";
 import { toast } from "sonner";
+import { MediaPicker } from "@/components/dashboard/media-picker";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 import { useSession } from "@/components/dashboard/session-provider";
 import { Badge } from "@/components/ui/badge";
@@ -209,7 +210,7 @@ export default function AutoReplyPage() {
               <div className="space-y-2"><Label>Audience</Label><Select value={editor.triggerType} onValueChange={(value: TriggerType) => setField("triggerType", value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="ALL">Semua</SelectItem><SelectItem value="PRIVATE">Private</SelectItem><SelectItem value="GROUP">Group</SelectItem></SelectContent></Select></div>
               <div className="space-y-2 sm:col-span-2"><Label>Keyword / pola</Label><Input disabled={editor.matchType === "FALLBACK"} value={editor.keyword} onChange={(event) => setField("keyword", event.target.value)} placeholder={editor.matchType === "REGEX" ? "^INV-[0-9]{4}$" : "halo"} /><p className="text-xs text-muted-foreground">Regex dibatasi ke subset linear yang aman; fallback wajib tanpa keyword.</p></div>
               <div className="space-y-2 sm:col-span-2"><Label>Balasan</Label><Textarea className="min-h-28" value={editor.response} onChange={(event) => setField("response", event.target.value)} placeholder="Terima kasih, pesan Anda sudah kami terima." /></div>
-              <div className="space-y-2 sm:col-span-2"><Label>Private media ID (opsional)</Label><Input className="font-mono" value={editor.mediaId} onChange={(event) => setField("mediaId", event.target.value)} placeholder="Gunakan ID dari Developer API /api/v1/media" /></div>
+              <div className="sm:col-span-2"><MediaPicker value={editor.mediaId} onChange={(next) => setField("mediaId", next)} /></div>
               <div className="space-y-2"><Label>Prioritas</Label><Input type="number" min="0" max="10000" value={editor.priority} onChange={(event) => setField("priority", event.target.value)} /></div>
               <div className="space-y-2"><Label>Timezone</Label><Input value={editor.timezone} onChange={(event) => setField("timezone", event.target.value)} /></div>
               <div className="space-y-2"><Label>Hari aktif ISO</Label><Input value={editor.activeDays} onChange={(event) => setField("activeDays", event.target.value)} placeholder="1,2,3,4,5" /></div>

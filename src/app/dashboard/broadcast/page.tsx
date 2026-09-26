@@ -22,6 +22,7 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import { MediaPicker } from "@/components/dashboard/media-picker";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 import { useSession } from "@/components/dashboard/session-provider";
 import { Badge } from "@/components/ui/badge";
@@ -358,7 +359,9 @@ export default function BroadcastPage() {
                     </div>
                   )}
 
-                  <div className="grid gap-3 sm:grid-cols-3"><div className="space-y-2"><Label>Delay minimum</Label><Input type="number" min="2" max="60" value={delayMin} onChange={(event) => setDelayMin(event.target.value)} /><p className="text-xs text-muted-foreground">Detik</p></div><div className="space-y-2"><Label>Delay maksimum</Label><Input type="number" min="2" max="120" value={delayMax} onChange={(event) => setDelayMax(event.target.value)} /><p className="text-xs text-muted-foreground">Detik</p></div><div className="space-y-2"><Label>Media ID</Label><Input value={mediaId} onChange={(event) => setMediaId(event.target.value)} placeholder="Opsional" /></div></div>
+                  <div className="grid gap-3 sm:grid-cols-2"><div className="space-y-2"><Label>Delay minimum</Label><Input type="number" min="2" max="60" value={delayMin} onChange={(event) => setDelayMin(event.target.value)} /><p className="text-xs text-muted-foreground">Detik</p></div><div className="space-y-2"><Label>Delay maksimum</Label><Input type="number" min="2" max="120" value={delayMax} onChange={(event) => setDelayMax(event.target.value)} /><p className="text-xs text-muted-foreground">Detik</p></div></div>
+
+                  <MediaPicker value={mediaId} onChange={setMediaId} />
 
                   <div className="flex flex-wrap gap-2"><Button variant="outline" onClick={previewSpintax} disabled={previewing || !message.trim()}>{previewing ? <Loader2 className="animate-spin" /> : <Eye />} Preview</Button><Button onClick={create} disabled={saving || recipientCount === 0 || !message.trim() || personalizationBlocked}>{saving ? <Loader2 className="animate-spin" /> : <Send />} Simpan & antrekan</Button></div>
 
