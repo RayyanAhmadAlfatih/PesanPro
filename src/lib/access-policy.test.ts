@@ -42,7 +42,7 @@ describe("access policy", () => {
       "/dashboard/groups",
       "/dashboard/bot-settings",
       "/dashboard/profile",
-      "/dashboard/inbox",
+      "/dashboard/chat",
     ];
 
     for (const path of removedPaths) {
@@ -58,24 +58,30 @@ describe("access policy", () => {
     expect(canAccessDashboardPath("USER", "/dashboard/developer")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/media")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/labels")).toBe(true);
+    expect(canAccessDashboardPath("USER", "/dashboard/inbox")).toBe(true);
     expect(isSuperadmin("USER")).toBe(false);
   });
 
-  it("separates superadmin controls from tenant operational pages", () => {
+  it("lets superadmins use their own tenant workspace as well as admin controls", () => {
     const tenantPaths = [
       "/dashboard/sessions",
-      "/dashboard/chat",
       "/dashboard/autoreply",
       "/dashboard/media",
       "/dashboard/developer",
       "/dashboard/billing",
+      "/dashboard/inbox",
     ];
     for (const path of tenantPaths) {
       expect(isTenantDashboardPath(path)).toBe(true);
       expect(canAccessDashboardPath("USER", path)).toBe(true);
-      expect(canAccessDashboardPath("SUPERADMIN", path)).toBe(false);
+      expect(canAccessDashboardPath("SUPERADMIN", path)).toBe(true);
     }
     expect(canAccessDashboardPath("SUPERADMIN", "/dashboard")).toBe(true);
+  });
+
+  it("denies dashboard access when the account role is not active", () => {
+    expect(canAccessDashboardPath(undefined, "/dashboard")).toBe(false);
+    expect(canAccessDashboardPath("STAFF", "/dashboard")).toBe(false);
   });
 
   it("hides legacy commercial features without removing compatibility data", () => {

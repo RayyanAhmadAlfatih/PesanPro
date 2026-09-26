@@ -6,7 +6,7 @@ import type { ApiKeyScope } from "./api-key-service";
 import { getClientIp } from "./rate-limit";
 import { getRequiredApiScope } from "./api-scope-policy";
 import { getUserByApiKey } from "./api-key-auth";
-import { isSuperadmin } from "./access-policy";
+import { isActiveAccountRole, isSuperadmin } from "./access-policy";
 
 export { getRequiredApiScope } from "./api-scope-policy";
 export { getUserByApiKey } from "./api-key-auth";
@@ -145,17 +145,17 @@ export function isAdmin(userRole: string): boolean {
 
 /**
  * Check if user can access a session
- * Operational device data is tenant-owned. Administrative privileges do not
- * imply access to a customer's WhatsApp session.
+ * Operational device data is always tenant-owned. A superadmin can use
+ * sessions owned by their own account, but the role never bypasses ownership.
  */
 export async function canAccessSession(userId: string, userRole: string, sessionId: string): Promise<boolean> {
-    if (userRole !== "USER") return false;
+    if (!isActiveAccountRole(userRole)) return false;
 
     const actor = await prisma.user.findUnique({
         where: { id: userId },
         select: { role: true, status: true, ownerId: true },
     });
-    if (!actor || actor.status !== "ACTIVE") return false;
+    if (!actor || actor.status !== "ACTIVE" || actor.role !== userRole) return false;
 
     const owned = await prisma.session.findFirst({
         where: {
@@ -172,7 +172,7 @@ export async function canAccessSession(userId: string, userRole: string, session
  * Used for protecting management endpoints (e.g. granting/revoking access)
  */
 export async function isSessionOwner(userId: string, userRole: string, sessionId: string): Promise<boolean> {
-    if (userRole !== "USER") return false;
+    if (!isActiveAccountRole(userRole)) return false;
 
     const session = await prisma.session.findFirst({
         where: {
@@ -188,16 +188,17 @@ export async function isSessionOwner(userId: string, userRole: string, sessionId
 
 /**
  * Get sessions that user can access
- * Only customer accounts can own and list WhatsApp sessions.
+ * Both active account roles can own sessions; every query remains scoped to
+ * the authenticated account's userId.
  */
 export async function getAccessibleSessions(userId: string, userRole: string) {
-    if (userRole !== "USER") return [];
+    if (!isActiveAccountRole(userRole)) return [];
 
     const actor = await prisma.user.findUnique({
         where: { id: userId },
         select: { role: true, status: true, ownerId: true },
     });
-    if (!actor || actor.status !== "ACTIVE") return [];
+    if (!actor || actor.status !== "ACTIVE" || actor.role !== userRole) return [];
 
     return prisma.session.findMany({
         where: { userId },

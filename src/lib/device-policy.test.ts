@@ -7,9 +7,9 @@ import {
 } from "./device-policy";
 
 describe("device policy", () => {
-  it("allows only customer accounts to create devices", () => {
+  it("allows customer and superadmin accounts to create their own devices", () => {
     expect(canCreateDevice("USER")).toBe(true);
-    expect(canCreateDevice("SUPERADMIN")).toBe(false);
+    expect(canCreateDevice("SUPERADMIN")).toBe(true);
   });
 
   it("recovers interrupted devices but always respects STOPPED and LOGGED_OUT", () => {
@@ -20,10 +20,11 @@ describe("device policy", () => {
     expect(shouldRecoverDevice("CONNECTED", false)).toBe(false);
   });
 
-  it("enforces commercial device limits and gives admins no device entitlement", () => {
+  it("applies device limits to both account roles", () => {
     expect(isWithinDeviceLimit("USER", 0, 1)).toBe(true);
     expect(isWithinDeviceLimit("USER", 1, 1)).toBe(false);
-    expect(isWithinDeviceLimit("SUPERADMIN", 0, 1)).toBe(false);
+    expect(isWithinDeviceLimit("SUPERADMIN", 0, 1)).toBe(true);
+    expect(isWithinDeviceLimit("SUPERADMIN", 1, 1)).toBe(false);
   });
 
   it("reserves pairing, logout, and deletion for the device owner", () => {
@@ -31,6 +32,7 @@ describe("device policy", () => {
     expect(canPerformDeviceAction("USER", true, "start")).toBe(true);
     expect(canPerformDeviceAction("USER", true, "logout")).toBe(true);
     expect(canPerformDeviceAction("USER", false, "logout")).toBe(false);
+    expect(canPerformDeviceAction("SUPERADMIN", true, "delete")).toBe(true);
     expect(canPerformDeviceAction("SUPERADMIN", false, "delete")).toBe(false);
   });
 });

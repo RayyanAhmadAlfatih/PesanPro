@@ -108,7 +108,7 @@ export default function MessageQueuePage() {
         {loading ? (
           <div className="flex min-h-56 items-center justify-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="h-5 w-5 animate-spin" /> Loading queue...</div>
         ) : jobs.length === 0 ? (
-          <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center"><Send className="mb-3 h-8 w-8 text-[var(--pp-ink)]" /><p className="font-bold">Queue masih kosong</p><p className="mt-1 text-sm text-muted-foreground">Pesan dari Chat atau Developer API akan muncul di sini.</p></div>
+          <div className="flex min-h-56 flex-col items-center justify-center px-6 text-center"><Send className="mb-3 h-8 w-8 text-[var(--pp-ink)]" /><p className="font-bold">Queue masih kosong</p><p className="mt-1 text-sm text-muted-foreground">Pesan dari API, broadcast, campaign, atau scheduler akan muncul di sini.</p></div>
         ) : (
           <div className="overflow-x-auto">
             <table className="w-full min-w-[850px] text-left text-sm">

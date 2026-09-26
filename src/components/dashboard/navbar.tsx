@@ -146,7 +146,7 @@ export function Navbar({ appName }: NavbarProps) {
 
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                 <span className="hidden sm:inline"><RealtimeClock /></span>
-                {session?.user?.role === "USER" && <SessionSelector />}
+                {session?.user?.id && <SessionSelector />}
                 <div className="hidden h-7 w-px bg-[var(--pp-line)] sm:block" />
 
                 <Popover open={isOpen} onOpenChange={setIsOpen}>
@@ -167,6 +167,9 @@ export function Navbar({ appName }: NavbarProps) {
                                 </p>
                             </div>
                             <div className="flex items-center gap-1">
+                                <Button variant="ghost" size="sm" className="h-auto py-1 px-2 text-xs" onClick={() => { router.push("/dashboard/inbox"); setIsOpen(false); }}>
+                                    See all
+                                </Button>
                                 {unreadCount > 0 && (
                                     <Button variant="ghost" size="sm" onClick={() => markAsRead()} className="h-auto py-1 px-2 text-xs">
                                         Mark all read

@@ -31,10 +31,6 @@ export async function GET(request: NextRequest) {
     if (!user) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
     }
-    if (user.role !== "USER") {
-        return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
-    }
-
     try {
         if (!existsSync(MEDIA_DIR)) {
             return NextResponse.json({ status: true, message: "No media directory", data: { files: [], totalSize: 0, totalCount: 0 } });
@@ -143,10 +139,6 @@ export async function DELETE(request: NextRequest) {
     if (!user) {
         return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
     }
-    if (user.role !== "USER") {
-        return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
-    }
-
     try {
         const body: unknown = await request.json();
         const filenames = typeof body === "object" && body !== null && "filenames" in body ? body.filenames : undefined;
