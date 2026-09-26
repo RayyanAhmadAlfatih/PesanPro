@@ -12,8 +12,6 @@ const SUPERADMIN_DASHBOARD_PREFIXES = [
 
 const TENANT_DASHBOARD_PREFIXES = [
   "/dashboard/sessions",
-  "/dashboard/chat",
-  "/dashboard/inbox",
   "/dashboard/message-queue",
   "/dashboard/broadcast",
   "/dashboard/campaigns",
@@ -24,6 +22,7 @@ const TENANT_DASHBOARD_PREFIXES = [
   "/dashboard/developer",
   "/dashboard/webhooks",
   "/dashboard/billing",
+  "/dashboard/inbox",
 ] as const;
 
 const REMOVED_DASHBOARD_FEATURE_PREFIXES = [
@@ -32,6 +31,7 @@ const REMOVED_DASHBOARD_FEATURE_PREFIXES = [
   "/dashboard/groups",
   "/dashboard/bot-settings",
   "/dashboard/profile",
+  "/dashboard/chat",
 ] as const;
 
 const LEGACY_COMMERCIAL_FEATURES = new Set(["STAFF"]);
@@ -63,8 +63,9 @@ export function isTenantDashboardPath(pathname: string): boolean {
 }
 
 export function canAccessDashboardPath(role: unknown, pathname: string): boolean {
+  if (!isActiveAccountRole(role)) return false;
   if (isRemovedDashboardFeaturePath(pathname)) return false;
-  if (isSuperadmin(role)) return !isTenantDashboardPath(pathname);
+  if (isSuperadmin(role)) return true;
   return !isSuperadminDashboardPath(pathname);
 }
 

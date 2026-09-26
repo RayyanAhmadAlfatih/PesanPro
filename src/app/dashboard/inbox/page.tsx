@@ -1,16 +1,15 @@
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
-import { Bell, Inbox, Trash2, CheckCheck, ChevronLeft, Info, AlertTriangle, CheckCircle, Settings, ExternalLink } from "lucide-react";
+import { Inbox, Trash2, CheckCheck, ChevronLeft, Info, AlertTriangle, CheckCircle, Settings, ExternalLink } from "lucide-react";
 import { toast } from "sonner";
 import { formatDistanceToNow } from "date-fns";
 import { cn } from "@/lib/utils";
 import type { LucideIcon } from "lucide-react";
-import type { Socket } from "socket.io-client";
 
 interface Notification {
     id: string;
@@ -34,7 +33,6 @@ export default function InboxPage() {
     const [notifications, setNotifications] = useState<Notification[]>([]);
     const [loading, setLoading] = useState(true);
     const [filter, setFilter] = useState<"all" | "unread" | "read">("all");
-    const socketRef = useRef<Socket | null>(null);
 
     const fetchNotifications = useCallback(async () => {
         try {
@@ -51,21 +49,6 @@ export default function InboxPage() {
     }, []);
 
     useEffect(() => { fetchNotifications(); }, [fetchNotifications]);
-
-    // Real-time socket for new notifications
-    useEffect(() => {
-        const socketIo = (window as Window & { __socket?: Socket }).__socket;
-        if (socketIo) {
-            socketRef.current = socketIo;
-            const handler = (n: Notification) => {
-                setNotifications(prev => [n, ...prev]);
-            };
-            socketIo.on("notification:new", handler);
-            return () => {
-                socketIo.off("notification:new", handler);
-            };
-        }
-    }, []);
 
     const markAsRead = async (id?: string) => {
         try {
@@ -92,7 +75,7 @@ export default function InboxPage() {
                 setNotifications(prev => prev.filter(n => n.id !== id));
                 toast.success("Notification deleted");
             }
-        } catch (e) {
+        } catch {
             toast.error("Failed to delete");
         }
     };

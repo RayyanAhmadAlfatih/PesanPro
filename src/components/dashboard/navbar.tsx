@@ -146,7 +146,7 @@ export function Navbar({ appName }: NavbarProps) {
 
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
                 <span className="hidden sm:inline"><RealtimeClock /></span>
-                {session?.user?.role === "USER" && <SessionSelector />}
+                {session?.user?.id && <SessionSelector />}
                 <div className="hidden h-7 w-px bg-[var(--pp-line)] sm:block" />
 
                 <Popover open={isOpen} onOpenChange={setIsOpen}>

@@ -12,7 +12,7 @@ vi.mock("./prisma", () => ({ prisma: mocks.prisma }));
 vi.mock("./auth", () => ({ auth: vi.fn() }));
 vi.mock("./logger", () => ({ logger: { error: vi.fn(), warn: vi.fn() } }));
 
-import { canAccessSession } from "./api-auth";
+import { canAccessSession, getAccessibleSessions, isSessionOwner } from "./api-auth";
 
 describe("tenant session isolation", () => {
   beforeEach(() => {
@@ -47,9 +47,43 @@ describe("tenant session isolation", () => {
     expect(mocks.prisma.session.findFirst).not.toHaveBeenCalled();
   });
 
-  it("does not grant superadmins implicit access to customer devices", async () => {
-    await expect(canAccessSession("admin-a", "SUPERADMIN", "device-a")).resolves.toBe(false);
-    expect(mocks.prisma.user.findUnique).not.toHaveBeenCalled();
-    expect(mocks.prisma.session.findFirst).not.toHaveBeenCalled();
+  it("lets superadmins access a device they own", async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({ role: "SUPERADMIN", status: "ACTIVE", ownerId: null });
+    mocks.prisma.session.findFirst.mockResolvedValue({ id: "admin-device" });
+
+    await expect(canAccessSession("admin-a", "SUPERADMIN", "admin-device")).resolves.toBe(true);
+    expect(mocks.prisma.session.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ userId: "admin-a" }),
+    }));
+  });
+
+  it("does not grant superadmins access to customer devices", async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({ role: "SUPERADMIN", status: "ACTIVE", ownerId: null });
+    mocks.prisma.session.findFirst.mockResolvedValue(null);
+
+    await expect(canAccessSession("admin-a", "SUPERADMIN", "customer-device")).resolves.toBe(false);
+    expect(mocks.prisma.session.findFirst).toHaveBeenCalledWith(expect.objectContaining({
+      where: expect.objectContaining({ userId: "admin-a" }),
+    }));
+  });
+
+  it("lists only sessions owned by the authenticated superadmin", async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({ role: "SUPERADMIN", status: "ACTIVE", ownerId: null });
+    mocks.prisma.session.findMany.mockResolvedValue([{ id: "admin-device" }]);
+
+    await expect(getAccessibleSessions("admin-a", "SUPERADMIN")).resolves.toEqual([{ id: "admin-device" }]);
+    expect(mocks.prisma.session.findMany).toHaveBeenCalledWith(expect.objectContaining({
+      where: { userId: "admin-a" },
+    }));
+  });
+
+  it("requires actual ownership for superadmin device management", async () => {
+    mocks.prisma.session.findFirst.mockResolvedValueOnce({ id: "admin-device" }).mockResolvedValueOnce(null);
+
+    await expect(isSessionOwner("admin-a", "SUPERADMIN", "admin-device")).resolves.toBe(true);
+    await expect(isSessionOwner("admin-a", "SUPERADMIN", "customer-device")).resolves.toBe(false);
+    expect(mocks.prisma.session.findFirst).toHaveBeenNthCalledWith(1, expect.objectContaining({
+      where: expect.objectContaining({ OR: expect.arrayContaining([expect.objectContaining({ userId: "admin-a" })]) }),
+    }));
   });
 });

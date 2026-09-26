@@ -2,7 +2,7 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Plus, Wifi, WifiOff, QrCode, ArrowRight, Zap } from "lucide-react";
+import { Plus, Wifi, WifiOff, QrCode, ArrowRight } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getAccessibleSessions } from "@/lib/api-auth";
 import { redirect } from "next/navigation";
@@ -13,7 +13,6 @@ export const dynamic = "force-dynamic";
 export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
-  if (session.user.role === "SUPERADMIN") redirect("/dashboard/system-monitor");
 
   const sessions = await getAccessibleSessions(session.user.id!, session.user.role || "USER");
   const totalSessions = sessions.length;
@@ -38,7 +37,7 @@ export default async function DashboardPage() {
   const quickActions = [
     { href: "/dashboard/sessions", label: "Sessions / QR", description: "Hubungkan dan kelola perangkat" },
     { href: "/dashboard/campaigns", label: "Campaigns", description: "Siapkan pengiriman bertahap" },
-    { href: "/dashboard/chat", label: "Messages", description: "Buka chat dan kirim pesan" },
+    { href: "/dashboard/message-queue", label: "Message Queue", description: "Pantau status pengiriman pesan" },
     { href: "/dashboard/webhooks", label: "Webhook API", description: "Kelola endpoint dan kredensial" },
   ].filter((action) => canAccessDashboardPath(session.user.role, action.href));
 

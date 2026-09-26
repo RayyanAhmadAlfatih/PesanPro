@@ -7,7 +7,6 @@ import { useSession } from "next-auth/react";
 import { ChevronDown, PanelLeftClose, PanelLeft } from "lucide-react";
 import {
     LayoutDashboard,
-    MessageSquare,
     Users,
     Settings,
     QrCode,
@@ -57,7 +56,6 @@ const navGroups: NavGroup[] = [
     {
         label: "Messaging",
         items: [
-            { href: "/dashboard/chat", label: "Chat", icon: MessageSquare },
             { href: "/dashboard/message-queue", label: "Message Queue", icon: ListRestart },
             { href: "/dashboard/broadcast", label: "Broadcast", icon: Megaphone },
             { href: "/dashboard/campaigns", label: "Campaigns", icon: Send },

@@ -7,7 +7,6 @@ import { Menu } from "lucide-react";
 import Link from "next/link";
 import {
     LayoutDashboard,
-    MessageSquare,
     Users,
     Settings,
     LogOut,
@@ -47,7 +46,6 @@ const navGroups: NavGroup[] = [
     {
         label: "Messaging",
         items: [
-            { href: "/dashboard/chat", label: "Chat", icon: MessageSquare },
             { href: "/dashboard/message-queue", label: "Message Queue", icon: ListRestart },
             { href: "/dashboard/broadcast", label: "Broadcast", icon: Megaphone },
             { href: "/dashboard/campaigns", label: "Campaigns", icon: Send },
