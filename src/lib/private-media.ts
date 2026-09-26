@@ -1,29 +1,23 @@
 import crypto from "node:crypto";
 import path from "node:path";
-import { mkdir, readFile, unlink, writeFile } from "node:fs/promises";
-import { MessageJobType, type Role } from "@prisma/client";
+import { MessageJobType, Prisma, type Role } from "@prisma/client";
 import { canAccessSession } from "./api-auth";
 import { resolveTenantId } from "./billing";
 import { getEnv } from "./env";
 import { MessageJobError } from "./message-job-errors";
-import { inspectPrivateMedia } from "./private-media-validation";
+import { prepareMediaForStorage } from "./media-optimization";
 import { prisma } from "./prisma";
 import { releaseStorageQuota, runWithStorageQuota } from "./storage-quota";
+import { activePrivateMediaReferenceCounts, hasActivePrivateMediaReferences } from "./private-media-lifecycle";
+import {
+  deletePrivateMediaObject,
+  loadPrivateMediaObject,
+  storePrivateMediaObject,
+} from "./private-media-storage";
 
 export type PrivateMediaActor = { id: string; role: Role; ownerId?: string | null };
 
-export function getPrivateMediaRoot() {
-  return path.resolve(/* turbopackIgnore: true */ process.cwd(), getEnv().PRIVATE_MEDIA_PATH);
-}
-
-export function resolvePrivateMediaPath(storagePath: string) {
-  const root = getPrivateMediaRoot();
-  const resolved = path.resolve(/* turbopackIgnore: true */ root, storagePath);
-  if (resolved !== root && !resolved.startsWith(`${root}${path.sep}`)) {
-    throw new MessageJobError("INVALID_MEDIA_PATH", "Media path is invalid", 500, false);
-  }
-  return resolved;
-}
+export { getPrivateMediaRoot, resolvePrivateMediaPath } from "./private-media-storage";
 
 function mediaDto(media: {
   id: string; originalName: string; mimeType: string; mediaType: MessageJobType; sizeBytes: bigint;
@@ -52,7 +46,9 @@ export async function storePrivateMedia(input: {
   const env = getEnv();
   const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
   if (input.buffer.length > maxBytes) throw new MessageJobError("MEDIA_TOO_LARGE", `Media exceeds the ${env.MAX_UPLOAD_SIZE_MB} MB limit`, 413, false);
-  const inspection = inspectPrivateMedia(input.buffer, input.declaredMimeType);
+  const prepared = await prepareMediaForStorage(input.buffer, input.declaredMimeType);
+  if (prepared.buffer.length > maxBytes) throw new MessageJobError("MEDIA_TOO_LARGE", `Media exceeds the ${env.MAX_UPLOAD_SIZE_MB} MB limit`, 413, false);
+  const { inspection } = prepared;
   const tenantId = await resolveTenantId(input.actor.id);
   if (!tenantId) throw new MessageJobError("TENANT_NOT_FOUND", "Billing tenant was not found", 403, false);
 
@@ -67,19 +63,17 @@ export async function storePrivateMedia(input: {
   const id = crypto.randomUUID();
   const storedName = `${id}.${inspection.extension}`;
   const relativePath = `${tenantId}/${storedName}`;
-  const absolutePath = resolvePrivateMediaPath(relativePath);
-  const checksumSha256 = crypto.createHash("sha256").update(input.buffer).digest("hex");
+  const checksumSha256 = crypto.createHash("sha256").update(prepared.buffer).digest("hex");
   const originalName = path.basename(input.originalName || storedName).slice(0, 191);
   const expiresAt = new Date(Date.now() + env.PRIVATE_MEDIA_RETENTION_DAYS * 24 * 60 * 60 * 1000);
 
   const media = await runWithStorageQuota({
     userId: input.actor.id,
-    bytes: input.buffer.length,
+    bytes: prepared.buffer.length,
     sessionId: session?.sessionId ?? "tenant-media",
     filename: storedName,
   }, async () => {
-    await mkdir(path.dirname(absolutePath), { recursive: true });
-    await writeFile(absolutePath, input.buffer, { flag: "wx", mode: 0o600 });
+    await storePrivateMediaObject({ storagePath: relativePath, buffer: prepared.buffer, mimeType: inspection.mimeType });
     try {
       return await prisma.privateMedia.create({
         data: {
@@ -93,13 +87,13 @@ export async function storePrivateMedia(input: {
           mimeType: inspection.mimeType,
           mediaType: inspection.mediaType,
           extension: inspection.extension,
-          sizeBytes: BigInt(input.buffer.length),
+          sizeBytes: BigInt(prepared.buffer.length),
           checksumSha256,
           expiresAt,
         },
       });
     } catch (error) {
-      await unlink(absolutePath).catch(() => undefined);
+      await deletePrivateMediaObject({ cacheKey: id, storagePath: relativePath }).catch(() => undefined);
       throw error;
     }
   });
@@ -111,7 +105,7 @@ export async function loadPrivateMedia(actor: PrivateMediaActor, mediaId: string
   if (!tenantId) throw new MessageJobError("MEDIA_NOT_FOUND", "Media was not found", 404, false);
   const media = await prisma.privateMedia.findFirst({ where: { id: mediaId, tenantId, status: "ACTIVE" } });
   if (!media) throw new MessageJobError("MEDIA_NOT_FOUND", "Media was not found", 404, false);
-  const buffer = await readFile(resolvePrivateMediaPath(media.storagePath)).catch(() => null);
+  const buffer = await loadPrivateMediaObject({ cacheKey: media.id, storagePath: media.storagePath });
   if (!buffer) throw new MessageJobError("MEDIA_UNAVAILABLE", "Media file is unavailable", 410, false);
   const checksum = crypto.createHash("sha256").update(buffer).digest("hex");
   if (checksum !== media.checksumSha256 || BigInt(buffer.length) !== media.sizeBytes) {
@@ -119,6 +113,14 @@ export async function loadPrivateMedia(actor: PrivateMediaActor, mediaId: string
     throw new MessageJobError("MEDIA_INTEGRITY_FAILED", "Media failed integrity validation", 410, false);
   }
   return { media, buffer };
+}
+
+export async function getPrivateMediaMetadata(actor: PrivateMediaActor, mediaId: string) {
+  const tenantId = await resolveTenantId(actor.id);
+  if (!tenantId) throw new MessageJobError("MEDIA_NOT_FOUND", "Media was not found", 404, false);
+  const media = await prisma.privateMedia.findFirst({ where: { id: mediaId, tenantId, status: "ACTIVE" } });
+  if (!media) throw new MessageJobError("MEDIA_NOT_FOUND", "Media was not found", 404, false);
+  return mediaDto(media);
 }
 
 export async function listPrivateMedia(actor: PrivateMediaActor, limit = 50) {
@@ -135,16 +137,22 @@ export async function listPrivateMedia(actor: PrivateMediaActor, limit = 50) {
 export async function deletePrivateMedia(actor: PrivateMediaActor, mediaId: string) {
   const tenantId = await resolveTenantId(actor.id);
   if (!tenantId) throw new MessageJobError("MEDIA_NOT_FOUND", "Media was not found", 404, false);
-  const media = await prisma.privateMedia.findFirst({ where: { id: mediaId, tenantId, status: "ACTIVE" } });
-  if (!media) throw new MessageJobError("MEDIA_NOT_FOUND", "Media was not found", 404, false);
-  const activeJobs = await prisma.messageJob.count({ where: { mediaId, status: { in: ["QUEUED", "PROCESSING"] } } });
-  if (activeJobs > 0) throw new MessageJobError("MEDIA_IN_USE", "Media is still used by an active message", 409, false);
-  const activeSchedules = await prisma.scheduledMessage.count({ where: { mediaId, status: "ACTIVE" } });
-  if (activeSchedules > 0) throw new MessageJobError("MEDIA_IN_USE", "Media is still used by an active schedule", 409, false);
-  await prisma.privateMedia.update({ where: { id: media.id }, data: { status: "DELETED", deletedAt: new Date() } });
-  await unlink(resolvePrivateMediaPath(media.storagePath)).catch(() => undefined);
+  const media = await prisma.$transaction(async (tx) => {
+    const current = await tx.privateMedia.findFirst({ where: { id: mediaId, tenantId, status: "ACTIVE" } });
+    if (!current) throw new MessageJobError("MEDIA_NOT_FOUND", "Media was not found", 404, false);
+    if (hasActivePrivateMediaReferences(await activePrivateMediaReferenceCounts(tx, mediaId))) {
+      throw new MessageJobError("MEDIA_IN_USE", "Media is still used by an active workflow", 409, false);
+    }
+    const changed = await tx.privateMedia.updateMany({
+      where: { id: current.id, tenantId, status: "ACTIVE" },
+      data: { status: "DELETED", deletedAt: new Date() },
+    });
+    if (changed.count !== 1) throw new MessageJobError("MEDIA_DELETE_CONFLICT", "Media state changed while deleting", 409, true);
+    return current;
+  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
+  await deletePrivateMediaObject({ cacheKey: media.id, storagePath: media.storagePath });
   await releaseStorageQuota({
-    userId: actor.id,
+    userId: media.uploaderId,
     bytes: Number(media.sizeBytes),
     sessionId: media.sessionId ?? "tenant-media",
     filename: media.storedName,

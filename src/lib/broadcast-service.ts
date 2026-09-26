@@ -10,6 +10,7 @@ import { MessageJobError } from "./message-job-errors";
 import { prisma } from "./prisma";
 import { validateBroadcastTemplate } from "./broadcast-template";
 import { commitReservedUsage, releaseReservedUsage, reserveUsage } from "./usage";
+import { lockPrivateMediaForUse } from "./private-media-lifecycle";
 
 export type BroadcastActor = {
   id: string;
@@ -253,8 +254,9 @@ export async function createBroadcast(actor: BroadcastActor, input: BroadcastCre
 
   let recordCreated = false;
   try {
-    const broadcast = await prisma.broadcastLog.create({
-      data: {
+    const broadcast = await prisma.$transaction(async (tx) => {
+      if (media) await lockPrivateMediaForUse(tx, tenantId, media.id);
+      return tx.broadcastLog.create({ data: {
         tenantId,
         createdById: actor.id,
         sessionDbId: session.id,
@@ -285,8 +287,8 @@ export async function createBroadcast(actor: BroadcastActor, input: BroadcastCre
           })),
         },
       },
-      include: broadcastInclude,
-    });
+      include: broadcastInclude });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     recordCreated = true;
     await commitReservedUsage({ userId: actor.id, feature: "BROADCASTS_MONTHLY", idempotencyKey: quotaKey });
     return { broadcast: serializeBroadcast(broadcast), idempotent: false };

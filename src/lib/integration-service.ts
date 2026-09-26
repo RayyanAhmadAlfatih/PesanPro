@@ -13,7 +13,6 @@ import {
   applyIntegrationMapping,
   hashIntegrationToken,
   parseIntegrationTokenScopes,
-  readIntegrationToken,
   type IntegrationMessageContract,
 } from "./integration-contract";
 

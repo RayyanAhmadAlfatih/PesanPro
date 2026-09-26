@@ -139,7 +139,7 @@ export class WhatsAppInstance {
                                 where: { sessionId: this.sessionId }
                             })
                         ]);
-                    } catch (e) { /* ignore */ }
+                    } catch { /* ignore */ }
                     logger.success("Instance", `Session ${this.sessionId} credentials deleted.`);
 
                     // Remove from memory manager

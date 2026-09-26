@@ -55,7 +55,7 @@ function LoginForm() {
         window.location.href = callbackUrl;
         router.refresh();
       }
-    } catch (err) {
+    } catch {
       setError("An unexpected error occurred");
     } finally {
       setLoading(false);

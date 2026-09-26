@@ -16,7 +16,7 @@ const notificationSchema = z.object({
     message: "Provide exactly one of targetUserId or broadcast=true",
 });
 
-export async function GET(req: Request) {
+export async function GET() {
     const session = await auth();
     if (!session?.user?.id || session.user.accountActive === false) return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
 

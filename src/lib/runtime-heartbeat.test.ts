@@ -4,8 +4,8 @@ import { RuntimeHeartbeatReporter, type RuntimeHeartbeatRepository } from "./run
 describe("runtime heartbeat reporter", () => {
   it("reports startup, healthy state, degradation, recovery, and graceful stop", async () => {
     vi.useFakeTimers();
-    const upsert = vi.fn(async (_input: Parameters<RuntimeHeartbeatRepository["upsert"]>[0]) => undefined);
-    const stop = vi.fn(async (_instanceId: string, _stoppedAt: Date) => undefined);
+    const upsert = vi.fn<RuntimeHeartbeatRepository["upsert"]>(async (input) => { void input; });
+    const stop = vi.fn<RuntimeHeartbeatRepository["stop"]>(async (instanceId, stoppedAt) => { void instanceId; void stoppedAt; });
     const repository: RuntimeHeartbeatRepository = { upsert, stop };
     const reporter = new RuntimeHeartbeatReporter({
       instanceId: "worker-1",

@@ -91,7 +91,7 @@ export const createPrismaAuthState = async (sessionId: string): Promise<{ state:
              await prisma.authState.deleteMany({
                 where: { sessionId, key }
             });
-        } catch (error) {
+        } catch {
             // ignore
         }
     }

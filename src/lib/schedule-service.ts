@@ -5,6 +5,7 @@ import { MessageJobError } from "./message-job-errors";
 import { normalizeRecipient } from "./message-recipient";
 import { prisma } from "./prisma";
 import { parseScheduleLocalDateTime, validateCronExpression, validateScheduleTimezone } from "./schedule-policy";
+import { lockPrivateMediaForUse } from "./private-media-lifecycle";
 
 export type ScheduleActor = { id: string; role: Role; ownerId?: string | null; apiKeyId?: string };
 
@@ -122,6 +123,7 @@ export async function createSchedule(actor: ScheduleActor, input: ScheduleWriteI
       const { QuotaExceededError } = await import("./usage");
       throw new QuotaExceededError("SCHEDULED_MESSAGES", entitlement.limit);
     }
+    if (prepared.media) await lockPrivateMediaForUse(tx, prepared.session.userId, prepared.media.id);
     return tx.scheduledMessage.create({
       data: {
         createdById: actor.id,
@@ -186,32 +188,36 @@ export async function updateSchedule(actor: ScheduleActor, scheduleId: string, i
     throw new MessageJobError("INVALID_SCHEDULE_STATE", "Completed or cancelled schedules cannot be edited", 409, false);
   }
   if (current.lockedBy) throw new MessageJobError("SCHEDULE_BUSY", "Schedule is currently being processed", 409, true);
-  const result = await prisma.scheduledMessage.updateMany({
-    where: { id: current.id, sessionId: prepared.session.id, lockedBy: null, status: { in: ["ACTIVE", "FAILED"] } },
-    data: {
-      mediaId: prepared.media?.id ?? null,
-      jid: prepared.recipient,
-      content: prepared.text,
-      mediaUrl: null,
-      mediaType: prepared.media?.mediaType ?? null,
-      nextRunAt: prepared.startAt,
-      startAt: prepared.startAt,
-      timezone: prepared.timezone,
-      kind: prepared.kind,
-      cronExpression: prepared.cronExpression,
-      recurrenceRule: prepared.cronExpression ? JSON.stringify({ type: "cron", value: prepared.cronExpression }) : null,
-      missedRunPolicy: prepared.missedRunPolicy,
-      misfireGraceSeconds: prepared.misfireGraceSeconds,
-      status: "ACTIVE",
-      version: { increment: 1 },
-      safeErrorCode: null,
-      safeErrorMessage: null,
-      completedAt: null,
-      cancelledAt: null,
-    },
-  });
-  if (result.count === 0) throw new MessageJobError("SCHEDULE_BUSY", "Schedule state changed while editing", 409, true);
-  return scheduleDto(await prisma.scheduledMessage.findUniqueOrThrow({ where: { id: current.id } }));
+  const updated = await prisma.$transaction(async (tx) => {
+    if (prepared.media) await lockPrivateMediaForUse(tx, prepared.session.userId, prepared.media.id);
+    const result = await tx.scheduledMessage.updateMany({
+      where: { id: current.id, sessionId: prepared.session.id, lockedBy: null, status: { in: ["ACTIVE", "FAILED"] } },
+      data: {
+        mediaId: prepared.media?.id ?? null,
+        jid: prepared.recipient,
+        content: prepared.text,
+        mediaUrl: null,
+        mediaType: prepared.media?.mediaType ?? null,
+        nextRunAt: prepared.startAt,
+        startAt: prepared.startAt,
+        timezone: prepared.timezone,
+        kind: prepared.kind,
+        cronExpression: prepared.cronExpression,
+        recurrenceRule: prepared.cronExpression ? JSON.stringify({ type: "cron", value: prepared.cronExpression }) : null,
+        missedRunPolicy: prepared.missedRunPolicy,
+        misfireGraceSeconds: prepared.misfireGraceSeconds,
+        status: "ACTIVE",
+        version: { increment: 1 },
+        safeErrorCode: null,
+        safeErrorMessage: null,
+        completedAt: null,
+        cancelledAt: null,
+      },
+    });
+    if (result.count === 0) throw new MessageJobError("SCHEDULE_BUSY", "Schedule state changed while editing", 409, true);
+    return tx.scheduledMessage.findUniqueOrThrow({ where: { id: current.id } });
+  }, { isolationLevel: "Serializable" });
+  return scheduleDto(updated);
 }
 
 export async function cancelSchedule(actor: ScheduleActor, sessionPublicId: string, scheduleId: string) {

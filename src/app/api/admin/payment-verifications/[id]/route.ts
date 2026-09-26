@@ -59,6 +59,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     data: {
       ...result.verification,
       amount: result.verification.amount.toString(),
+      proofStoragePath: undefined,
+      proofMimeType: undefined,
+      proofSizeBytes: undefined,
+      proofChecksumSha256: undefined,
       subscription: result.subscription,
       idempotent: result.idempotent,
     },

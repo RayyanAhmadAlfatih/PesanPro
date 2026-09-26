@@ -211,7 +211,7 @@ export async function recoverMessageJobsForWorker(workerId: string) {
         },
       });
     }
-    const updated = await tx.messageJob.updateMany({
+    await tx.messageJob.updateMany({
       where: { id: { in: claims.map((job) => job.id) }, status: "PROCESSING", lockedBy: { startsWith: `${workerId}:` } },
       data: {
         status: "QUEUED",

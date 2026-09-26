@@ -19,5 +19,14 @@ export async function GET(request: NextRequest) {
     orderBy: { createdAt: "desc" },
     take: 200,
   });
-  return NextResponse.json({ data: submissions.map((item) => ({ ...item, amount: item.amount.toString() })) });
+  return NextResponse.json({
+    data: submissions.map((item) => ({
+      ...item,
+      amount: item.amount.toString(),
+      proofStoragePath: undefined,
+      proofMimeType: undefined,
+      proofSizeBytes: undefined,
+      proofChecksumSha256: undefined,
+    })),
+  });
 }
