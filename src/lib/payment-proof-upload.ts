@@ -70,7 +70,7 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
             files: 1,
             fields: 2,
             fieldSize: 512,
-            parts: 3,
+            parts: 4,
           },
         });
       } catch {
