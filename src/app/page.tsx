@@ -1,6 +1,7 @@
 import Link from "next/link";
-import { ArrowRight, Bot, Zap, Shield, Globe, MessageSquare, Clock, Code, ChevronRight } from "lucide-react";
+import { ArrowRight, Zap, Shield, Globe, MessageSquare, Clock, Code, ChevronRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { PesanProLogo } from "@/components/brand";
 import fs from "fs";
 import path from "path";
 
@@ -40,13 +41,9 @@ export default function Home() {
       {/* Navbar - Floating Glass */}
       <header className="fixed top-4 inset-x-4 md:inset-x-auto md:top-6 md:left-1/2 md:-translate-x-1/2 z-50 md:w-full md:max-w-5xl transition-all duration-300">
         <div className="glass rounded-full px-4 md:px-8 h-14 md:h-16 flex items-center justify-between mx-auto shadow-lg shadow-black/5 dark:shadow-black/20 border border-white/40 dark:border-white/10">
-          <div className="flex items-center gap-3 font-bold text-xl">
-            <div className="relative flex h-8 w-8 md:h-10 md:w-10 items-center justify-center rounded-full bg-gradient-to-br from-emerald-400 to-primary text-white shadow-inner">
-              <Bot className="h-5 w-5 md:h-6 md:w-6" />
-              <div className="absolute inset-0 rounded-full bg-primary blur-md -z-10 opacity-50 animate-pulse-glow" />
-            </div>
-            <span className="text-foreground tracking-tight hidden sm:inline-block">PesanPro</span>
-          </div>
+          <Link href="/" aria-label="PesanPro home" className="flex items-center">
+            <PesanProLogo className="h-9 w-auto object-contain md:h-11" priority />
+          </Link>
 
           <nav className="hidden md:flex items-center gap-8">
             <Link href="#features" className="text-sm font-medium text-muted-foreground hover:text-foreground transition-colors">Features</Link>
@@ -178,12 +175,9 @@ export default function Home() {
       <footer className="border-t border-border/50 bg-background/50 backdrop-blur-xl py-12 relative z-10">
         <div className="container px-4 md:px-6 max-w-6xl mx-auto">
           <div className="flex flex-col md:flex-row justify-between items-center gap-8">
-            <div className="flex items-center gap-3">
-              <div className="p-2 rounded-xl bg-primary/10">
-                <Bot className="h-6 w-6 text-primary" />
-              </div>
-              <span className="text-xl font-bold text-foreground">PesanPro</span>
-            </div>
+            <Link href="/" aria-label="PesanPro home">
+              <PesanProLogo className="h-11 w-auto object-contain" />
+            </Link>
             <div className="flex gap-8 text-sm font-medium">
               <Link href="/privacy" className="text-muted-foreground hover:text-foreground transition-colors">Privacy</Link>
               <Link href="/terms" className="text-muted-foreground hover:text-foreground transition-colors">Terms</Link>

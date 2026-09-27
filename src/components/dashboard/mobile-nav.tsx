@@ -29,6 +29,7 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import pkg from "../../../package.json";
 import { canAccessDashboardPath } from "@/lib/access-policy";
+import { PesanProIcon } from "@/components/brand";
 
 interface NavGroup {
     label: string;
@@ -105,8 +106,13 @@ export function MobileNav({ appName = "PesanPro" }: { appName?: string }) {
             </SheetTrigger>
             <SheetContent side="left" className="flex w-[85vw] flex-col border-r border-[var(--pp-ink)] bg-[var(--pp-paper)] p-0 sm:w-[320px]">
                 <SheetHeader className="border-b border-[var(--pp-line)] px-5 py-4 text-left">
-                    <SheetTitle className="font-[family-name:var(--font-display)] text-xl font-extrabold text-foreground">{appName}</SheetTitle>
-                    <SheetDescription className="-mt-1 text-[11px] text-muted-foreground">WhatsApp operations</SheetDescription>
+                    <div className="flex items-center gap-3">
+                        <PesanProIcon alt="" className="size-10 rounded-md border border-[var(--pp-ink)] object-cover" />
+                        <div>
+                            <SheetTitle className="font-[family-name:var(--font-display)] text-xl font-extrabold text-foreground">{appName}</SheetTitle>
+                            <SheetDescription className="-mt-1 text-[11px] text-muted-foreground">WhatsApp operations</SheetDescription>
+                        </div>
+                    </div>
                 </SheetHeader>
 
                 <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
