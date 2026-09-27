@@ -1,8 +1,7 @@
 import { Prisma } from "@prisma/client";
 import { MessageJobError } from "./message-job-errors";
 import { prisma } from "./prisma";
-import { deletePrivateMediaObject } from "./private-media-storage";
-import { releaseStorageQuota } from "./storage-quota";
+import { enqueuePrivateMediaCleanup } from "./private-media-cleanup";
 
 export const PRIVATE_MEDIA_ACTIVE_REFERENCE_STATUSES = {
   messageJobs: ["QUEUED", "PROCESSING", "FAILED"],
@@ -61,16 +60,11 @@ export async function purgeExpiredPrivateMedia(now = new Date(), batchSize = 100
         where: { id: current.id, status: "ACTIVE", expiresAt: { lte: now } },
         data: { status: "DELETED", deletedAt: now },
       });
-      return changed.count === 1 ? current : null;
+      if (changed.count !== 1) return null;
+      await enqueuePrivateMediaCleanup(tx, current, now);
+      return current;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (!claimed) continue;
-    await deletePrivateMediaObject({ cacheKey: claimed.id, storagePath: claimed.storagePath });
-    await releaseStorageQuota({
-      userId: claimed.uploaderId,
-      bytes: Number(claimed.sizeBytes),
-      sessionId: claimed.sessionId ?? "tenant-media",
-      filename: claimed.storedName,
-    });
     deleted += 1;
   }
   return { deleted };
