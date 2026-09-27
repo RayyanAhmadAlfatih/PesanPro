@@ -106,7 +106,7 @@ export async function fetchRemoteMediaForDelivery(
   try {
     const env = getEnv();
     const fetched = await fetchPublicBuffer(remote.mediaUrl, {
-      timeoutMs: 15_000,
+      timeoutMs: 30_000,
       maxBytes: env.MAX_UPLOAD_SIZE_MB * 1024 * 1024,
       maxRedirects: 3,
     });
