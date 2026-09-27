@@ -111,10 +111,17 @@ export async function fetchRemoteMediaForDelivery(
       maxRedirects: 3,
     });
     const responseMimeType = normalizeMimeType(fetched.contentType);
-    assertMimeMatchesMessageType(type, responseMimeType);
+    const responseIsGeneric = responseMimeType === "application/octet-stream";
+    if (responseMimeType === "text/html" || responseMimeType === "application/xhtml+xml") {
+      assertMimeMatchesMessageType(type, responseMimeType);
+    } else if (!responseIsGeneric || !declaredMimeType) {
+      assertMimeMatchesMessageType(type, responseMimeType);
+    }
     return {
       buffer: fetched.buffer,
-      mimeType: declaredMimeType ?? responseMimeType,
+      mimeType: responseIsGeneric && declaredMimeType
+        ? declaredMimeType
+        : responseMimeType ?? declaredMimeType,
       fileName: remoteFileName(remote, fetched.finalUrl),
     };
   } catch (error) {
