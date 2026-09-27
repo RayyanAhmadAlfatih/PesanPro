@@ -28,6 +28,10 @@ export function generateMetadata(): Metadata {
     },
     description: APP_DESCRIPTION,
     applicationName: appName,
+    icons: {
+      icon: [{ url: "/brand/pesanpro-icon.webp", type: "image/webp" }],
+      shortcut: ["/brand/pesanpro-icon.webp"],
+    },
     generator: "Next.js",
     keywords: [
       "whatsapp gateway", "whatsapp api", "whatsapp bot", "whatsapp management",
