@@ -5,6 +5,7 @@ const mocks = vi.hoisted(() => ({
   findFirst: vi.fn(),
 }));
 
+vi.mock("./api-auth", () => ({ canAccessSession: vi.fn() }));
 vi.mock("./billing", () => ({ resolveTenantId: mocks.resolveTenantId }));
 vi.mock("./prisma", () => ({
   prisma: {
