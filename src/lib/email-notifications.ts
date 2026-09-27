@@ -49,29 +49,62 @@ function appUrl(pathname: string) {
   return baseUrl ? new URL(pathname, baseUrl).toString() : null;
 }
 
-function htmlDocument(input: { heading: string; greeting?: string; paragraphs: string[]; details: Array<[string, string]>; action?: { label: string; url: string } }) {
+// PesanPro brand tokens for transactional email (DESIGN.md): warm paper
+// background, ink text/buttons, highlight for attention, mint for success.
+const EMAIL_PAPER = "#FCFAF5";
+const EMAIL_INK = "#1A3300";
+const EMAIL_HIGHLIGHT = "#FFE95C";
+const EMAIL_MINT = "#D5F5C2";
+const EMAIL_LINE = "#B6B6B6";
+const EMAIL_MUTED = "#607054";
+const EMAIL_WHITE = "#FFFFFF";
+const EMAIL_LOGO_PATH = "/brand/pesanpro-icon.png";
+
+type EmailBadge = { text: string; background: string };
+
+function htmlDocument(input: { heading: string; greeting?: string; paragraphs: string[]; details: Array<[string, string]>; action?: { label: string; url: string }; badge?: EmailBadge }) {
+  const logoUrl = appUrl(EMAIL_LOGO_PATH);
   const detailRows = input.details.map(([label, value]) => `
     <tr>
-      <td style="padding:6px 12px 6px 0;color:#64748b;vertical-align:top">${escapeHtml(label)}</td>
-      <td style="padding:6px 0;color:#0f172a;font-weight:600">${escapeHtml(value)}</td>
+      <td style="padding:7px 16px 7px 0;color:${EMAIL_MUTED};font-size:13px;vertical-align:top">${escapeHtml(label)}</td>
+      <td style="padding:7px 0;color:${EMAIL_INK};font-size:14px;font-weight:600;vertical-align:top">${escapeHtml(value)}</td>
     </tr>`).join("");
-  const paragraphs = input.paragraphs.map((paragraph) => `<p style="margin:0 0 14px;color:#334155;line-height:1.6">${escapeHtml(paragraph)}</p>`).join("");
+  const paragraphs = input.paragraphs.map((paragraph) => `<p style="margin:0 0 10px;color:${EMAIL_INK};font-size:14px;line-height:1.6">${escapeHtml(paragraph)}</p>`).join("");
   const action = input.action
-    ? `<p style="margin:24px 0 0"><a href="${escapeHtml(input.action.url)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:700">${escapeHtml(input.action.label)}</a></p>`
+    ? `<table role="presentation" cellpadding="0" cellspacing="0" style="margin:0"><tr><td><a href="${escapeHtml(input.action.url)}" style="display:inline-block;background:${EMAIL_INK};color:${EMAIL_WHITE};text-decoration:none;font-size:14px;font-weight:700;padding:13px 24px;border-radius:6px">${escapeHtml(input.action.label)}</a></td></tr></table>`
     : "";
+  const badge = input.badge
+    ? `<span style="display:inline-block;background:${escapeHtml(input.badge.background)};color:${EMAIL_INK};font-size:12px;font-weight:700;padding:6px 14px;border-radius:999px;white-space:nowrap">${escapeHtml(input.badge.text)}</span>`
+    : "";
+  const brandmark = logoUrl
+    ? `<img src="${escapeHtml(logoUrl)}" alt="PesanPro" width="40" height="40" style="display:inline-block;vertical-align:middle;border:0" /><span style="display:inline-block;vertical-align:middle;color:${EMAIL_INK};font-size:19px;font-weight:800;margin-left:10px;letter-spacing:-0.2px">PesanPro</span>`
+    : `<span style="color:${EMAIL_INK};font-size:19px;font-weight:800;letter-spacing:-0.2px">PesanPro</span>`;
   return `<!doctype html>
 <html lang="id">
-  <body style="margin:0;background:#f8fafc;font-family:Arial,sans-serif">
-    <div style="max-width:620px;margin:0 auto;padding:32px 20px">
-      <div style="background:#ffffff;border:1px solid #e2e8f0;border-radius:12px;padding:28px">
-        <h1 style="margin:0 0 18px;color:#0f172a;font-size:22px;line-height:1.35">${escapeHtml(input.heading)}</h1>
-        ${input.greeting ? `<p style="margin:0 0 14px;color:#334155;line-height:1.6">${escapeHtml(input.greeting)}</p>` : ""}
-        ${paragraphs}
-        <table role="presentation" style="width:100%;border-collapse:collapse;margin-top:18px">${detailRows}</table>
-        ${action}
-      </div>
-      <p style="margin:14px 0 0;color:#64748b;font-size:12px;text-align:center">Email otomatis dari ${escapeHtml(getEnv().APP_NAME)}.</p>
-    </div>
+  <body style="margin:0;padding:0;background:${EMAIL_PAPER};font-family:Arial,Helvetica,sans-serif">
+    <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="background:${EMAIL_PAPER}">
+      <tr><td align="center" style="padding:32px 16px">
+        <table role="presentation" width="600" cellpadding="0" cellspacing="0" style="max-width:600px;width:100%;background:${EMAIL_WHITE};border:1px solid ${EMAIL_LINE};border-radius:12px">
+          <tr><td style="padding:24px 28px 0">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0"><tr>
+              <td align="left" style="vertical-align:middle">${brandmark}</td>
+              <td align="right" style="vertical-align:middle">${badge}</td>
+            </tr></table>
+          </td></tr>
+          <tr><td style="padding:20px 28px 0"><div style="border-top:1px solid ${EMAIL_LINE};font-size:0;line-height:0">&nbsp;</div></td></tr>
+          <tr><td style="padding:20px 28px 0">
+            <h1 style="margin:0 0 12px;color:${EMAIL_INK};font-size:20px;line-height:1.35">${escapeHtml(input.heading)}</h1>
+            ${input.greeting ? `<p style="margin:0 0 10px;color:${EMAIL_INK};font-size:14px;line-height:1.6">${escapeHtml(input.greeting)}</p>` : ""}
+            ${paragraphs}
+          </td></tr>
+          <tr><td style="padding:16px 28px 0">
+            <table role="presentation" width="100%" cellpadding="0" cellspacing="0" style="border-collapse:collapse">${detailRows}</table>
+          </td></tr>
+          <tr><td style="padding:24px 28px 28px">${action}</td></tr>
+        </table>
+        <p style="margin:16px 0 0;color:${EMAIL_MUTED};font-size:12px;text-align:center">Email otomatis dari ${escapeHtml(getEnv().APP_NAME)}.</p>
+      </td></tr>
+    </table>
   </body>
 </html>`;
 }
@@ -100,6 +133,7 @@ export function buildPaymentSubmittedEmail(input: PaymentEmailBase & {
     textBody: textLines.join("\n"),
     htmlBody: htmlDocument({
       heading: "Bukti pembayaran baru",
+      badge: { text: "Perlu diperiksa", background: EMAIL_HIGHLIGHT },
       paragraphs: ["Ada bukti pembayaran baru yang perlu diperiksa."],
       details: [
         ["Pengguna", `${payer} (${input.payerEmail})`],
@@ -137,6 +171,7 @@ export function buildPaymentApprovedEmail(input: PaymentEmailBase & {
     textBody: textLines.join("\n"),
     htmlBody: htmlDocument({
       heading: "Pembayaran sudah dikonfirmasi",
+      badge: { text: "Aktif", background: EMAIL_MINT },
       greeting,
       paragraphs: [`Paket ${input.planName} sudah aktif dan dapat digunakan sampai ${formatDate(input.activeUntil)}.`],
       details: [
