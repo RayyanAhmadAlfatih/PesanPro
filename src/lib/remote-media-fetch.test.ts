@@ -36,7 +36,7 @@ describe("remote media delivery fetch policy", () => {
       fileName: "photo.webp",
     });
     expect(fetchPublicBuffer).toHaveBeenCalledWith("https://cdn.example.com/start", {
-      timeoutMs: 15_000,
+      timeoutMs: 30_000,
       maxBytes: 50 * 1024 * 1024,
       maxRedirects: 3,
     });
