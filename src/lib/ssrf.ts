@@ -244,7 +244,7 @@ type PinnedRequester = (
 function requestPinned(url: URL, address: PublicAddress, signal: AbortSignal): Promise<PinnedResponse> {
   const transport = url.protocol === "https:" ? https : http;
   const hostname = normalizedHostname(url);
-  const options: RequestOptions = {
+  const options: RequestOptions & { servername?: string } = {
     protocol: url.protocol,
     hostname: address.address,
     family: address.family,
@@ -379,27 +379,33 @@ async function fetchPublicBufferWithDependencies(
         throw new PublicFetchError("REMOTE_FETCH_TOO_LARGE", "Remote media exceeds the configured size limit", false);
       }
 
-      const chunks: Buffer[] = [];
-      let total = 0;
-      try {
+      const readBody = async () => {
+        const chunks: Buffer[] = [];
+        let total = 0;
         for await (const chunk of response.body) {
           if (controller.signal.aborted) throw timeoutError();
           const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
           total += buffer.length;
           if (total > maxBytes) {
-            response.destroy?.();
             throw new PublicFetchError("REMOTE_FETCH_TOO_LARGE", "Remote media exceeds the configured size limit", false);
           }
           chunks.push(buffer);
         }
+        return Buffer.concat(chunks, total);
+      };
+
+      let buffer: Buffer;
+      try {
+        buffer = await withDeadline(readBody(), deadline);
       } catch (error) {
+        response.destroy?.();
         if (error instanceof PublicFetchError) throw error;
         if (controller.signal.aborted || (error instanceof Error && error.name === "AbortError")) throw timeoutError();
         throw new PublicFetchError("REMOTE_FETCH_NETWORK", "Remote media transfer failed", true);
       }
 
       return {
-        buffer: Buffer.concat(chunks, total),
+        buffer,
         contentType: normalizeContentType(firstHeader(response.headers, "content-type")),
         finalUrl: url.toString(),
       };
