@@ -294,7 +294,7 @@ export async function onMessageSent(sessionId: string, message: WAMessage, exist
     if (!fileUrl) {
         try {
             fileUrl = await downloadAndSaveMedia(message, sessionId);
-        } catch (e) { /* ignore */ }
+        } catch { /* ignore */ }
     }
 
     // --- Consistent JID Normalization (same as onMessageReceived) ---
@@ -368,7 +368,7 @@ export async function fireSentWebhook(
         webhookMsg.message = messageContent;
 
         await onMessageSent(sessionId, webhookMsg);
-    } catch (e) {
+    } catch {
         // Non-blocking
     }
 }
@@ -515,4 +515,3 @@ async function extractQuotedMessageAsync(msg: { message?: WAMessageContent | nul
 
     return null;
 }
-

@@ -43,7 +43,7 @@ export function Navbar({ appName }: NavbarProps) {
                 setNotifications(items);
                 setUnreadCount(items.filter((n: Notification) => !n.read).length);
             }
-        } catch (e) {
+        } catch {
             console.error("Failed to fetch notifications");
         }
     };
@@ -89,7 +89,7 @@ export function Navbar({ appName }: NavbarProps) {
             };
         }
         return () => window.clearTimeout(fetchTimer);
-    }, [session?.user?.id]);
+    }, [router, session?.user?.id]);
 
     const markAsRead = async (id?: string) => {
         try {
@@ -108,7 +108,7 @@ export function Navbar({ appName }: NavbarProps) {
                     setUnreadCount(0);
                 }
             }
-        } catch (e) {
+        } catch {
             console.error("Failed to mark read");
         }
     };
@@ -126,7 +126,7 @@ export function Navbar({ appName }: NavbarProps) {
                 });
                 toast.success("Notification deleted");
             }
-        } catch (e) {
+        } catch {
             console.error("Failed to delete notification");
             toast.error("Failed to delete notification");
         }

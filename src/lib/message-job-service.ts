@@ -7,6 +7,8 @@ import { normalizeRecipient } from "./message-recipient";
 import { prisma } from "./prisma";
 import { resolveTenantId } from "./billing";
 import { commitReservedUsage, releaseReservedUsage, reserveUsage } from "./usage";
+import { lockPrivateMediaForUse } from "./private-media-lifecycle";
+import { validateRemoteMediaUrl } from "./remote-media";
 
 const IDEMPOTENCY_TTL_MS = 7 * 24 * 60 * 60 * 1000;
 
@@ -27,6 +29,9 @@ export type EnqueueMessageInput = {
   text?: string;
   caption?: string;
   mediaId?: string;
+  mediaUrl?: string;
+  fileName?: string;
+  mimeType?: string;
   mentions?: string[];
   quotedMessageId?: string;
   maxAttempts?: number;
@@ -95,7 +100,14 @@ export async function enqueueMessage(input: EnqueueMessageInput) {
   if (!session) throw new MessageJobError("SESSION_NOT_FOUND", "Device was not found", 404, false);
   const recipient = normalizeRecipient(input.recipient);
   if (input.type === "TEXT" && !input.text?.trim()) throw new MessageJobError("INVALID_MESSAGE", "Text is required", 422, false);
-  if (input.type !== "TEXT" && !input.mediaId) throw new MessageJobError("INVALID_MEDIA", "Media ID is required", 422, false);
+  if (input.type === "TEXT" && (input.mediaId || input.mediaUrl)) {
+    throw new MessageJobError("INVALID_MEDIA", "Text messages cannot include media", 422, false);
+  }
+  if (input.type !== "TEXT" && Boolean(input.mediaId) === Boolean(input.mediaUrl)) {
+    throw new MessageJobError("INVALID_MEDIA", "Provide exactly one mediaId or media URL", 422, false);
+  }
+
+  const mediaUrl = input.mediaUrl ? await validateRemoteMediaUrl(input.mediaUrl) : undefined;
 
   if (input.mediaId) {
     const media = await prisma.privateMedia.findFirst({ where: { id: input.mediaId, tenantId, status: "ACTIVE" }, select: { id: true, mediaType: true } });
@@ -109,6 +121,9 @@ export async function enqueueMessage(input: EnqueueMessageInput) {
     text: input.text?.trim() || null,
     caption: input.caption?.trim() || null,
     mediaId: input.mediaId ?? null,
+    mediaUrl: mediaUrl ?? null,
+    fileName: input.fileName?.trim() || null,
+    mimeType: input.mimeType?.trim().toLowerCase() || null,
     mentions: input.mentions ?? [],
     quotedMessageId: input.quotedMessageId ?? null,
   } satisfies Prisma.InputJsonObject;
@@ -130,8 +145,9 @@ export async function enqueueMessage(input: EnqueueMessageInput) {
   });
 
   try {
-    const job = await prisma.messageJob.create({
-      data: {
+    const job = await prisma.$transaction(async (tx) => {
+      if (input.mediaId) await lockPrivateMediaForUse(tx, tenantId, input.mediaId);
+      return tx.messageJob.create({ data: {
         tenantId,
         requestedById: input.actor.id,
         sessionId: session.id,
@@ -158,8 +174,8 @@ export async function enqueueMessage(input: EnqueueMessageInput) {
             expiresAt: new Date(Date.now() + IDEMPOTENCY_TTL_MS),
           },
         },
-      },
-    });
+      } });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return { job: publicJob(job), idempotent: false };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {

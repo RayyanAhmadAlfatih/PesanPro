@@ -1,6 +1,7 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
+import Image from "next/image";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Card, CardContent } from "@/components/ui/card";
@@ -54,12 +55,6 @@ interface MediaFile {
     createdAt: string;
     modifiedAt: string;
     url: string;
-}
-
-interface MediaListResponse {
-    files: MediaFile[];
-    totalSize: number;
-    totalCount: number;
 }
 
 function formatFileSize(bytes: number): string {
@@ -462,7 +457,7 @@ export default function MediaPage() {
                                                                                             <CardContent className="p-0">
                                                                                                 <div className={`h-24 flex items-center justify-center ${getTypeBg(file.type)} relative`}>
                                                                                                     {file.type === "image" ? (
-                                                                                                        <img src={file.url} alt={file.name} className="h-full w-full object-cover" loading="lazy" />
+                                                                                                        <Image src={file.url} alt={file.name} fill sizes="(max-width: 640px) 50vw, 160px" className="object-cover" unoptimized />
                                                                                                     ) : (
                                                                                                         <div className="flex flex-col items-center gap-1">
                                                                                                             {getTypeIcon(file.type)}
@@ -519,7 +514,7 @@ export default function MediaPage() {
                         <button onClick={() => setPreviewFile(null)} className="absolute -top-10 right-0 text-white/50 hover:text-white transition-colors bg-white/10 hover:bg-white/20 rounded-full p-1 border border-white/10 m-2">
                             <X className="h-5 w-5" />
                         </button>
-                        <img src={previewFile.url} alt={previewFile.name} className="max-h-[85vh] rounded-lg object-contain shadow-none" />
+                        <Image src={previewFile.url} alt={previewFile.name} width={1280} height={960} className="max-h-[85vh] h-auto w-auto rounded-lg object-contain shadow-none" unoptimized />
                         <div className="bg-black/50  px-4 py-2 rounded-full mt-4 flex items-center gap-4 text-xs">
                             <span className="text-white font-medium">{previewFile.name}</span>
                             <span className="text-white/60">•</span>

@@ -10,7 +10,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
   const { id } = await params;
   const verification = await prisma.paymentVerification.findUnique({
     where: { id },
-    select: { userId: true, proofUrl: true },
+    select: {
+      userId: true,
+      proofUrl: true,
+      proofStoragePath: true,
+      proofMimeType: true,
+      proofSizeBytes: true,
+      proofChecksumSha256: true,
+    },
   });
   if (!verification || (actor.role !== "SUPERADMIN" && verification.userId !== actor.id)) {
     return NextResponse.json({ error: "Payment proof not found" }, { status: 404 });
@@ -19,7 +26,14 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     return NextResponse.json({ error: "Stored payment proof not found" }, { status: 404 });
   }
   try {
-    const proof = await loadPaymentProof(verification.userId, id);
+    const proof = await loadPaymentProof({
+      userId: verification.userId,
+      verificationId: id,
+      storagePath: verification.proofStoragePath,
+      mimeType: verification.proofMimeType,
+      sizeBytes: verification.proofSizeBytes,
+      checksumSha256: verification.proofChecksumSha256,
+    });
     return new NextResponse(new Uint8Array(proof.buffer), {
       headers: {
         "Content-Type": proof.mimeType,

@@ -13,6 +13,23 @@ const submissionSchema = z.object({
   reference: z.string().trim().min(3).max(120),
 });
 
+function publicSubmission<T extends {
+  amount: { toString(): string };
+  proofStoragePath: string | null;
+  proofMimeType: string | null;
+  proofSizeBytes: bigint | null;
+  proofChecksumSha256: string | null;
+}>(item: T) {
+  return {
+    ...item,
+    amount: item.amount.toString(),
+    proofStoragePath: undefined,
+    proofMimeType: undefined,
+    proofSizeBytes: undefined,
+    proofChecksumSha256: undefined,
+  };
+}
+
 export async function GET() {
   const session = await auth();
   if (!session?.user?.id || session.user.accountActive === false) {
@@ -24,7 +41,7 @@ export async function GET() {
     orderBy: { createdAt: "desc" },
   });
   return NextResponse.json({
-    data: submissions.map((item) => ({ ...item, amount: item.amount.toString() })),
+    data: submissions.map(publicSubmission),
   });
 }
 
@@ -56,7 +73,7 @@ export async function POST(request: NextRequest) {
   const plan = await prisma.plan.findFirst({ where: { id: parsed.data.planId, isActive: true, priceMonthly: { gt: 0 } } });
   if (!plan) return NextResponse.json({ error: "Active plan not found" }, { status: 404 });
   const verificationId = crypto.randomUUID();
-  let storedProof: { absolutePath: string } | null = null;
+  let storedProof: Awaited<ReturnType<typeof storePaymentProof>> | null = null;
   let submission;
   try {
     const buffer = Buffer.from(await proof.arrayBuffer());
@@ -75,10 +92,14 @@ export async function POST(request: NextRequest) {
         currency: plan.currency,
         reference: parsed.data.reference,
         proofUrl: `/api/payment-verifications/${verificationId}/proof`,
+        proofStoragePath: storedProof.storagePath,
+        proofMimeType: storedProof.mimeType,
+        proofSizeBytes: storedProof.sizeBytes,
+        proofChecksumSha256: storedProof.checksumSha256,
       },
     });
   } catch (error) {
-    if (storedProof) await deleteStoredPaymentProof(storedProof.absolutePath);
+    if (storedProof) await deleteStoredPaymentProof(storedProof.storagePath, verificationId);
     if (error instanceof MessageJobError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     }
@@ -94,5 +115,5 @@ export async function POST(request: NextRequest) {
     userAgent: request.headers.get("user-agent"),
     meta: { planId: plan.id, amount: plan.priceMonthly!.toString(), currency: plan.currency },
   });
-  return NextResponse.json({ data: { ...submission, amount: submission.amount.toString() } }, { status: 201 });
+  return NextResponse.json({ data: publicSubmission(submission) }, { status: 201 });
 }

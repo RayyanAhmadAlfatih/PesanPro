@@ -1,14 +1,14 @@
 "use client";
 
-import { useEffect, useState } from "react";
+import { useCallback, useEffect, useState } from "react";
 import { useParams, useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription, CardFooter } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { toast } from "sonner";
-import { ArrowLeft, Play, Square, RotateCcw, LogOut, Power, Trash2, QrCode, Activity, HardDrive, Wifi, MemoryStick, Copy, Check } from "lucide-react";
+import { ArrowLeft, Play, Square, RotateCcw, LogOut, Trash2, Activity, Wifi, MemoryStick, Copy } from "lucide-react";
 import Link from "next/link";
-import { io, Socket } from "socket.io-client";
+import { io } from "socket.io-client";
 import { QRCodeSVG } from "qrcode.react";
 import {
     AlertDialog,
@@ -50,14 +50,13 @@ export default function SessionDetailPage() {
     const [session, setSession] = useState<SessionDetail | null>(null);
     const [loading, setLoading] = useState(true);
     const [qrCode, setQrCode] = useState<string | null>(null);
-    const [socket, setSocket] = useState<Socket | null>(null);
     const [uptime, setUptime] = useState(0);
     const [systemMetrics, setSystemMetrics] = useState<SessionMetrics | null>(null);
     const [phoneNumber, setPhoneNumber] = useState("");
     const [pairingCode, setPairingCode] = useState<string | null>(null);
     const [isPairing, setIsPairing] = useState(false);
 
-    const fetchSession = async () => {
+    const fetchSession = useCallback(async () => {
         try {
             const res = await fetch(`/api/sessions/${sessionId}`);
             if (!res.ok) {
@@ -81,19 +80,19 @@ export default function SessionDetailPage() {
         } finally {
             setLoading(false);
         }
-    };
+    }, [router, sessionId]);
 
-    const fetchMetrics = async () => {
+    const fetchMetrics = useCallback(async () => {
         try {
             const res = await fetch(`/api/system/monitor/${sessionId}`);
             const result = await res.json();
             if (result.status) {
                 setSystemMetrics(result.data);
             }
-        } catch (e) {
+        } catch {
             // silent ignore
         }
-    };
+    }, [sessionId]);
 
     useEffect(() => {
         fetchSession();
@@ -120,8 +119,6 @@ export default function SessionDetailPage() {
             }
         });
 
-        setSocket(socketInstance);
-
         // Uptime counter
         const interval = setInterval(() => {
             setUptime(prev => prev + 1);
@@ -136,7 +133,7 @@ export default function SessionDetailPage() {
             clearInterval(interval);
             clearInterval(metricsInterval);
         };
-    }, [sessionId]);
+    }, [fetchMetrics, fetchSession, sessionId]);
 
     const performAction = async (action: string, payload: Record<string, unknown> = {}) => {
         const loadingToast = toast.loading(` performing ${action}...`);
@@ -193,7 +190,7 @@ export default function SessionDetailPage() {
             } else {
                 toast.error("Failed to delete");
             }
-        } catch (e) {
+        } catch {
             toast.error("Error deleting session");
         }
     };

@@ -1,15 +1,14 @@
 'use client';
 
 import { useState, useEffect } from 'react';
-import { io, Socket } from 'socket.io-client';
-import QRCode from 'qrcode';
+import { io } from 'socket.io-client';
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
-import { Card, CardContent, CardHeader, CardTitle, CardFooter, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
 import { useRouter } from 'next/navigation';
 import { toast } from "sonner";
 import { Label } from '@/components/ui/label';
-import { Smartphone, Plus, Trash2, Settings, RefreshCw, Power } from 'lucide-react';
+import { Plus, Settings } from 'lucide-react';
 import { Badge } from '@/components/ui/badge';
 import {
     Table,
@@ -45,7 +44,6 @@ export function SessionManager({ user }: { user?: AuthUser }) {
     const [newSessionName, setNewSessionName] = useState("");
     const [newSessionId, setNewSessionId] = useState("");
     const [loading, setLoading] = useState(false);
-    const [socket, setSocket] = useState<Socket | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -74,8 +72,6 @@ export function SessionManager({ user }: { user?: AuthUser }) {
                 fetchSessions(); // Refresh purely to get updated state from DB if needed
             }
         });
-
-        setSocket(socketInstance);
 
         return () => {
             socketInstance.disconnect();

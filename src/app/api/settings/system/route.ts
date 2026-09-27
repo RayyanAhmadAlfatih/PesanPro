@@ -24,7 +24,7 @@ export async function GET(request: NextRequest) {
         });
 
         return NextResponse.json({ status: true, message: "System config fetched", data: config || { appName: "PesanPro", faviconUrl: "/favicon.ico", timezone: "Asia/Jakarta", enableRegistration: true } });
-    } catch (error) {
+    } catch {
         return NextResponse.json({ status: false, message: "Failed to fetch settings", error: "Failed to fetch settings" }, { status: 500 });
     }
 }
@@ -49,7 +49,7 @@ export async function POST(req: NextRequest) {
         });
 
         return NextResponse.json({ status: true, message: "System settings updated", data: config });
-    } catch (error) {
+    } catch {
         return NextResponse.json({ status: false, message: "Failed to update settings", error: "Failed to update settings" }, { status: 500 });
     }
 }

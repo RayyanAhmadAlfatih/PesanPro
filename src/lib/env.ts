@@ -20,8 +20,19 @@ const envSchema = z.object({
     .regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY must be 64 hex characters (32 bytes) — generate with: openssl rand -hex 32"),
   BAILEYS_LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("error"),
   MAX_UPLOAD_SIZE_MB: z.coerce.number().int().positive().default(50),
+  MAX_CONCURRENT_MEDIA_UPLOADS: z.coerce.number().int().min(1).max(16).default(2),
+  MEDIA_STORAGE_DRIVER: z.enum(["local", "b2"]).default("local"),
   PRIVATE_MEDIA_PATH: z.string().min(1).default("data/private-media"),
   PRIVATE_MEDIA_RETENTION_DAYS: z.coerce.number().int().positive().max(3650).default(30),
+  MEDIA_CACHE_MAX_ENTRIES: z.coerce.number().int().min(1).max(100).default(100),
+  MEDIA_CACHE_MAX_BYTES_MB: z.coerce.number().int().min(1).max(2048).default(256),
+  MEDIA_IMAGE_WEBP_ENABLED: z.enum(["true", "false"]).default("true").transform((value) => value === "true"),
+  MEDIA_IMAGE_WEBP_QUALITY: z.coerce.number().int().min(1).max(100).default(82),
+  B2_ACCOUNT_ID: optionalString(z.string().min(1)),
+  B2_ACCOUNT_KEY: optionalString(z.string().min(1)),
+  B2_BUCKET: optionalString(z.string().min(1)),
+  B2_ENDPOINT: optionalString(z.string().url()),
+  B2_REGION: z.string().min(1).default("us-west-004"),
   MESSAGE_WORKER_MODE: z.enum(["embedded", "external", "disabled"]).default("embedded"),
   MESSAGE_WORKER_SECRET: optionalString(z.string().min(32)),
   MESSAGE_WORKER_POLL_MS: z.coerce.number().int().min(100).max(60_000).default(1000),
@@ -64,6 +75,13 @@ const envSchema = z.object({
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   TZ: z.string().default("Asia/Jakarta"),
 }).superRefine((env, context) => {
+  if (env.MEDIA_STORAGE_DRIVER === "b2") {
+    for (const key of ["B2_ACCOUNT_ID", "B2_ACCOUNT_KEY", "B2_BUCKET", "B2_ENDPOINT"] as const) {
+      if (!env[key]) {
+        context.addIssue({ code: "custom", path: [key], message: `${key} is required when MEDIA_STORAGE_DRIVER=b2` });
+      }
+    }
+  }
   if (env.MESSAGE_WORKER_MODE === "external" && !env.MESSAGE_WORKER_SECRET) {
     context.addIssue({
       code: "custom",

@@ -6,6 +6,7 @@ import { requireEntitlement, resolveTenantId } from "./billing";
 import { MessageJobError } from "./message-job-errors";
 import { prisma } from "./prisma";
 import { maskAutoReplyJid } from "./autoreply-privacy";
+import { lockPrivateMediaForUse } from "./private-media-lifecycle";
 
 export type AutoReplyActor = { id: string; role: Role; ownerId?: string | null };
 type RuleWithMedia = AutoReply & { media: Pick<PrivateMedia, "id" | "originalName" | "mediaType" | "status"> | null };
@@ -120,6 +121,7 @@ export async function createAutoReplyRule(actor: AutoReplyActor, rawInput: AutoR
       throw new MessageJobError("AUTOREPLY_RULE_LIMIT_REACHED", "Auto-reply rule limit has been reached", 409, false);
     }
     const media = await assertMedia(tx, session.userId, session.id, input.mediaId);
+    if (media) await lockPrivateMediaForUse(tx, session.userId, media.id);
     return tx.autoReply.create({
       data: { ...writeData(input, media), sessionId: session.id, createdById: actor.id },
       include: { media: { select: { id: true, originalName: true, mediaType: true, status: true } } },
@@ -136,6 +138,7 @@ export async function updateAutoReplyRule(actor: AutoReplyActor, ruleId: string,
     const existing = await tx.autoReply.findFirst({ where: { id: ruleId, sessionId: session.id, deletedAt: null }, select: { id: true } });
     if (!existing) throw new MessageJobError("AUTOREPLY_RULE_NOT_FOUND", "Auto-reply rule was not found", 404, false);
     const media = await assertMedia(tx, session.userId, session.id, input.mediaId);
+    if (media) await lockPrivateMediaForUse(tx, session.userId, media.id);
     return tx.autoReply.update({
       where: { id: existing.id },
       data: { ...writeData(input, media), version: { increment: 1 } },

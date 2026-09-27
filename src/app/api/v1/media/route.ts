@@ -2,6 +2,7 @@ import { NextRequest } from "next/server";
 import { getAuthenticatedUser } from "@/lib/api-auth";
 import { apiV1Error, apiV1Exception, apiV1Success, getRequestId } from "@/lib/api-v1";
 import { listPrivateMedia, storePrivateMedia } from "@/lib/private-media";
+import { parsePrivateMediaUpload } from "@/lib/private-media-upload";
 
 export async function GET(request: NextRequest) {
   const requestId = getRequestId(request.headers);
@@ -20,15 +21,10 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthenticatedUser(request);
     if (!user) return apiV1Error(requestId, "UNAUTHORIZED", "Authentication is required", 401);
-    const form = await request.formData();
-    const file = form.get("file");
-    if (!(file instanceof File)) return apiV1Error(requestId, "VALIDATION_ERROR", "A media file is required", 422);
+    const upload = await parsePrivateMediaUpload(request);
     const data = await storePrivateMedia({
       actor: { id: user.id, role: user.role, ownerId: user.ownerId },
-      sessionPublicId: typeof form.get("sessionId") === "string" ? String(form.get("sessionId")) : undefined,
-      originalName: file.name,
-      declaredMimeType: file.type,
-      buffer: Buffer.from(await file.arrayBuffer()),
+      ...upload,
     });
     return apiV1Success(requestId, data, 201);
   } catch (error) {

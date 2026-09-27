@@ -12,6 +12,7 @@ import { segmentDefinitionSchema } from "./segment-input";
 import { evaluateSegmentDefinition } from "./segment-service";
 import { parseSpintax } from "./spintax";
 import { commitReservedUsage, releaseReservedUsage, reserveUsage } from "./usage";
+import { lockPrivateMediaForUse } from "./private-media-lifecycle";
 
 export type CampaignActor = { id: string; role: Role; ownerId?: string | null; apiKeyId?: string };
 
@@ -194,8 +195,9 @@ export async function createCampaign(actor: CampaignActor, input: CampaignWriteI
     return { campaign: serializeCampaign(existing), idempotent: true };
   }
   try {
-    const campaign = await prisma.campaign.create({
-      data: {
+    const campaign = await prisma.$transaction(async (tx) => {
+      if (config.media) await lockPrivateMediaForUse(tx, tenantId, config.media.id);
+      return tx.campaign.create({ data: {
         tenantId,
         createdById: actor.id,
         createKey,
@@ -217,8 +219,8 @@ export async function createCampaign(actor: CampaignActor, input: CampaignWriteI
           configurationHash: config.hash,
         } },
       },
-      include: campaignInclude,
-    });
+      include: campaignInclude });
+    }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     return { campaign: serializeCampaign(campaign), idempotent: false };
   } catch (error) {
     if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2002") {
@@ -242,6 +244,7 @@ export async function updateCampaignDraft(actor: CampaignActor, id: string, inpu
       data: { name: input.name, description: input.description, currentVersion: nextVersion },
     });
     if (locked.count !== 1) return false;
+    if (config.media) await lockPrivateMediaForUse(tx, current.tenantId, config.media.id);
     await tx.campaignVersion.create({ data: {
       campaignId: id,
       version: nextVersion,
