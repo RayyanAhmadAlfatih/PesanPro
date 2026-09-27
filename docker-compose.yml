@@ -8,8 +8,10 @@ services:
     environment:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-pesanpro}
+    # Keep MySQL off the public interface. The app reaches it over the Compose network.
+    # Localhost binding still permits host-side administration/backup tools.
     ports:
-      - "3306:3306"
+      - "127.0.0.1:${MYSQL_PORT:-3306}:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -24,8 +26,10 @@ services:
       dockerfile: Dockerfile
     container_name: pesanpro-app
     restart: always
+    # Bind the application to localhost so the reverse proxy remains the only
+    # public ingress and clients cannot bypass its TLS/header policy.
     ports:
-      - "3000:3000"
+      - "127.0.0.1:${PORT:-3000}:3000"
     environment:
       - DATABASE_URL=mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE:-pesanpro}
       - AUTH_SECRET=${AUTH_SECRET}
