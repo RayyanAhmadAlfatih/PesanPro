@@ -1,7 +1,9 @@
-import { describe, it, expect } from "vitest";
-import { _internal, SSRFError, validatePublicUrl } from "./ssrf";
+import { afterEach, describe, it, expect, vi } from "vitest";
+import { _internal, safeFetchBuffer, SSRFError, validatePublicUrl } from "./ssrf";
 
 describe("SSRF private IP detection", () => {
+  afterEach(() => vi.unstubAllGlobals());
+
   const { isPrivateIPv4, isPrivateIPv6, isPrivateIP } = _internal;
 
   it("blocks private IPv4 ranges", () => {
@@ -56,6 +58,27 @@ describe("SSRF private IP detection", () => {
   it("validatePublicUrl allows public URL", async () => {
     const url = await validatePublicUrl("https://8.8.8.8/webhook");
     expect(url.hostname).toBe("8.8.8.8");
+  });
+
+  it("safeFetchBuffer stops streaming bodies that exceed the byte limit", async () => {
+    vi.stubGlobal("fetch", vi.fn(async () => new Response(new ReadableStream({
+      start(controller) {
+        controller.enqueue(new Uint8Array([1, 2, 3]));
+        controller.enqueue(new Uint8Array([4, 5, 6]));
+        controller.close();
+      },
+    }), { status: 200 })));
+
+    await expect(safeFetchBuffer("https://8.8.8.8/media", { maxBytes: 4 }))
+      .rejects.toThrow(/too large/);
+  });
+
+  it("safeFetchBuffer returns bounded bodies without following a second fetch path", async () => {
+    const fetchMock = vi.fn(async () => new Response(new Uint8Array([1, 2, 3]), { status: 200 }));
+    vi.stubGlobal("fetch", fetchMock);
+
+    await expect(safeFetchBuffer("https://8.8.8.8/media", { maxBytes: 4 })).resolves.toEqual(Buffer.from([1, 2, 3]));
+    expect(fetchMock).toHaveBeenCalledTimes(1);
   });
 
   it("validatePublicUrl rejects non-standard destination ports", async () => {
