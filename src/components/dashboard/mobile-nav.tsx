@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image from "next/image";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
@@ -105,8 +106,20 @@ export function MobileNav({ appName = "PesanPro" }: { appName?: string }) {
             </SheetTrigger>
             <SheetContent side="left" className="flex w-[85vw] flex-col border-r border-[var(--pp-ink)] bg-[var(--pp-paper)] p-0 sm:w-[320px]">
                 <SheetHeader className="border-b border-[var(--pp-line)] px-5 py-4 text-left">
-                    <SheetTitle className="font-[family-name:var(--font-display)] text-xl font-extrabold text-foreground">{appName}</SheetTitle>
-                    <SheetDescription className="-mt-1 text-[11px] text-muted-foreground">WhatsApp operations</SheetDescription>
+                    <div className="flex items-center gap-3">
+                        <Image
+                            src="/brand/pesanpro-icon.webp"
+                            alt=""
+                            aria-hidden="true"
+                            width={40}
+                            height={40}
+                            className="size-10 rounded-md object-cover"
+                        />
+                        <div className="min-w-0">
+                            <SheetTitle className="truncate font-[family-name:var(--font-display)] text-xl font-extrabold text-foreground">{appName}</SheetTitle>
+                            <SheetDescription className="-mt-1 text-[11px] text-muted-foreground">WhatsApp operations</SheetDescription>
+                        </div>
+                    </div>
                 </SheetHeader>
 
                 <nav className="flex-1 px-3 py-3 overflow-y-auto space-y-1">
