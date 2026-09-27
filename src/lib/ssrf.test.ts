@@ -157,4 +157,30 @@ describe("pinned public fetch", () => {
     await vi.advanceTimersByTimeAsync(30);
     await assertion;
   });
+
+  it("times out when headers arrive but the response body stalls", async () => {
+    vi.useFakeTimers();
+    const destroy = vi.fn();
+    const stalledBody = (async function* () {
+      await new Promise<never>(() => undefined);
+      yield Buffer.from("never");
+    })();
+    const pending = fetchWith("https://cdn.example.com/stalled-body", { timeoutMs: 25 }, {
+      resolve: vi.fn(async () => [{ address: "8.8.8.8", family: 4 as const }]),
+      request: vi.fn(async () => ({
+        statusCode: 200,
+        headers: { "content-type": "application/octet-stream" },
+        body: stalledBody,
+        destroy,
+      })),
+    });
+
+    const assertion = expect(pending).rejects.toMatchObject({
+      code: "REMOTE_FETCH_TIMEOUT",
+      retryable: true,
+    } satisfies Partial<PublicFetchError>);
+    await vi.advanceTimersByTimeAsync(30);
+    await assertion;
+    expect(destroy).toHaveBeenCalledOnce();
+  });
 });
