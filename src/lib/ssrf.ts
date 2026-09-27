@@ -131,7 +131,7 @@ async function resolvePublicAddresses(hostname: string): Promise<PublicAddress[]
     return [{ address: hostname, family: directFamily as 4 | 6 }];
   }
 
-  let records: Awaited<ReturnType<typeof dns.lookup>>;
+  let records: Array<{ address: string; family: number }>;
   try {
     records = await dns.lookup(hostname, { all: true, verbatim: true });
   } catch {
