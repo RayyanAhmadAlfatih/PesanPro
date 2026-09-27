@@ -5,7 +5,8 @@ import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import { recordAudit } from "@/lib/audit";
 import { checkPersistentRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
-import { deleteStoredPaymentProof, PAYMENT_PROOF_MAX_BYTES, storePaymentProof } from "@/lib/payment-proof";
+import { deleteStoredPaymentProof, storePaymentProof } from "@/lib/payment-proof";
+import { parsePaymentProofUpload } from "@/lib/payment-proof-upload";
 import { MessageJobError } from "@/lib/message-job-errors";
 import { queuePaymentSubmittedEmails } from "@/lib/email-notifications";
 import { logger } from "@/lib/logger";
@@ -52,25 +53,25 @@ export async function POST(request: NextRequest) {
   if (!session?.user?.id || session.user.accountActive === false || session.user.role !== "USER") {
     return NextResponse.json({ error: "Only an active user can submit payment proof" }, { status: 403 });
   }
-  const contentLength = Number(request.headers.get("content-length") ?? "0");
-  if (Number.isFinite(contentLength) && contentLength > PAYMENT_PROOF_MAX_BYTES + 256 * 1024) {
-    return NextResponse.json({ error: "Payment proof must be 5 MB or smaller", code: "PAYMENT_PROOF_TOO_LARGE" }, { status: 413 });
-  }
   const ip = getClientIp(request.headers);
   const rateLimit = await checkPersistentRateLimit(`payment-proof:${session.user.id}:${ip}`, 5, 60 * 60 * 1000);
   if (!rateLimit.success) {
     return NextResponse.json({ error: "Too many payment submissions", code: "RATE_LIMITED" }, { status: 429, headers: rateLimitHeaders(rateLimit, 5) });
   }
-  const form = await request.formData().catch(() => null);
-  const proof = form?.get("proof");
+  let upload: Awaited<ReturnType<typeof parsePaymentProofUpload>>;
+  try {
+    upload = await parsePaymentProofUpload(request);
+  } catch (error) {
+    if (error instanceof MessageJobError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
+    throw error;
+  }
   const parsed = submissionSchema.safeParse({
-    planId: form?.get("planId"),
-    reference: form?.get("reference"),
+    planId: upload.planId,
+    reference: upload.reference,
   });
   if (!parsed.success) return NextResponse.json({ error: "Invalid payment proof", details: parsed.error.flatten() }, { status: 400 });
-  if (!proof || typeof proof === "string") {
-    return NextResponse.json({ error: "Payment proof file is required" }, { status: 400 });
-  }
 
   const plan = await prisma.plan.findFirst({ where: { id: parsed.data.planId, isActive: true, priceMonthly: { gt: 0 } } });
   if (!plan) return NextResponse.json({ error: "Active plan not found" }, { status: 404 });
@@ -79,12 +80,11 @@ export async function POST(request: NextRequest) {
   let submission;
   let queuedEmailCount = 0;
   try {
-    const buffer = Buffer.from(await proof.arrayBuffer());
     storedProof = await storePaymentProof({
       userId: session.user.id,
       verificationId,
-      declaredMimeType: proof.type,
-      buffer,
+      declaredMimeType: upload.declaredMimeType,
+      buffer: upload.buffer,
     });
     const proofRecord = storedProof;
     const created = await prisma.$transaction(async (tx) => {

@@ -7,6 +7,7 @@ import {
   _setPrivateMediaStorageTransportForTests,
   deletePrivateMediaObject,
   loadPrivateMediaObject,
+  probePrivateMediaStorage,
   resolvePrivateMediaPath,
   storePrivateMediaObject,
 } from "./private-media-storage";
@@ -57,6 +58,11 @@ describe("B2 private media storage", () => {
 
     await loadPrivateMediaObject({ cacheKey: "media-1", storagePath: "tenant/media.webp" });
     expect(get).toHaveBeenCalledTimes(1);
+  });
+
+  it("probes B2 for readiness instead of trusting local fallback storage", async () => {
+    await expect(probePrivateMediaStorage()).resolves.toEqual({ driver: "b2" });
+    expect(exists).toHaveBeenCalledWith("__pesanpro_health__/readiness-probe");
   });
 
   it("writes and deletes B2 objects without persisting a local copy", async () => {

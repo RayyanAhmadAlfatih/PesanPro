@@ -46,7 +46,7 @@ export async function reviewPaymentVerificationInTransaction(
     const existing = await tx.paymentVerification.findUnique({
       where: { id: input.verificationId },
       include: {
-        user: { select: { role: true, name: true, email: true } },
+        user: { select: { role: true, status: true, name: true, email: true } },
         plan: { include: { entitlements: { where: { feature: "DEVICES" } } } },
       },
     });
@@ -62,7 +62,7 @@ export async function reviewPaymentVerificationInTransaction(
   const verification = await tx.paymentVerification.findUnique({
     where: { id: input.verificationId },
     include: {
-      user: { select: { role: true, name: true, email: true } },
+      user: { select: { role: true, status: true, name: true, email: true } },
       plan: { include: { entitlements: { where: { feature: "DEVICES" } } } },
     },
   });
@@ -70,7 +70,7 @@ export async function reviewPaymentVerificationInTransaction(
     throw new PaymentVerificationReviewError("PAYMENT_NOT_PENDING", "Payment verification not found after review");
   }
   if (input.status !== "APPROVED") return { verification, subscription: null, idempotent: false };
-  if (verification.user.role !== "USER") {
+  if (verification.user.role !== "USER" || verification.user.status !== "ACTIVE") {
     throw new PaymentVerificationReviewError("PAYMENT_USER_INVALID", "Payment owner is not an active customer account");
   }
   if (!verification.plan || !verification.plan.isActive) {

@@ -206,6 +206,15 @@ export async function hasPrivateMediaObject(storagePath: string) {
   return getB2Transport().exists(key);
 }
 
+export async function probePrivateMediaStorage() {
+  const env = getEnv();
+  if (env.MEDIA_STORAGE_DRIVER !== "b2") return { driver: "local" as const };
+  // A HEAD for a deliberately absent key proves the configured B2 endpoint,
+  // credentials, bucket, and read permission are reachable without writing data.
+  await getB2Transport().exists("__pesanpro_health__/readiness-probe");
+  return { driver: "b2" as const };
+}
+
 export function _setPrivateMediaStorageTransportForTests(transport: B2Transport | null) {
   transportOverride = transport;
 }

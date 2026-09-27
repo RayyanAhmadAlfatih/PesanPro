@@ -19,7 +19,7 @@ function client() {
       isActive: true,
       entitlements: [{ feature: "DEVICES", limitValue: BigInt(3) }],
     },
-    user: { role: "USER", name: "Customer", email: "customer@example.com" },
+    user: { role: "USER", status: "ACTIVE", name: "Customer", email: "customer@example.com" },
   };
   return {
     paymentVerification: {
@@ -116,6 +116,33 @@ describe("manual payment verification", () => {
     expect(tx.emailOutbox.createMany).not.toHaveBeenCalled();
   });
 
+  it("rejects approval for a suspended customer without activating a subscription", async () => {
+    const tx = client();
+    tx.paymentVerification.findUnique.mockResolvedValue({
+      id: "payment-1",
+      userId: "user-1",
+      planId: "plan-pro",
+      amount: { toString: () => "100000" },
+      currency: "IDR",
+      reference: "BANK-001",
+      status: "APPROVED",
+      plan: { id: "plan-pro", name: "Pro", isActive: true, entitlements: [] },
+      user: { role: "USER", status: "SUSPENDED", name: "Customer", email: "customer@example.com" },
+    });
+
+    await expect(reviewPaymentVerificationInTransaction(tx as never, {
+      verificationId: "payment-1",
+      status: "APPROVED",
+      reviewNote: "Transfer verified",
+      reviewerEmail: "admin@example.com",
+      reviewedAt,
+    })).rejects.toMatchObject({ code: "PAYMENT_USER_INVALID" });
+
+    expect(tx.subscription.upsert).not.toHaveBeenCalled();
+    expect(tx.subscriptionHistory.create).not.toHaveBeenCalled();
+    expect(tx.emailOutbox.createMany).not.toHaveBeenCalled();
+  });
+
   it("rejects a review that conflicts with the final status", async () => {
     const tx = client();
     tx.paymentVerification.updateMany.mockResolvedValue({ count: 0 });
@@ -124,7 +151,7 @@ describe("manual payment verification", () => {
       userId: "user-1",
       status: "REJECTED",
       plan: { id: "plan-pro", name: "Pro", isActive: true, entitlements: [] },
-      user: { role: "USER", name: "Customer", email: "customer@example.com" },
+      user: { role: "USER", status: "ACTIVE", name: "Customer", email: "customer@example.com" },
     });
     await expect(reviewPaymentVerificationInTransaction(tx as never, {
       verificationId: "payment-1",

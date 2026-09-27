@@ -13,6 +13,7 @@ import {
   type QueueHealthView,
 } from "./operational-policy";
 import { prisma } from "./prisma";
+import { probePrivateMediaStorage } from "./private-media-storage";
 
 function ageMs(date: Date | null | undefined, now: Date) {
   return date ? Math.max(0, now.getTime() - date.getTime()) : null;
@@ -31,7 +32,18 @@ export async function collectDatabaseCheck() {
 
 export async function collectStorageCheck() {
   const startedAt = Date.now();
-  const configured = getEnv().PRIVATE_MEDIA_PATH;
+  const env = getEnv();
+  if (env.MEDIA_STORAGE_DRIVER === "b2") {
+    try {
+      await probePrivateMediaStorage();
+      return { ok: true as const, latencyMs: Date.now() - startedAt, driver: "b2" as const };
+    } catch (error) {
+      logger.error("Readiness", "B2 private storage probe failed", error);
+      return { ok: false as const, latencyMs: Date.now() - startedAt, driver: "b2" as const, errorCode: "STORAGE_UNAVAILABLE" };
+    }
+  }
+
+  const configured = env.PRIVATE_MEDIA_PATH;
   const root = path.isAbsolute(configured) ? configured : path.join(/* turbopackIgnore: true */ process.cwd(), configured);
   const probe = path.join(root, `.readiness-${process.pid}-${crypto.randomUUID()}`);
   try {
@@ -43,13 +55,14 @@ export async function collectStorageCheck() {
     return {
       ok: true as const,
       latencyMs: Date.now() - startedAt,
+      driver: "local" as const,
       path: root,
       freeBytes: (BigInt(stats.bavail) * BigInt(stats.bsize)).toString(),
       totalBytes: (BigInt(stats.blocks) * BigInt(stats.bsize)).toString(),
     };
   } catch (error) {
     logger.error("Readiness", "Private storage probe failed", error);
-    return { ok: false as const, latencyMs: Date.now() - startedAt, path: root, errorCode: "STORAGE_UNAVAILABLE" };
+    return { ok: false as const, latencyMs: Date.now() - startedAt, driver: "local" as const, path: root, errorCode: "STORAGE_UNAVAILABLE" };
   } finally {
     await fs.unlink(probe).catch(() => undefined);
   }
