@@ -56,11 +56,13 @@ jobs:
         run: npm run build
 
   live-l0:
-    if: ${{ github.event_name == 'workflow_dispatch' && inputs.base_url != '' }}
+    # The current chatgpt QA branch gets one non-destructive production smoke run.
+    # After merge, normal PRs skip this job; it remains manually dispatchable.
+    if: ${{ (github.event_name == 'workflow_dispatch' && inputs.base_url != '') || (github.event_name == 'pull_request' && github.head_ref == 'chatgpt-qa-automation-l0-l2') }}
     runs-on: ubuntu-latest
     timeout-minutes: 10
     env:
-      PESANPRO_QA_BASE_URL: ${{ inputs.base_url }}
+      PESANPRO_QA_BASE_URL: ${{ inputs.base_url || 'https://wagateway.kingofcoding.my.id' }}
     steps:
       - name: Checkout
         uses: actions/checkout@v4
