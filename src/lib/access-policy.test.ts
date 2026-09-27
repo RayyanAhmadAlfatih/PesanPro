@@ -18,7 +18,7 @@ describe("access policy", () => {
     expect(isActiveAccountRole("STAFF")).toBe(false);
   });
 
-  it("allows only superadmins to enter every administration page", () => {
+  it("[L2-01..L2-07] allows only superadmins to enter every administration page", () => {
     const protectedPaths = [
       "/dashboard/users",
       "/dashboard/users/example",
