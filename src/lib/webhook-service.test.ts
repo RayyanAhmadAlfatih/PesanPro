@@ -77,7 +77,7 @@ describe("webhook tenant boundary", () => {
     expect(result[0]).not.toHaveProperty("secretTag");
   });
 
-  it("cannot replay a guessed delivery outside the selected tenant endpoint", async () => {
+  it("[L2-17][L2-20][L2-21] cannot replay a guessed delivery outside the selected tenant endpoint", async () => {
     mocks.deliveryFindFirst.mockResolvedValue(null);
     await expect(replayWebhookDelivery(actor, "device-a", "endpoint-a", "delivery-from-tenant-b"))
       .rejects.toMatchObject({ code: "WEBHOOK_DELIVERY_NOT_FOUND", status: 404 });
