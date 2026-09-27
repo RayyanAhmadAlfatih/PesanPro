@@ -10,6 +10,7 @@ describe("operational maintenance policy", () => {
     expect(boundaries.heartbeatBefore.toISOString()).toBe("2026-08-29T12:00:00.000Z");
     expect(boundaries.resolvedAlertBefore.toISOString()).toBe("2026-06-07T12:00:00.000Z");
     expect(boundaries.autoReplyLogBefore.toISOString()).toBe("2026-08-06T12:00:00.000Z");
+    expect(boundaries.completedMediaCleanupBefore.toISOString()).toBe("2026-08-06T12:00:00.000Z");
   });
 
   it("masks phone-like JIDs before returning trigger logs to the dashboard", () => {
