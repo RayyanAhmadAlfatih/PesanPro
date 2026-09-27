@@ -1,4 +1,4 @@
-import { commitReservedUsage, releaseConsumedUsage, releaseReservedUsage, reserveUsage } from "./usage";
+import { commitReservedUsage, releaseConsumedUsage, releaseConsumedUsageForTenant, releaseReservedUsage, reserveUsage } from "./usage";
 
 export async function runWithStorageQuota<T>(input: {
   userId: string;
@@ -29,12 +29,24 @@ export async function runWithStorageQuota<T>(input: {
   }
 }
 
-export function releaseStorageQuota(input: { userId: string; bytes: number; sessionId: string; filename: string }) {
-  if (!Number.isSafeInteger(input.bytes) || input.bytes <= 0) return Promise.resolve({ released: BigInt(0) });
-  return releaseConsumedUsage({
-    userId: input.userId,
-    feature: "MEDIA_STORAGE_BYTES",
+export function releaseStorageQuota(input: {
+  userId?: string;
+  tenantId?: string;
+  bytes: number;
+  sessionId: string;
+  filename: string;
+  idempotencyKey?: string;
+}) {
+  if (!Number.isSafeInteger(input.bytes) || input.bytes <= 0) return Promise.resolve({ released: BigInt(0), ledger: null, idempotent: false });
+  const common = {
+    feature: "MEDIA_STORAGE_BYTES" as const,
     amount: BigInt(input.bytes),
+    idempotencyKey: input.idempotencyKey,
     meta: { sessionId: input.sessionId, filename: input.filename },
-  });
+  };
+  if (input.tenantId) {
+    return releaseConsumedUsageForTenant({ tenantId: input.tenantId, ...common });
+  }
+  if (!input.userId) throw new Error("userId or tenantId is required to release storage quota");
+  return releaseConsumedUsage({ userId: input.userId, ...common });
 }
