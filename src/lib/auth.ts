@@ -13,7 +13,6 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
         password: { label: "Password", type: "password" },
       },
       authorize: (credentials, request) => authorizeCredentials(credentials, request as unknown as Request),
-,
     }),
   ],
   events: {
