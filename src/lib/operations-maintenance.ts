@@ -2,6 +2,7 @@ import { purgeExpiredAuditLogs } from "./audit-retention";
 import { getEnv } from "./env";
 import { prisma } from "./prisma";
 import { purgeExpiredPrivateMedia } from "./private-media-lifecycle";
+import { processPendingPrivateMediaCleanup } from "./private-media-cleanup";
 
 const DAY_MS = 86_400_000;
 
@@ -33,6 +34,8 @@ export async function runOperationalMaintenance(now = new Date()) {
     purgeExpiredPrivateMedia(now),
   ]);
 
+  const privateMediaCleanup = await processPendingPrivateMediaCleanup(now);
+
   return {
     auditLogs: audit.deleted,
     runtimeHeartbeats: heartbeats.count,
@@ -41,6 +44,9 @@ export async function runOperationalMaintenance(now = new Date()) {
     expiredEntitlementOverrides: overrides.count,
     expiredRateLimits: rateLimits.count,
     expiredPrivateMedia: privateMedia.deleted,
+    privateMediaCleanupScanned: privateMediaCleanup.scanned,
+    privateMediaCleanupCompleted: privateMediaCleanup.completed,
+    privateMediaCleanupPending: privateMediaCleanup.pending,
     boundaries,
   };
 }
