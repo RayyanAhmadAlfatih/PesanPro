@@ -6,6 +6,7 @@ const keys = [
   "RESEND_API_KEY", "PASSWORD_RESET_FROM", "MESSAGE_WORKER_MODE", "MESSAGE_WORKER_SECRET",
   "BACKUP_ENCRYPTION_PASSPHRASE", "MEDIA_STORAGE_DRIVER", "B2_ACCOUNT_ID", "B2_ACCOUNT_KEY",
   "B2_BUCKET", "B2_ENDPOINT",
+  "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM",
 ] as const;
 const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 
@@ -61,5 +62,25 @@ describe("environment optional secrets", () => {
     _resetEnvCache();
 
     expect(() => getEnv()).toThrow(/B2_ACCOUNT_ID/);
+  });
+
+  it("requires a sender when SMTP delivery is enabled", () => {
+    setRequiredEnvironment();
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_FROM = "";
+    _resetEnvCache();
+
+    expect(() => getEnv()).toThrow(/SMTP_FROM/);
+  });
+
+  it("requires SMTP credentials as a pair", () => {
+    setRequiredEnvironment();
+    process.env.SMTP_HOST = "smtp.example.com";
+    process.env.SMTP_FROM = "PesanPro <no-reply@example.com>";
+    process.env.SMTP_USER = "mailer";
+    process.env.SMTP_PASSWORD = "";
+    _resetEnvCache();
+
+    expect(() => getEnv()).toThrow(/SMTP_PASSWORD/);
   });
 });

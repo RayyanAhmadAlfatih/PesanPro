@@ -15,6 +15,15 @@ const envSchema = z.object({
   PASSWORD_RESET_BASE_URL: optionalString(z.string().url()),
   RESEND_API_KEY: optionalString(z.string().min(1)),
   PASSWORD_RESET_FROM: optionalString(z.string().min(3)),
+  APP_NAME: z.string().min(1).default("PesanPro"),
+  SMTP_HOST: optionalString(z.string().min(1)),
+  SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(587),
+  SMTP_SECURE: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
+  SMTP_USER: optionalString(z.string().min(1)),
+  SMTP_PASSWORD: optionalString(z.string().min(1)),
+  SMTP_FROM: optionalString(z.string().min(3)),
+  EMAIL_WORKER_POLL_MS: z.coerce.number().int().min(250).max(60_000).default(2000),
+  EMAIL_WORKER_LEASE_MS: z.coerce.number().int().min(5000).max(300_000).default(30_000),
   ENCRYPTION_KEY: z
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY must be 64 hex characters (32 bytes) — generate with: openssl rand -hex 32"),
@@ -75,6 +84,16 @@ const envSchema = z.object({
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
   TZ: z.string().default("Asia/Jakarta"),
 }).superRefine((env, context) => {
+  const hasAnySmtpSetting = Boolean(env.SMTP_HOST || env.SMTP_USER || env.SMTP_PASSWORD || env.SMTP_FROM);
+  if (hasAnySmtpSetting && !env.SMTP_HOST) {
+    context.addIssue({ code: "custom", path: ["SMTP_HOST"], message: "SMTP_HOST is required when SMTP is configured" });
+  }
+  if (env.SMTP_HOST && !env.SMTP_FROM) {
+    context.addIssue({ code: "custom", path: ["SMTP_FROM"], message: "SMTP_FROM is required when SMTP_HOST is set" });
+  }
+  if (Boolean(env.SMTP_USER) !== Boolean(env.SMTP_PASSWORD)) {
+    context.addIssue({ code: "custom", path: [env.SMTP_USER ? "SMTP_PASSWORD" : "SMTP_USER"], message: "SMTP_USER and SMTP_PASSWORD must be configured together" });
+  }
   if (env.MEDIA_STORAGE_DRIVER === "b2") {
     for (const key of ["B2_ACCOUNT_ID", "B2_ACCOUNT_KEY", "B2_BUCKET", "B2_ENDPOINT"] as const) {
       if (!env[key]) {

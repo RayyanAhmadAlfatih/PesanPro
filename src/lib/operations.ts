@@ -64,6 +64,7 @@ export async function collectQueueHealth(now = new Date()): Promise<QueueHealthV
     autoreplyPending, autoreplyProcessing, autoreplyFailed, oldestAutoreply,
     webhookEventPending, webhookEventProcessing, webhookEventDead, oldestWebhookEvent,
     webhookDeliveryPending, webhookDeliveryProcessing, webhookDeliveryDead, oldestWebhookDelivery,
+    emailPending, emailProcessing, emailDead, oldestEmail,
   ] = await Promise.all([
     prisma.messageJob.count({ where: { status: "QUEUED" } }),
     prisma.messageJob.count({ where: { status: "PROCESSING" } }),
@@ -93,6 +94,10 @@ export async function collectQueueHealth(now = new Date()): Promise<QueueHealthV
     prisma.webhookDelivery.count({ where: { status: "PROCESSING" } }),
     prisma.webhookDelivery.count({ where: { status: "DEAD_LETTER" } }),
     prisma.webhookDelivery.findFirst({ where: { status: { in: ["PENDING", "RETRYING"] } }, orderBy: { availableAt: "asc" }, select: { availableAt: true } }),
+    prisma.emailOutbox.count({ where: { status: "PENDING" } }),
+    prisma.emailOutbox.count({ where: { status: "PROCESSING" } }),
+    prisma.emailOutbox.count({ where: { status: "DEAD_LETTER" } }),
+    prisma.emailOutbox.findFirst({ where: { status: "PENDING" }, orderBy: { availableAt: "asc" }, select: { availableAt: true } }),
   ]);
 
   return [
@@ -103,6 +108,7 @@ export async function collectQueueHealth(now = new Date()): Promise<QueueHealthV
     { name: "autoreplies", pending: autoreplyPending, processing: autoreplyProcessing, deadLetter: autoreplyFailed, oldestPendingAgeMs: ageMs(oldestAutoreply?.availableAt, now) },
     { name: "webhook-events", pending: webhookEventPending, processing: webhookEventProcessing, deadLetter: webhookEventDead, oldestPendingAgeMs: ageMs(oldestWebhookEvent?.availableAt, now) },
     { name: "webhook-deliveries", pending: webhookDeliveryPending, processing: webhookDeliveryProcessing, deadLetter: webhookDeliveryDead, oldestPendingAgeMs: ageMs(oldestWebhookDelivery?.availableAt, now) },
+    { name: "payment-emails", pending: emailPending, processing: emailProcessing, deadLetter: emailDead, oldestPendingAgeMs: ageMs(oldestEmail?.availableAt, now) },
   ];
 }
 

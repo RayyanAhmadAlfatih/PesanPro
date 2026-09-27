@@ -158,6 +158,18 @@ app.prepare().then(async () => {
     webhookWorker.start();
   }
 
+  let emailWorker: import("../email/email-worker").EmailWorker | null = null;
+  if (env.SMTP_HOST) {
+    const { EmailWorker } = await import("../email/email-worker");
+    const workerId = `embedded-email-${os.hostname()}-${process.pid}-${crypto.randomUUID().slice(0, 8)}`;
+    emailWorker = new EmailWorker({
+      workerId,
+      pollMs: env.EMAIL_WORKER_POLL_MS,
+      leaseMs: env.EMAIL_WORKER_LEASE_MS,
+    });
+    emailWorker.start();
+  }
+
   server.keepAliveTimeout = 120 * 1000;
   server.headersTimeout = 120 * 1000;
 
@@ -170,6 +182,7 @@ app.prepare().then(async () => {
     logger.info("Server", `Campaign worker mode: ${env.CAMPAIGN_WORKER_MODE}`);
     logger.info("Server", `Auto-reply worker mode: ${env.AUTOREPLY_WORKER_MODE}`);
     logger.info("Server", `Webhook worker mode: ${env.WEBHOOK_WORKER_MODE}`);
+    logger.info("Server", `Payment email worker: ${emailWorker ? "enabled" : "disabled; notifications remain queued"}`);
   });
 
   const operationalScan = setInterval(() => {
@@ -197,6 +210,7 @@ app.prepare().then(async () => {
       clearInterval(operationalScan);
       clearTimeout(initialMaintenance);
       clearInterval(dailyMaintenance);
+      await emailWorker?.stop();
       await webhookWorker?.stop();
       await autoReplyWorker?.stop();
       await campaignWorker?.stop();

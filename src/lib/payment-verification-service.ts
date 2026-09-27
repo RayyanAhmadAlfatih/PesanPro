@@ -1,4 +1,5 @@
 import { PaymentVerificationStatus, type Prisma } from "@prisma/client";
+import { queuePaymentApprovedEmail } from "./email-notifications";
 
 type ReviewStatus = Exclude<PaymentVerificationStatus, "PENDING">;
 
@@ -45,7 +46,7 @@ export async function reviewPaymentVerificationInTransaction(
     const existing = await tx.paymentVerification.findUnique({
       where: { id: input.verificationId },
       include: {
-        user: { select: { role: true } },
+        user: { select: { role: true, name: true, email: true } },
         plan: { include: { entitlements: { where: { feature: "DEVICES" } } } },
       },
     });
@@ -61,7 +62,7 @@ export async function reviewPaymentVerificationInTransaction(
   const verification = await tx.paymentVerification.findUnique({
     where: { id: input.verificationId },
     include: {
-      user: { select: { role: true } },
+      user: { select: { role: true, name: true, email: true } },
       plan: { include: { entitlements: { where: { feature: "DEVICES" } } } },
     },
   });
@@ -116,5 +117,17 @@ export async function reviewPaymentVerificationInTransaction(
       data: { deviceLimit: Number(deviceLimit) },
     });
   }
+  await queuePaymentApprovedEmail(tx, {
+    verificationId: verification.id,
+    userId: verification.userId,
+    userName: verification.user.name,
+    userEmail: verification.user.email,
+    planName: verification.plan.name,
+    amount: verification.amount.toString(),
+    currency: verification.currency,
+    reference: verification.reference ?? verification.id,
+    approvedAt: input.reviewedAt,
+    activeUntil: endsAt,
+  });
   return { verification, subscription, idempotent: false };
 }
