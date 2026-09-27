@@ -7,6 +7,8 @@ import { recordAudit } from "@/lib/audit";
 import { checkPersistentRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { deleteStoredPaymentProof, PAYMENT_PROOF_MAX_BYTES, storePaymentProof } from "@/lib/payment-proof";
 import { MessageJobError } from "@/lib/message-job-errors";
+import { queuePaymentSubmittedEmails } from "@/lib/email-notifications";
+import { logger } from "@/lib/logger";
 
 const submissionSchema = z.object({
   planId: z.string().min(1),
@@ -75,6 +77,7 @@ export async function POST(request: NextRequest) {
   const verificationId = crypto.randomUUID();
   let storedProof: Awaited<ReturnType<typeof storePaymentProof>> | null = null;
   let submission;
+  let queuedEmailCount = 0;
   try {
     const buffer = Buffer.from(await proof.arrayBuffer());
     storedProof = await storePaymentProof({
@@ -83,21 +86,36 @@ export async function POST(request: NextRequest) {
       declaredMimeType: proof.type,
       buffer,
     });
-    submission = await prisma.paymentVerification.create({
-      data: {
-        id: verificationId,
-        userId: session.user.id,
-        planId: plan.id,
-        amount: plan.priceMonthly!,
+    const proofRecord = storedProof;
+    const created = await prisma.$transaction(async (tx) => {
+      const record = await tx.paymentVerification.create({
+        data: {
+          id: verificationId,
+          userId: session.user.id,
+          planId: plan.id,
+          amount: plan.priceMonthly!,
+          currency: plan.currency,
+          reference: parsed.data.reference,
+          proofUrl: `/api/payment-verifications/${verificationId}/proof`,
+          proofStoragePath: proofRecord.storagePath,
+          proofMimeType: proofRecord.mimeType,
+          proofSizeBytes: proofRecord.sizeBytes,
+          proofChecksumSha256: proofRecord.checksumSha256,
+        },
+      });
+      const notifications = await queuePaymentSubmittedEmails(tx, {
+        verificationId: record.id,
+        payerId: record.userId,
+        planName: plan.name,
+        amount: plan.priceMonthly!.toString(),
         currency: plan.currency,
         reference: parsed.data.reference,
-        proofUrl: `/api/payment-verifications/${verificationId}/proof`,
-        proofStoragePath: storedProof.storagePath,
-        proofMimeType: storedProof.mimeType,
-        proofSizeBytes: storedProof.sizeBytes,
-        proofChecksumSha256: storedProof.checksumSha256,
-      },
+        submittedAt: record.createdAt,
+      });
+      return { record, notifications };
     });
+    submission = created.record;
+    queuedEmailCount = created.notifications;
   } catch (error) {
     if (storedProof) await deleteStoredPaymentProof(storedProof.storagePath, verificationId);
     if (error instanceof MessageJobError) {
@@ -113,7 +131,10 @@ export async function POST(request: NextRequest) {
     resourceId: submission.id,
     ip,
     userAgent: request.headers.get("user-agent"),
-    meta: { planId: plan.id, amount: plan.priceMonthly!.toString(), currency: plan.currency },
+    meta: { planId: plan.id, amount: plan.priceMonthly!.toString(), currency: plan.currency, queuedEmailCount },
   });
+  if (queuedEmailCount === 0) {
+    logger.warn("PaymentVerification", `No active superadmin recipient was found for payment ${submission.id}`);
+  }
   return NextResponse.json({ data: publicSubmission(submission) }, { status: 201 });
 }

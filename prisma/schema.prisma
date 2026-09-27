@@ -61,6 +61,18 @@ enum PaymentVerificationStatus {
   CANCELLED
 }
 
+enum EmailNotificationType {
+  PAYMENT_SUBMITTED
+  PAYMENT_APPROVED
+}
+
+enum EmailOutboxStatus {
+  PENDING
+  PROCESSING
+  SENT
+  DEAD_LETTER
+}
+
 enum DeviceStatus {
   CONNECTING
   QR_REQUIRED
@@ -539,6 +551,34 @@ model PaymentVerification {
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
+}
+
+model EmailOutbox {
+  id               String                @id @default(cuid())
+  eventKey         String                @unique @db.VarChar(191)
+  type             EmailNotificationType
+  toEmail          String                @db.VarChar(320)
+  toName           String?               @db.VarChar(191)
+  subject          String                @db.VarChar(255)
+  textBody         String                @db.Text
+  htmlBody         String                @db.LongText
+  status           EmailOutboxStatus     @default(PENDING)
+  availableAt      DateTime              @default(now())
+  attempts         Int                   @default(0)
+  maxAttempts      Int                   @default(5)
+  lockedBy         String?               @db.VarChar(191)
+  leaseExpiresAt   DateTime?
+  heartbeatAt      DateTime?
+  safeErrorCode    String?               @db.VarChar(191)
+  safeErrorMessage String?               @db.Text
+  sentAt           DateTime?
+  deadLetteredAt   DateTime?
+  createdAt        DateTime              @default(now())
+  updatedAt        DateTime              @updatedAt
+
+  @@index([status, availableAt])
+  @@index([status, leaseExpiresAt])
+  @@index([type, createdAt])
 }
 
 model MessageJob {
