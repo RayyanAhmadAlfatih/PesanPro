@@ -31,6 +31,8 @@ describe("SSRF private IP detection", () => {
     expect(isPrivateIPv6("fc00::1")).toBe(true);
     expect(isPrivateIPv6("fd12::1")).toBe(true);
     expect(isPrivateIPv6("fe80::1")).toBe(true);
+    expect(isPrivateIPv6("fe90::1")).toBe(true);
+    expect(isPrivateIPv6("64:ff9b::7f00:1")).toBe(true);
     expect(isPrivateIPv6("::ffff:127.0.0.1")).toBe(true);
     expect(isPrivateIPv6("::ffff:7f00:1")).toBe(true);
     expect(isPrivateIPv6("ff02::1")).toBe(true);
