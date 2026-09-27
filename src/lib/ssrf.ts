@@ -1,10 +1,32 @@
-import dns from "dns/promises";
-import net from "net";
+import dns from "node:dns/promises";
+import http, { type IncomingHttpHeaders, type RequestOptions } from "node:http";
+import https from "node:https";
+import net from "node:net";
 
 export class SSRFError extends Error {
   constructor(message: string) {
     super(message);
     this.name = "SSRFError";
+  }
+}
+
+export type PublicFetchErrorCode =
+  | "REMOTE_FETCH_TIMEOUT"
+  | "REMOTE_FETCH_TOO_LARGE"
+  | "REMOTE_FETCH_NETWORK"
+  | "REMOTE_FETCH_HTTP_STATUS"
+  | "REMOTE_FETCH_REDIRECT"
+  | "REMOTE_FETCH_ENCODING";
+
+export class PublicFetchError extends Error {
+  constructor(
+    public readonly code: PublicFetchErrorCode,
+    message: string,
+    public readonly retryable: boolean,
+    public readonly statusCode?: number,
+  ) {
+    super(message);
+    this.name = "PublicFetchError";
   }
 }
 
@@ -19,30 +41,19 @@ export function isPrivateIPv4(ip: string): boolean {
   if (!net.isIPv4(ip)) return false;
   const parts = ip.split(".").map(Number);
   const [a, b] = parts;
-  // 10.0.0.0/8
   if (a === 10) return true;
-  // 172.16.0.0/12
   if (a === 172 && b >= 16 && b <= 31) return true;
-  // 192.168.0.0/16
   if (a === 192 && b === 168) return true;
-  // IETF protocol assignments and 6to4 relay anycast.
   if (a === 192 && b === 0 && parts[2] === 0) return true;
   if (a === 192 && b === 88 && parts[2] === 99) return true;
-  // 127.0.0.0/8
   if (a === 127) return true;
-  // 169.254.0.0/16 (link-local, incl. AWS metadata 169.254.169.254)
   if (a === 169 && b === 254) return true;
-  // 0.0.0.0/8
   if (a === 0) return true;
-  // 100.64.0.0/10 (CGNAT)
   if (a === 100 && b >= 64 && b <= 127) return true;
-  // 192.0.2.0/24, 198.51.100.0/24, 203.0.113.0/24 (TEST-NET)
   if (a === 192 && b === 0 && parts[2] === 2) return true;
   if (a === 198 && b === 51 && parts[2] === 100) return true;
   if (a === 203 && b === 0 && parts[2] === 113) return true;
-  // 198.18.0.0/15 (benchmark)
   if (a === 198 && (b === 18 || b === 19)) return true;
-  // 224.0.0.0/4 multicast + 240.0.0.0/4 reserved
   if (a >= 224) return true;
   return false;
 }
@@ -50,14 +61,12 @@ export function isPrivateIPv4(ip: string): boolean {
 export function isPrivateIPv6(ip: string): boolean {
   if (!net.isIPv6(ip)) return false;
   const lower = ip.toLowerCase();
-  // ::1, ::ffff:127.x, fc00::/7, fe80::/10
   if (lower === "::1" || lower === "::ffff:127.0.0.1") return true;
   if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
   if (lower.startsWith("fe80:")) return true;
   if (lower.startsWith("ff")) return true;
   if (lower.startsWith("2001:db8:")) return true;
   if (lower === "::" || lower === "::ffff:0.0.0.0") return true;
-  // ::ffff:10.x, ::ffff:192.168.x etc (IPv4-mapped)
   if (lower.startsWith("::ffff:")) {
     let v4 = lower.slice(7);
     const mappedHex = v4.match(/^([a-f0-9]{1,4}):([a-f0-9]{1,4})$/);
@@ -75,75 +84,74 @@ export function isPrivateIP(ip: string): boolean {
   return isPrivateIPv4(ip) || isPrivateIPv6(ip);
 }
 
-/**
- * Validate that a URL is safe to fetch (no SSRF).
- * - Only http/https
- * - Hostname not blocked
- * - All resolved IPs must be public (not private/link-local)
- * - Throws SSRFError if unsafe
- */
-export async function validatePublicUrl(rawUrl: string): Promise<URL> {
+function normalizedHostname(url: URL) {
+  return url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
+}
+
+function validateUrlStructure(rawUrl: string): URL {
   let url: URL;
   try {
     url = new URL(rawUrl);
   } catch {
-    throw new SSRFError(`Invalid URL: ${rawUrl}`);
+    throw new SSRFError("Invalid URL");
   }
 
   if (url.protocol !== "http:" && url.protocol !== "https:") {
-    throw new SSRFError(`URL protocol must be http or https, got: ${url.protocol}`);
+    throw new SSRFError("URL protocol must be http or https");
   }
-
-  // Block file://, gopher, etc already handled. Also block URLs with credentials
   if (url.username || url.password) {
     throw new SSRFError("URL must not contain credentials");
   }
 
-  const hostname = url.hostname.toLowerCase().replace(/^\[|\]$/g, "");
-
+  const hostname = normalizedHostname(url);
   if (BLOCKED_HOSTNAMES.has(hostname)) {
-    throw new SSRFError(`Hostname blocked: ${hostname}`);
+    throw new SSRFError("Hostname is blocked");
   }
   if (BLOCKED_HOSTNAME_SUFFIXES.some((suffix) => hostname.endsWith(suffix))) {
-    throw new SSRFError(`Hostname suffix blocked: ${hostname}`);
+    throw new SSRFError("Hostname suffix is blocked");
   }
 
   const port = url.port || (url.protocol === "https:" ? "443" : "80");
   if (port !== "80" && port !== "443") {
-    throw new SSRFError(`URL port is not allowed: ${port}`);
+    throw new SSRFError("URL port is not allowed");
+  }
+  if (net.isIP(hostname) && isPrivateIP(hostname)) {
+    throw new SSRFError("Private IP is blocked");
+  }
+  return url;
+}
+
+export type PublicAddress = { address: string; family: 4 | 6 };
+type PublicResolver = (hostname: string) => Promise<PublicAddress[]>;
+
+async function resolvePublicAddresses(hostname: string): Promise<PublicAddress[]> {
+  const directFamily = net.isIP(hostname);
+  if (directFamily) {
+    if (isPrivateIP(hostname)) throw new SSRFError("Private IP is blocked");
+    return [{ address: hostname, family: directFamily as 4 | 6 }];
   }
 
-  // If hostname is already an IP, check directly
-  if (net.isIP(hostname)) {
-    if (isPrivateIP(hostname)) {
-      throw new SSRFError(`Private IP blocked: ${hostname}`);
-    }
-    return url;
-  }
-
-  // DNS resolution — ensure all A/AAAA records are public
-  // Wrap in try/catch: NXDOMAIN etc should be treated as blocked
+  let records: Awaited<ReturnType<typeof dns.lookup>>;
   try {
-    const [aRecords, aaaaRecords] = await Promise.all([
-      dns.resolve4(hostname).catch(() => [] as string[]),
-      dns.resolve6(hostname).catch(() => [] as string[]),
-    ]);
-
-    const allIps = [...aRecords, ...aaaaRecords];
-
-    if (allIps.length === 0) {
-      throw new SSRFError(`Hostname did not resolve to a public IP: ${hostname}`);
-    }
-    for (const ip of allIps) {
-      if (isPrivateIP(ip)) {
-        throw new SSRFError(`Hostname ${hostname} resolves to private IP: ${ip}`);
-      }
-    }
-  } catch (e) {
-    if (e instanceof SSRFError) throw e;
-    throw new SSRFError(`DNS validation failed for hostname: ${hostname}`);
+    records = await dns.lookup(hostname, { all: true, verbatim: true });
+  } catch {
+    throw new SSRFError("Hostname did not resolve");
   }
+  if (records.length === 0) throw new SSRFError("Hostname did not resolve");
 
+  const addresses = records.map((record) => ({
+    address: record.address,
+    family: record.family as 4 | 6,
+  }));
+  if (addresses.some((record) => isPrivateIP(record.address))) {
+    throw new SSRFError("Hostname resolves to a private or reserved IP");
+  }
+  return addresses;
+}
+
+export async function validatePublicUrl(rawUrl: string): Promise<URL> {
+  const url = validateUrlStructure(rawUrl);
+  await resolvePublicAddresses(normalizedHostname(url));
   return url;
 }
 
@@ -153,22 +161,16 @@ export interface SafeFetchOptions {
   maxRedirects?: number;
 }
 
-/**
- * Fetch a URL only after SSRF validation, with redirect re-validation,
- * timeout, and max-size guard.
- */
 export async function safeFetch(
   rawUrl: string,
   init: RequestInit = {},
-  opts: SafeFetchOptions = {}
+  opts: SafeFetchOptions = {},
 ): Promise<Response> {
   const { timeoutMs = 10000, maxBytes = 10 * 1024 * 1024, maxRedirects = 2 } = opts;
-
   let currentUrl = rawUrl;
 
   for (let redirect = 0; redirect <= maxRedirects; redirect++) {
     const validated = await validatePublicUrl(currentUrl);
-
     const controller = new AbortController();
     const timer = setTimeout(() => controller.abort(), timeoutMs);
 
@@ -183,19 +185,16 @@ export async function safeFetch(
       clearTimeout(timer);
     }
 
-    // Handle redirect manually to re-validate next hop
     if (response.status >= 300 && response.status < 400) {
       if (redirect === maxRedirects) {
         throw new SSRFError(`Too many redirects (max ${maxRedirects})`);
       }
       const location = response.headers.get("location");
       if (!location) return response;
-      // Resolve relative redirects against current URL
       currentUrl = new URL(location, validated.toString()).toString();
       continue;
     }
 
-    // Size guard via Content-Length header (pre-check)
     const contentLength = response.headers.get("content-length");
     if (contentLength) {
       const len = parseInt(contentLength, 10);
@@ -203,22 +202,15 @@ export async function safeFetch(
         throw new SSRFError(`Response too large: ${len} bytes exceeds limit ${maxBytes}`);
       }
     }
-
-    // Also guard actual body size when caller reads it — we wrap arrayBuffer/text
-    // For now just return; caller should check actual bytes if needed.
-    // Attach a helper property for size-checked reading
     return response;
   }
 
   throw new SSRFError("Redirect handling failed");
 }
 
-/**
- * Helper to fetch and return buffer with size limit enforced
- */
 export async function safeFetchBuffer(
   rawUrl: string,
-  opts: SafeFetchOptions = {}
+  opts: SafeFetchOptions = {},
 ): Promise<Buffer> {
   const res = await safeFetch(rawUrl, {}, opts);
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
@@ -230,5 +222,199 @@ export async function safeFetchBuffer(
   return Buffer.from(ab);
 }
 
-// Export for testing
-export const _internal = { isPrivateIPv4, isPrivateIPv6, isPrivateIP };
+type PinnedResponse = {
+  statusCode: number;
+  headers: IncomingHttpHeaders | Record<string, string | string[] | undefined>;
+  body: AsyncIterable<Uint8Array>;
+  destroy?: () => void;
+};
+
+type PinnedRequester = (
+  url: URL,
+  address: PublicAddress,
+  signal: AbortSignal,
+) => Promise<PinnedResponse>;
+
+function requestPinned(url: URL, address: PublicAddress, signal: AbortSignal): Promise<PinnedResponse> {
+  const transport = url.protocol === "https:" ? https : http;
+  const hostname = normalizedHostname(url);
+  const options: RequestOptions = {
+    protocol: url.protocol,
+    hostname: address.address,
+    family: address.family,
+    port: Number(url.port || (url.protocol === "https:" ? 443 : 80)),
+    method: "GET",
+    path: `${url.pathname}${url.search}`,
+    headers: {
+      Host: url.host,
+      Accept: "*/*",
+      "Accept-Encoding": "identity",
+      "User-Agent": "PesanPro/remote-media",
+    },
+    signal,
+    ...(url.protocol === "https:" && !net.isIP(hostname) ? { servername: hostname } : {}),
+  };
+
+  return new Promise((resolve, reject) => {
+    const request = transport.request(options, (response) => {
+      resolve({
+        statusCode: response.statusCode ?? 0,
+        headers: response.headers,
+        body: response,
+        destroy: () => response.destroy(),
+      });
+    });
+    request.once("error", reject);
+    request.end();
+  });
+}
+
+function firstHeader(headers: PinnedResponse["headers"], name: string) {
+  const value = headers[name] ?? headers[name.toLowerCase()];
+  return Array.isArray(value) ? value[0] : value;
+}
+
+function normalizeContentType(value: string | undefined) {
+  return value?.split(";")[0]?.trim().toLowerCase() || null;
+}
+
+function timeoutError() {
+  return new PublicFetchError("REMOTE_FETCH_TIMEOUT", "Remote media fetch timed out", true);
+}
+
+async function withDeadline<T>(promise: Promise<T>, deadline: number): Promise<T> {
+  const remaining = deadline - Date.now();
+  if (remaining <= 0) throw timeoutError();
+
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  try {
+    return await Promise.race([
+      promise,
+      new Promise<never>((_, reject) => {
+        timer = setTimeout(() => reject(timeoutError()), remaining);
+        timer.unref?.();
+      }),
+    ]);
+  } finally {
+    if (timer) clearTimeout(timer);
+  }
+}
+
+async function fetchPublicBufferWithDependencies(
+  rawUrl: string,
+  opts: SafeFetchOptions,
+  dependencies: { resolve: PublicResolver; request: PinnedRequester },
+) {
+  const timeoutMs = opts.timeoutMs ?? 15_000;
+  const maxBytes = opts.maxBytes ?? 10 * 1024 * 1024;
+  const maxRedirects = opts.maxRedirects ?? 3;
+  if (!Number.isSafeInteger(timeoutMs) || timeoutMs < 1) throw new Error("timeoutMs must be a positive integer");
+  if (!Number.isSafeInteger(maxBytes) || maxBytes < 1) throw new Error("maxBytes must be a positive integer");
+  if (!Number.isSafeInteger(maxRedirects) || maxRedirects < 0 || maxRedirects > 10) throw new Error("maxRedirects is invalid");
+
+  const deadline = Date.now() + timeoutMs;
+  const controller = new AbortController();
+  const abortTimer = setTimeout(() => controller.abort(), timeoutMs);
+  abortTimer.unref?.();
+  let currentUrl = rawUrl;
+
+  try {
+    for (let redirect = 0; redirect <= maxRedirects; redirect++) {
+      const url = validateUrlStructure(currentUrl);
+      const hostname = normalizedHostname(url);
+      const addresses = await withDeadline(dependencies.resolve(hostname), deadline);
+      if (addresses.length === 0 || addresses.some((entry) => isPrivateIP(entry.address))) {
+        throw new SSRFError("Hostname resolves to a private, reserved, or empty address set");
+      }
+
+      const address = addresses[0];
+      let response: PinnedResponse;
+      try {
+        response = await withDeadline(dependencies.request(url, address, controller.signal), deadline);
+      } catch (error) {
+        if (error instanceof SSRFError || error instanceof PublicFetchError) throw error;
+        if (controller.signal.aborted || (error instanceof Error && error.name === "AbortError")) throw timeoutError();
+        throw new PublicFetchError("REMOTE_FETCH_NETWORK", "Remote media could not be fetched", true);
+      }
+
+      if (response.statusCode >= 300 && response.statusCode < 400) {
+        response.destroy?.();
+        if (redirect === maxRedirects) {
+          throw new PublicFetchError("REMOTE_FETCH_REDIRECT", "Remote media redirected too many times", false);
+        }
+        const location = firstHeader(response.headers, "location");
+        if (!location) {
+          throw new PublicFetchError("REMOTE_FETCH_REDIRECT", "Remote media redirect is missing a location", false);
+        }
+        currentUrl = new URL(location, url).toString();
+        continue;
+      }
+
+      if (response.statusCode < 200 || response.statusCode >= 300) {
+        response.destroy?.();
+        const retryable = response.statusCode === 408 || response.statusCode === 425 || response.statusCode === 429 || response.statusCode >= 500;
+        throw new PublicFetchError(
+          "REMOTE_FETCH_HTTP_STATUS",
+          "Remote media server returned an unusable response",
+          retryable,
+          response.statusCode,
+        );
+      }
+
+      const encoding = firstHeader(response.headers, "content-encoding")?.trim().toLowerCase();
+      if (encoding && encoding !== "identity") {
+        response.destroy?.();
+        throw new PublicFetchError("REMOTE_FETCH_ENCODING", "Compressed remote media responses are not accepted", false);
+      }
+
+      const declaredLength = Number(firstHeader(response.headers, "content-length"));
+      if (Number.isFinite(declaredLength) && declaredLength > maxBytes) {
+        response.destroy?.();
+        throw new PublicFetchError("REMOTE_FETCH_TOO_LARGE", "Remote media exceeds the configured size limit", false);
+      }
+
+      const chunks: Buffer[] = [];
+      let total = 0;
+      try {
+        for await (const chunk of response.body) {
+          if (controller.signal.aborted) throw timeoutError();
+          const buffer = Buffer.isBuffer(chunk) ? chunk : Buffer.from(chunk);
+          total += buffer.length;
+          if (total > maxBytes) {
+            response.destroy?.();
+            throw new PublicFetchError("REMOTE_FETCH_TOO_LARGE", "Remote media exceeds the configured size limit", false);
+          }
+          chunks.push(buffer);
+        }
+      } catch (error) {
+        if (error instanceof PublicFetchError) throw error;
+        if (controller.signal.aborted || (error instanceof Error && error.name === "AbortError")) throw timeoutError();
+        throw new PublicFetchError("REMOTE_FETCH_NETWORK", "Remote media transfer failed", true);
+      }
+
+      return {
+        buffer: Buffer.concat(chunks, total),
+        contentType: normalizeContentType(firstHeader(response.headers, "content-type")),
+        finalUrl: url.toString(),
+      };
+    }
+  } finally {
+    clearTimeout(abortTimer);
+  }
+
+  throw new PublicFetchError("REMOTE_FETCH_REDIRECT", "Remote media redirect handling failed", false);
+}
+
+export function fetchPublicBuffer(rawUrl: string, opts: SafeFetchOptions = {}) {
+  return fetchPublicBufferWithDependencies(rawUrl, opts, {
+    resolve: resolvePublicAddresses,
+    request: requestPinned,
+  });
+}
+
+export const _internal = {
+  isPrivateIPv4,
+  isPrivateIPv6,
+  isPrivateIP,
+  fetchPublicBufferWithDependencies,
+};
