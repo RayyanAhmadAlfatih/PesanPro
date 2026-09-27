@@ -220,14 +220,39 @@ export async function safeFetchBuffer(
   rawUrl: string,
   opts: SafeFetchOptions = {}
 ): Promise<Buffer> {
-  const res = await safeFetch(rawUrl, {}, opts);
-  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-  const ab = await res.arrayBuffer();
+  const timeoutMs = opts.timeoutMs ?? 10000;
   const maxBytes = opts.maxBytes ?? 10 * 1024 * 1024;
-  if (ab.byteLength > maxBytes) {
-    throw new SSRFError(`Response body too large: ${ab.byteLength} > ${maxBytes}`);
+  const res = await safeFetch(rawUrl, { headers: { "accept-encoding": "identity" } }, opts);
+  if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
+  if (!res.body) throw new SSRFError("Response body is unavailable");
+
+  const reader = res.body.getReader();
+  const chunks: Buffer[] = [];
+  let total = 0;
+  let timer: ReturnType<typeof setTimeout> | null = null;
+  const timedOut = new Promise<never>((_, reject) => {
+    timer = setTimeout(() => {
+      void reader.cancel().catch(() => undefined);
+      reject(new SSRFError(`Response body timed out after ${timeoutMs} ms`));
+    }, timeoutMs);
+  });
+
+  try {
+    while (true) {
+      const { done, value } = await Promise.race([reader.read(), timedOut]);
+      if (done) break;
+      if (!value?.byteLength) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        await reader.cancel().catch(() => undefined);
+        throw new SSRFError(`Response body too large: ${total} > ${maxBytes}`);
+      }
+      chunks.push(Buffer.from(value));
+    }
+  } finally {
+    if (timer) clearTimeout(timer);
   }
-  return Buffer.from(ab);
+  return Buffer.concat(chunks, total);
 }
 
 // Export for testing
