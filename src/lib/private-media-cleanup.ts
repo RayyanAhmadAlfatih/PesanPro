@@ -109,7 +109,7 @@ export async function finalizePrivateMediaCleanup(mediaId: string, now = new Dat
         safeErrorMessage: null,
       },
     });
-    return { completed: completed.count === 1, idempotent: completed.count === 0 };
+    return { completed: true as const, idempotent: completed.count === 0 };
   } catch {
     return recordCleanupFailure(cleanup, stage, now);
   }
