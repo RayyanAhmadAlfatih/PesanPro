@@ -58,15 +58,21 @@ export function isPrivateIPv4(ip: string): boolean {
   return false;
 }
 
+const blockedIPv6 = new net.BlockList();
+blockedIPv6.addAddress("::", "ipv6");
+blockedIPv6.addAddress("::1", "ipv6");
+blockedIPv6.addSubnet("fc00::", 7, "ipv6");
+blockedIPv6.addSubnet("fe80::", 10, "ipv6");
+blockedIPv6.addSubnet("ff00::", 8, "ipv6");
+blockedIPv6.addSubnet("100::", 64, "ipv6");
+blockedIPv6.addSubnet("2001:db8::", 32, "ipv6");
+blockedIPv6.addSubnet("2002::", 16, "ipv6");
+blockedIPv6.addSubnet("64:ff9b::", 96, "ipv6");
+blockedIPv6.addSubnet("64:ff9b:1::", 48, "ipv6");
+
 export function isPrivateIPv6(ip: string): boolean {
   if (!net.isIPv6(ip)) return false;
   const lower = ip.toLowerCase();
-  if (lower === "::1" || lower === "::ffff:127.0.0.1") return true;
-  if (lower.startsWith("fc") || lower.startsWith("fd")) return true;
-  if (lower.startsWith("fe80:")) return true;
-  if (lower.startsWith("ff")) return true;
-  if (lower.startsWith("2001:db8:")) return true;
-  if (lower === "::" || lower === "::ffff:0.0.0.0") return true;
   if (lower.startsWith("::ffff:")) {
     let v4 = lower.slice(7);
     const mappedHex = v4.match(/^([a-f0-9]{1,4}):([a-f0-9]{1,4})$/);
@@ -77,7 +83,7 @@ export function isPrivateIPv6(ip: string): boolean {
     }
     if (net.isIPv4(v4) && isPrivateIPv4(v4)) return true;
   }
-  return false;
+  return blockedIPv6.check(ip, "ipv6");
 }
 
 export function isPrivateIP(ip: string): boolean {
