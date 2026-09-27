@@ -42,6 +42,28 @@ describe("remote media delivery fetch policy", () => {
     });
   });
 
+  it("accepts application/octet-stream only when the caller declared a compatible media MIME", async () => {
+    fetchPublicBuffer.mockResolvedValue({
+      buffer: Buffer.from("image"),
+      contentType: "application/octet-stream",
+      finalUrl: "https://cdn.example.com/photo",
+    });
+
+    await expect(fetchRemoteMediaForDelivery("IMAGE", {
+      mediaUrl: "https://cdn.example.com/photo",
+      mimeType: "image/webp",
+    })).resolves.toMatchObject({
+      mimeType: "image/webp",
+      fileName: "photo",
+    });
+
+    await expect(fetchRemoteMediaForDelivery("IMAGE", {
+      mediaUrl: "https://cdn.example.com/photo",
+    })).rejects.toMatchObject({
+      code: "REMOTE_MEDIA_TYPE_MISMATCH",
+    });
+  });
+
   it("rejects a response content type that does not match the requested media kind", async () => {
     fetchPublicBuffer.mockResolvedValue({
       buffer: Buffer.from("%PDF"),
