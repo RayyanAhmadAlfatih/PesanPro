@@ -2,7 +2,7 @@ import path from "node:path";
 import type { MessageJobType, Prisma } from "@prisma/client";
 import type { AnyMessageContent } from "@whiskeysockets/baileys";
 import { MessageJobError } from "./message-job-errors";
-import { validatePublicUrl } from "./ssrf";
+import { safeFetchBuffer, SSRFError, validatePublicUrl } from "./ssrf";
 
 export type RemoteMediaPayload = {
   mediaUrl: string;
@@ -41,21 +41,36 @@ function remoteFileName(remote: RemoteMediaPayload) {
   }
 }
 
+export async function loadRemoteMediaBuffer(remote: RemoteMediaPayload, maxBytes: number) {
+  try {
+    return await safeFetchBuffer(remote.mediaUrl, { timeoutMs: 15_000, maxBytes, maxRedirects: 2 });
+  } catch (error) {
+    const message = error instanceof Error ? error.message : "";
+    if (error instanceof SSRFError && message.includes("too large")) {
+      throw new MessageJobError("REMOTE_MEDIA_TOO_LARGE", "Remote media exceeds the configured upload limit", 413, false);
+    }
+    if (message.includes("timed out") || /HTTP 5\d\d/.test(message)) {
+      throw new MessageJobError("REMOTE_MEDIA_UNAVAILABLE", "Remote media is temporarily unavailable", 503, true);
+    }
+    throw new MessageJobError("REMOTE_MEDIA_UNAVAILABLE", "Remote media URL could not be fetched safely", 422, false);
+  }
+}
+
 export function buildRemoteMediaContent(
   type: Exclude<MessageJobType, "TEXT">,
   remote: RemoteMediaPayload,
+  buffer: Buffer,
   caption?: string | null,
 ): AnyMessageContent {
-  const source = { url: remote.mediaUrl };
   const common = {
     caption: caption || undefined,
     ...(remote.mimeType ? { mimetype: remote.mimeType } : {}),
   };
-  if (type === "IMAGE") return { image: source, ...common };
-  if (type === "VIDEO") return { video: source, ...common };
-  if (type === "AUDIO") return { audio: source, mimetype: remote.mimeType, ptt: false };
+  if (type === "IMAGE") return { image: buffer, ...common };
+  if (type === "VIDEO") return { video: buffer, ...common };
+  if (type === "AUDIO") return { audio: buffer, mimetype: remote.mimeType, ptt: false };
   return {
-    document: source,
+    document: buffer,
     fileName: remoteFileName(remote),
     ...common,
     mimetype: remote.mimeType || "application/octet-stream",
