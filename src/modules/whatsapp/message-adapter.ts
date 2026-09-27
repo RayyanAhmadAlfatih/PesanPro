@@ -4,7 +4,7 @@ import type { ClaimedMessageJob } from "@/lib/message-queue";
 import { MessageJobError } from "@/lib/message-job-errors";
 import { loadPrivateMediaObject } from "@/lib/private-media-storage";
 import { checkPersistentRateLimit } from "@/lib/rate-limit";
-import { buildRemoteMediaContent, remoteMediaFromRequestPayload } from "@/lib/remote-media";
+import { buildRemoteMediaContent, fetchRemoteMediaForDelivery, remoteMediaFromRequestPayload } from "@/lib/remote-media";
 import { onMessageSent } from "@/lib/webhook";
 import { buildQuotedMessage } from "@/lib/whatsapp-message";
 import { waManager } from "./manager";
@@ -20,7 +20,10 @@ async function buildMessageContent(job: ClaimedMessageJob): Promise<AnyMessageCo
     return { text: job.text ?? "", ...(mentions.length > 0 ? { mentions } : {}) };
   }
   const remote = remoteMediaFromRequestPayload(job.requestPayload);
-  if (remote) return buildRemoteMediaContent(job.type, remote, job.caption);
+  if (remote) {
+    const fetched = await fetchRemoteMediaForDelivery(job.type, remote);
+    return buildRemoteMediaContent(job.type, fetched, job.caption);
+  }
   if (!job.media || job.media.status !== "ACTIVE") {
     throw new MessageJobError("MEDIA_UNAVAILABLE", "Media is unavailable or invalid", 422, false);
   }
