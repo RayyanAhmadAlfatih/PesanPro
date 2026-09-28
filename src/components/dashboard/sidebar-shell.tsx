@@ -5,6 +5,9 @@ import { useSidebar } from "./sidebar-context";
 import { Button } from "@/components/ui/button";
 import { LogOut } from "lucide-react";
 import { signOut } from "next-auth/react";
+import Image, { type ImageLoaderProps } from "next/image";
+
+const passthroughImageLoader = ({ src }: ImageLoaderProps) => src;
 
 interface SidebarShellProps {
   appName: string;
@@ -22,10 +25,14 @@ export function SidebarShell({ appName, logoUrl, userName, userEmail, version }:
     <aside className={`hidden h-full shrink-0 flex-col border-r border-[var(--pp-line)] bg-[var(--pp-paper)] md:flex ${isCollapsed ? "w-[72px]" : "w-[268px]"}`}>
       <div className={`border-b border-[var(--pp-line)] ${isCollapsed ? "px-3 py-4" : "px-5 py-4"}`}>
         <div className={`flex items-center ${isCollapsed ? "justify-center" : "gap-3"}`}>
-          <img
+          <Image
+            loader={passthroughImageLoader}
+            unoptimized
             src={logoSrc}
             alt=""
             aria-hidden="true"
+            width={40}
+            height={40}
             className="size-10 shrink-0 rounded-md border border-[var(--pp-ink)] bg-[var(--pp-highlight)] object-contain"
           />
           {!isCollapsed && <div className="min-w-0"><p className="truncate font-[family-name:var(--font-display)] text-xl font-extrabold leading-none tracking-[-0.03em]">{appName}</p><p className="mt-1 text-xs text-muted-foreground">WhatsApp operations</p></div>}
