@@ -3,7 +3,7 @@ import { _resetEnvCache, getEnv } from "./env";
 
 const keys = [
   "DATABASE_URL", "AUTH_SECRET", "ENCRYPTION_KEY", "BASE_URL", "PASSWORD_RESET_BASE_URL",
-  "RESEND_API_KEY", "PASSWORD_RESET_FROM", "MESSAGE_WORKER_MODE", "MESSAGE_WORKER_SECRET",
+"MESSAGE_WORKER_MODE", "MESSAGE_WORKER_SECRET",
   "BACKUP_ENCRYPTION_PASSPHRASE", "MEDIA_STORAGE_DRIVER", "B2_ACCOUNT_ID", "B2_ACCOUNT_KEY",
   "B2_BUCKET", "B2_ENDPOINT",
   "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM",
@@ -32,8 +32,6 @@ describe("environment optional secrets", () => {
     setRequiredEnvironment();
     process.env.BASE_URL = "";
     process.env.PASSWORD_RESET_BASE_URL = "";
-    process.env.RESEND_API_KEY = "";
-    process.env.PASSWORD_RESET_FROM = "";
     process.env.MESSAGE_WORKER_SECRET = "";
     process.env.BACKUP_ENCRYPTION_PASSPHRASE = "";
     _resetEnvCache();
