@@ -7,8 +7,10 @@ import { getEnv } from "./env";
 import { MessageJobError } from "./message-job-errors";
 import { prepareMediaForStorage } from "./media-optimization";
 import { prisma } from "./prisma";
-import { releaseStorageQuota, runWithStorageQuota } from "./storage-quota";
+import { runWithStorageQuota } from "./storage-quota";
 import { activePrivateMediaReferenceCounts, hasActivePrivateMediaReferences } from "./private-media-lifecycle";
+import { enqueuePrivateMediaCleanup, finalizePrivateMediaCleanup } from "./private-media-cleanup";
+import { logger } from "./logger";
 import {
   deletePrivateMediaObject,
   loadPrivateMediaObject,
@@ -137,6 +139,7 @@ export async function listPrivateMedia(actor: PrivateMediaActor, limit = 50) {
 export async function deletePrivateMedia(actor: PrivateMediaActor, mediaId: string) {
   const tenantId = await resolveTenantId(actor.id);
   if (!tenantId) throw new MessageJobError("MEDIA_NOT_FOUND", "Media was not found", 404, false);
+  const deletedAt = new Date();
   const media = await prisma.$transaction(async (tx) => {
     const current = await tx.privateMedia.findFirst({ where: { id: mediaId, tenantId, status: "ACTIVE" } });
     if (!current) throw new MessageJobError("MEDIA_NOT_FOUND", "Media was not found", 404, false);
@@ -145,17 +148,15 @@ export async function deletePrivateMedia(actor: PrivateMediaActor, mediaId: stri
     }
     const changed = await tx.privateMedia.updateMany({
       where: { id: current.id, tenantId, status: "ACTIVE" },
-      data: { status: "DELETED", deletedAt: new Date() },
+      data: { status: "DELETED", deletedAt },
     });
     if (changed.count !== 1) throw new MessageJobError("MEDIA_DELETE_CONFLICT", "Media state changed while deleting", 409, true);
+    await enqueuePrivateMediaCleanup(tx, current, deletedAt);
     return current;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-  await deletePrivateMediaObject({ cacheKey: media.id, storagePath: media.storagePath });
-  await releaseStorageQuota({
-    userId: media.uploaderId,
-    bytes: Number(media.sizeBytes),
-    sessionId: media.sessionId ?? "tenant-media",
-    filename: media.storedName,
+
+  await finalizePrivateMediaCleanup(media.id, deletedAt).catch((error) => {
+    logger.warn("PrivateMedia", `Cleanup for media ${media.id} remains queued`, error);
   });
   return mediaDto({ ...media, status: "DELETED" });
 }

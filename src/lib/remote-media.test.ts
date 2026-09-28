@@ -2,14 +2,16 @@ import { describe, expect, it } from "vitest";
 import { buildRemoteMediaContent, remoteMediaFromRequestPayload } from "./remote-media";
 
 describe("remote WhatsApp media", () => {
-  it("builds a webp image as a normal image URL, never as a sticker", () => {
+  it("builds a webp image from a fetched buffer as a normal image, never as a sticker", () => {
+    const buffer = Buffer.from("webp");
     const content = buildRemoteMediaContent("IMAGE", {
-      mediaUrl: "https://cdn.example.com/photo.webp",
+      buffer,
       mimeType: "image/webp",
+      fileName: "photo.webp",
     }, "caption");
 
     expect(content).toMatchObject({
-      image: { url: "https://cdn.example.com/photo.webp" },
+      image: buffer,
       mimetype: "image/webp",
       caption: "caption",
     });
@@ -20,12 +22,13 @@ describe("remote WhatsApp media", () => {
     ["VIDEO", "video"],
     ["AUDIO", "audio"],
     ["DOCUMENT", "document"],
-  ] as const)("passes %s URLs directly to Baileys via %s", (type, field) => {
+  ] as const)("hands %s bytes directly to Baileys via %s", (type, field) => {
+    const buffer = Buffer.from(field);
     const content = buildRemoteMediaContent(type, {
-      mediaUrl: `https://cdn.example.com/${field}`,
+      buffer,
       fileName: "report.pdf",
     });
-    expect(content).toHaveProperty(`${field}.url`, `https://cdn.example.com/${field}`);
+    expect(content).toHaveProperty(field, buffer);
   });
 
   it("reads only the canonical mediaUrl from durable request payload", () => {

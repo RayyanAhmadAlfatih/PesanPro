@@ -283,30 +283,131 @@ export function releaseReservedUsage(input: Omit<Parameters<typeof settleReserva
   return settleReservation({ ...input, operation: "RELEASE" });
 }
 
+async function releaseConsumedUsageForTenantInTransaction(
+  tx: Prisma.TransactionClient,
+  input: {
+    tenantId: string;
+    feature: "MEDIA_STORAGE_BYTES";
+    amount: bigint;
+    idempotencyKey?: string;
+    meta?: Prisma.InputJsonValue;
+  },
+) {
+  if (input.idempotencyKey) {
+    const existing = await tx.usageLedger.findUnique({
+      where: {
+        tenantId_feature_operation_idempotencyKey: {
+          tenantId: input.tenantId,
+          feature: input.feature,
+          operation: "ADJUST",
+          idempotencyKey: input.idempotencyKey,
+        },
+      },
+    });
+    if (existing) {
+      return {
+        released: existing.amount < BigInt(0) ? -existing.amount : BigInt(0),
+        ledger: existing,
+        idempotent: true,
+      };
+    }
+  }
+
+  const periodStart = new Date("1970-01-01T00:00:00.000Z");
+  const counter = await tx.usageCounter.findUnique({
+    where: {
+      tenantId_feature_periodStart: {
+        tenantId: input.tenantId,
+        feature: input.feature,
+        periodStart,
+      },
+    },
+  });
+  if (!counter) return { released: BigInt(0), ledger: null, idempotent: false };
+
+  const released = counter.consumed < input.amount ? counter.consumed : input.amount;
+  if (released > BigInt(0)) {
+    await tx.usageCounter.update({
+      where: { id: counter.id },
+      data: { consumed: { decrement: released } },
+    });
+  }
+
+  if (!input.idempotencyKey && released === BigInt(0)) {
+    return { released, ledger: null, idempotent: false };
+  }
+
+  const ledger = await tx.usageLedger.create({
+    data: {
+      tenantId: input.tenantId,
+      counterId: counter.id,
+      feature: input.feature,
+      operation: "ADJUST",
+      amount: -released,
+      idempotencyKey: input.idempotencyKey,
+      meta: input.meta,
+    },
+  });
+  return { released, ledger, idempotent: false };
+}
+
+export async function releaseConsumedUsageForTenant(input: {
+  tenantId: string;
+  feature: "MEDIA_STORAGE_BYTES";
+  amount: bigint;
+  idempotencyKey?: string;
+  meta?: Prisma.InputJsonValue;
+}) {
+  assertPositiveAmount(input.amount);
+  try {
+    return await withSerializableRetry(() => prisma.$transaction(
+      (tx) => releaseConsumedUsageForTenantInTransaction(tx, input),
+      { isolationLevel: Prisma.TransactionIsolationLevel.Serializable },
+    ));
+  } catch (error) {
+    if (
+      input.idempotencyKey
+      && error instanceof Prisma.PrismaClientKnownRequestError
+      && error.code === "P2002"
+    ) {
+      const existing = await prisma.usageLedger.findUnique({
+        where: {
+          tenantId_feature_operation_idempotencyKey: {
+            tenantId: input.tenantId,
+            feature: input.feature,
+            operation: "ADJUST",
+            idempotencyKey: input.idempotencyKey,
+          },
+        },
+      });
+      if (existing) {
+        return {
+          released: existing.amount < BigInt(0) ? -existing.amount : BigInt(0),
+          ledger: existing,
+          idempotent: true,
+        };
+      }
+    }
+    throw error;
+  }
+}
+
 export async function releaseConsumedUsage(input: {
   userId: string;
   feature: "MEDIA_STORAGE_BYTES";
   amount: bigint;
+  idempotencyKey?: string;
   meta?: Prisma.InputJsonValue;
 }) {
   assertPositiveAmount(input.amount);
-  return withSerializableRetry(() => prisma.$transaction(async (tx) => {
-    const tenantId = await resolveTenantId(input.userId, tx);
-    if (!tenantId) throw new Error("Billing tenant not found");
-    const counter = await getOrCreateCounter(tx, tenantId, input.feature, new Date());
-    const released = counter.consumed < input.amount ? counter.consumed : input.amount;
-    if (released === BigInt(0)) return { released };
-    await tx.usageCounter.update({ where: { id: counter.id }, data: { consumed: { decrement: released } } });
-    await tx.usageLedger.create({
-      data: {
-        tenantId,
-        counterId: counter.id,
-        feature: input.feature,
-        operation: "ADJUST",
-        amount: -released,
-        meta: input.meta,
-      },
-    });
-    return { released };
-  }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable }));
+  const tenantId = await resolveTenantId(input.userId);
+  if (!tenantId) throw new Error("Billing tenant not found");
+  return releaseConsumedUsageForTenant({
+    tenantId,
+    feature: input.feature,
+    amount: input.amount,
+    idempotencyKey: input.idempotencyKey,
+    meta: input.meta,
+  });
 }
+

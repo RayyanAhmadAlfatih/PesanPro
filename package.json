@@ -32,7 +32,11 @@
     "test": "vitest run --maxWorkers=1",
     "test:watch": "vitest",
     "typecheck": "tsc --noEmit",
-    "tescheck": "npm run typecheck"
+    "tescheck": "npm run typecheck",
+    "qa:live:l0": "tsx scripts/qa/live-l0.ts",
+    "qa:l1": "vitest run --maxWorkers=1 src/lib/password-policy.test.ts src/lib/credentials-auth.test.ts src/lib/password-reset.test.ts src/app/api/auth/register/route.test.ts src/app/api/auth/forgot-password/route.test.ts src/app/api/auth/reset-password/route.test.ts src/proxy.roadmap.test.ts",
+    "qa:l2": "vitest run --maxWorkers=1 src/lib/access-policy.test.ts src/proxy.roadmap.test.ts src/lib/api-auth.tenant.test.ts src/lib/roadmap-session-tenant.test.ts src/lib/private-media.tenant.test.ts src/lib/message-job-service.tenant.test.ts src/lib/broadcast-service.tenant.test.ts src/lib/campaign-service.tenant.test.ts src/lib/segment-service.tenant.test.ts src/lib/schedule-service.tenant.test.ts src/lib/autoreply-service.tenant.test.ts src/lib/webhook-service.test.ts src/lib/integration-service.tenant.test.ts src/lib/api-key-service.tenant.test.ts",
+    "qa:automated:l0-l2": "npm run qa:l1 && npm run qa:l2"
   },
   "dependencies": {
     "@aws-sdk/client-s3": "^3.1141.0",
