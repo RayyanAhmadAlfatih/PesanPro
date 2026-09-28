@@ -33,9 +33,9 @@ export async function proxy(request: NextRequest) {
 
     // Match only the route itself or a real descendant. Avoid accidentally
     // treating lookalike paths such as /auth/login-malicious as public.
-    const isPublicRoute = publicRoutes.some(
-        route => pathname === route || pathname.startsWith(`${route}/`)
-    );
+    const isPathOrDescendant = (route: string) =>
+        pathname === route || pathname.startsWith(`${route}/`);
+    const isPublicRoute = publicRoutes.some(isPathOrDescendant);
 
     // Allow Next.js internals and favicon only
     if (
@@ -64,8 +64,8 @@ export async function proxy(request: NextRequest) {
             return NextResponse.next();
         }
 
-        // Skip auth endpoints
-        if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/test")) {
+        // Skip only the intended public API namespaces, not lookalike prefixes.
+        if (isPathOrDescendant("/api/auth") || isPathOrDescendant("/api/test")) {
             return NextResponse.next();
         }
 
@@ -133,7 +133,7 @@ export async function proxy(request: NextRequest) {
     }
 
     // Dashboard routes: Require login
-    if (pathname.startsWith("/dashboard")) {
+    if (isPathOrDescendant("/dashboard")) {
         const session = await auth();
 
         if (!session?.user || session.user.accountActive === false) {
