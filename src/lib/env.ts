@@ -81,6 +81,7 @@ const envSchema = z.object({
     .default("true")
     .transform((v) => v === "true"),
   RATE_LIMIT_PER_MINUTE: z.coerce.number().int().positive().default(60),
+  TRUSTED_PROXY_HOPS: z.coerce.number().int().min(0).max(10).default(1),
   TZ: z.string().default("Asia/Jakarta"),
 }).superRefine((env, context) => {
   const hasAnySmtpSetting = Boolean(env.SMTP_HOST || env.SMTP_USER || env.SMTP_PASSWORD || env.SMTP_FROM);
