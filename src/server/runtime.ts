@@ -162,10 +162,12 @@ app.prepare().then(async () => {
   if (env.SMTP_HOST) {
     const { EmailWorker } = await import("../email/email-worker");
     const workerId = `embedded-email-${os.hostname()}-${process.pid}-${crypto.randomUUID().slice(0, 8)}`;
+    const healthReporter = await createHeartbeat("EMAIL_WORKER", workerId, "embedded");
     emailWorker = new EmailWorker({
       workerId,
       pollMs: env.EMAIL_WORKER_POLL_MS,
       leaseMs: env.EMAIL_WORKER_LEASE_MS,
+      healthReporter,
     });
     emailWorker.start();
   }
