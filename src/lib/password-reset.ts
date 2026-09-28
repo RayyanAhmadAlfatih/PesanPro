@@ -2,7 +2,7 @@ import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { logger } from "./logger";
 import { getEnv } from "./env";
-import { buildPasswordResetEmail } from "./email-notifications";
+import { buildPasswordResetEmail } from "./password-reset-email";
 import { sendSmtpEmail } from "./email-transport";
 import {
   generatePasswordResetSecret,
