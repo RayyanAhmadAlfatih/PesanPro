@@ -7,6 +7,7 @@ const keys = [
   "BACKUP_ENCRYPTION_PASSPHRASE", "MEDIA_STORAGE_DRIVER", "B2_ACCOUNT_ID", "B2_ACCOUNT_KEY",
   "B2_BUCKET", "B2_ENDPOINT",
   "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM",
+  "PESANPRO_QA_MODE",
 ] as const;
 const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 
@@ -41,6 +42,17 @@ describe("environment optional secrets", () => {
     expect(env.BASE_URL).toBeUndefined();
     expect(env.MESSAGE_WORKER_SECRET).toBeUndefined();
     expect(env.BACKUP_ENCRYPTION_PASSPHRASE).toBeUndefined();
+  });
+
+  it("keeps controlled QA routes disabled by default and accepts an explicit opt-in", () => {
+    setRequiredEnvironment();
+    delete process.env.PESANPRO_QA_MODE;
+    _resetEnvCache();
+    expect(getEnv().PESANPRO_QA_MODE).toBe(false);
+
+    process.env.PESANPRO_QA_MODE = "true";
+    _resetEnvCache();
+    expect(getEnv().PESANPRO_QA_MODE).toBe(true);
   });
 
   it("still requires a worker secret in external mode", () => {
