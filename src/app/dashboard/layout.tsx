@@ -6,6 +6,7 @@ import { SidebarShell } from "@/components/dashboard/sidebar-shell";
 import { prisma } from "@/lib/prisma";
 import { Toaster } from "sonner";
 import pkg from "../../../package.json";
+import { normalizeBrandAssetUrl } from "@/lib/brand-config";
 
 
 export default async function DashboardLayout({
@@ -16,6 +17,7 @@ export default async function DashboardLayout({
     const session = await auth();
     const systemConfig = await prisma.systemConfig.findUnique({ where: { id: "default" } });
     const appName = systemConfig?.appName || "PesanPro";
+    const logoUrl = normalizeBrandAssetUrl(systemConfig?.logoUrl);
     const timezone = systemConfig?.timezone || "Asia/Jakarta";
 
     return (
@@ -24,12 +26,13 @@ export default async function DashboardLayout({
                 <div className="pp-dashboard flex h-screen overflow-hidden bg-background" suppressHydrationWarning={true}>
                     <SidebarShell
                         appName={appName}
+                        logoUrl={logoUrl}
                         userName={session?.user?.name}
                         userEmail={session?.user?.email}
                         version={pkg.version}
                     />
                     <div className="flex min-w-0 flex-1 flex-col overflow-hidden" suppressHydrationWarning={true}>
-                        <Navbar appName={appName} timezone={timezone} />
+                        <Navbar appName={appName} logoUrl={logoUrl} timezone={timezone} />
                         <main className="styled-scrollbar flex-1 overflow-auto">
                             <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-9 lg:py-8">
                                 {children}
