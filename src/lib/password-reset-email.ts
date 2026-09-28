@@ -3,7 +3,7 @@ function escapeHtml(value: string) {
     "&": "&amp;",
     "<": "&lt;",
     ">": "&gt;",
-    """: "&quot;",
+    "\"": "&quot;",
     "'": "&#039;",
   })[character] ?? character);
 }
