@@ -65,6 +65,14 @@ describe("public website and authenticated app routing", () => {
     mocks.auth.mockClear();
   });
 
+  it("keeps dashboard paths protected even when the URL looks like a static asset", async () => {
+    const response = await proxy(request("/dashboard/private.webp"));
+
+    expect(response.status).toBeGreaterThanOrEqual(300);
+    expect(response.status).toBeLessThan(400);
+    expect(response.headers.get("location")).toContain("/auth/login");
+  });
+
   it("does not treat a dashboard lookalike as an authenticated app route", async () => {
     const response = await proxy(request("/dashboard-marketing"));
 
