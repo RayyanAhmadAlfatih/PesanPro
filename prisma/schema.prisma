@@ -283,6 +283,11 @@ enum PrivateMediaStatus {
   QUARANTINED
 }
 
+enum PrivateMediaCleanupStatus {
+  PENDING
+  COMPLETED
+}
+
 enum ScheduleStatus {
   ACTIVE
   COMPLETED
@@ -701,6 +706,31 @@ model PrivateMedia {
   @@index([tenantId, status, createdAt])
   @@index([expiresAt, status])
   @@index([checksumSha256])
+}
+
+model PrivateMediaCleanup {
+  id               String                    @id @default(cuid())
+  mediaId          String                    @unique
+  tenantId         String
+  uploaderId       String
+  sessionId        String?
+  storagePath      String                    @db.VarChar(512)
+  storedName       String                    @db.VarChar(191)
+  sizeBytes        BigInt
+  status           PrivateMediaCleanupStatus @default(PENDING)
+  availableAt      DateTime                  @default(now())
+  attempts         Int                       @default(0)
+  storageDeletedAt DateTime?
+  quotaReleasedAt  DateTime?
+  completedAt      DateTime?
+  safeErrorCode    String?                   @db.VarChar(191)
+  safeErrorMessage String?                   @db.Text
+  createdAt        DateTime                  @default(now())
+  updatedAt        DateTime                  @updatedAt
+
+  @@index([status, availableAt])
+  @@index([completedAt])
+  @@index([tenantId, createdAt])
 }
 
 model IdempotencyRecord {
