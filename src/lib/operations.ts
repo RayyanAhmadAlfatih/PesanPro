@@ -121,6 +121,7 @@ function expectedProcesses(): RuntimeProcessType[] {
     campaign: env.CAMPAIGN_WORKER_MODE,
     autoreply: env.AUTOREPLY_WORKER_MODE,
     webhook: env.WEBHOOK_WORKER_MODE,
+    email: env.SMTP_HOST ? "embedded" : "disabled",
   });
 }
 

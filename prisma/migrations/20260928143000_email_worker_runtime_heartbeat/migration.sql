@@ -1,0 +1,11 @@
+ALTER TABLE `RuntimeHeartbeat`
+  MODIFY `processType` ENUM(
+    'WEB',
+    'MESSAGE_WORKER',
+    'SCHEDULE_WORKER',
+    'BROADCAST_WORKER',
+    'CAMPAIGN_WORKER',
+    'AUTOREPLY_WORKER',
+    'WEBHOOK_WORKER',
+    'EMAIL_WORKER'
+  ) NOT NULL;

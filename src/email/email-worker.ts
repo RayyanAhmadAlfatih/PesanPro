@@ -1,5 +1,6 @@
 import { setTimeout as sleep } from "node:timers/promises";
 import { logger } from "@/lib/logger";
+import type { RuntimeHeartbeatReporter } from "@/lib/runtime-heartbeat";
 import {
   claimNextEmail,
   DEFAULT_EMAIL_LEASE_MS,
@@ -14,7 +15,12 @@ export class EmailWorker {
   private running = false;
   private loopPromise: Promise<void> | null = null;
 
-  constructor(private readonly options: { workerId: string; pollMs?: number; leaseMs?: number }) {}
+  constructor(private readonly options: {
+    workerId: string;
+    pollMs?: number;
+    leaseMs?: number;
+    healthReporter?: Pick<RuntimeHeartbeatReporter, "markHealthy" | "reportError">;
+  }) {}
 
   start() {
     if (this.running) return;
@@ -55,9 +61,11 @@ export class EmailWorker {
     while (this.running) {
       try {
         const email = await claimNextEmail(this.options.workerId, leaseMs);
+        await this.options.healthReporter?.markHealthy();
         if (email) await this.process(email, leaseMs);
         else await sleep(pollMs);
       } catch (error) {
+        await this.options.healthReporter?.reportError("EMAIL_QUEUE_POLL_FAILED", error);
         logger.error("EmailWorker", "Polling failed", error);
         await sleep(pollMs);
       }

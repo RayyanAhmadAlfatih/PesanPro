@@ -3,10 +3,11 @@ import { _resetEnvCache, getEnv } from "./env";
 
 const keys = [
   "DATABASE_URL", "AUTH_SECRET", "ENCRYPTION_KEY", "BASE_URL", "PASSWORD_RESET_BASE_URL",
-  "RESEND_API_KEY", "PASSWORD_RESET_FROM", "MESSAGE_WORKER_MODE", "MESSAGE_WORKER_SECRET",
+"MESSAGE_WORKER_MODE", "MESSAGE_WORKER_SECRET",
   "BACKUP_ENCRYPTION_PASSPHRASE", "MEDIA_STORAGE_DRIVER", "B2_ACCOUNT_ID", "B2_ACCOUNT_KEY",
   "B2_BUCKET", "B2_ENDPOINT",
   "SMTP_HOST", "SMTP_PORT", "SMTP_SECURE", "SMTP_USER", "SMTP_PASSWORD", "SMTP_FROM",
+  "PESANPRO_QA_MODE",
 ] as const;
 const original = Object.fromEntries(keys.map((key) => [key, process.env[key]]));
 
@@ -14,6 +15,7 @@ function setRequiredEnvironment() {
   process.env.DATABASE_URL = "mysql://user:password@127.0.0.1:3306/pesanpro";
   process.env.AUTH_SECRET = "a".repeat(32);
   process.env.ENCRYPTION_KEY = "b".repeat(64);
+  process.env.BASE_URL = "https://pesanpro.example.com";
   process.env.MESSAGE_WORKER_MODE = "embedded";
 }
 
@@ -31,8 +33,6 @@ describe("environment optional secrets", () => {
     setRequiredEnvironment();
     process.env.BASE_URL = "";
     process.env.PASSWORD_RESET_BASE_URL = "";
-    process.env.RESEND_API_KEY = "";
-    process.env.PASSWORD_RESET_FROM = "";
     process.env.MESSAGE_WORKER_SECRET = "";
     process.env.BACKUP_ENCRYPTION_PASSPHRASE = "";
     _resetEnvCache();
@@ -41,6 +41,17 @@ describe("environment optional secrets", () => {
     expect(env.BASE_URL).toBeUndefined();
     expect(env.MESSAGE_WORKER_SECRET).toBeUndefined();
     expect(env.BACKUP_ENCRYPTION_PASSPHRASE).toBeUndefined();
+  });
+
+  it("keeps controlled QA routes disabled by default and accepts an explicit opt-in", () => {
+    setRequiredEnvironment();
+    delete process.env.PESANPRO_QA_MODE;
+    _resetEnvCache();
+    expect(getEnv().PESANPRO_QA_MODE).toBe(false);
+
+    process.env.PESANPRO_QA_MODE = "true";
+    _resetEnvCache();
+    expect(getEnv().PESANPRO_QA_MODE).toBe(true);
   });
 
   it("still requires a worker secret in external mode", () => {

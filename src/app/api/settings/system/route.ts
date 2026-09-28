@@ -3,11 +3,17 @@ import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/api-auth";
 import moment from "moment-timezone";
 import { z } from "zod";
+import { normalizeBrandAssetUrl } from "@/lib/brand-config";
+
+const brandUrlSchema = z.string().trim().max(2_048).nullish().refine(
+    (value) => !value || Boolean(normalizeBrandAssetUrl(value)),
+    "Brand asset URL must be an HTTPS URL or an absolute local path",
+);
 
 const systemSettingsSchema = z.object({
     appName: z.string().trim().min(1).max(160),
-    logoUrl: z.string().trim().max(2_048).nullish(),
-    faviconUrl: z.string().trim().max(2_048).nullish(),
+    logoUrl: brandUrlSchema,
+    faviconUrl: brandUrlSchema,
     timezone: z.string().trim().refine((value) => moment.tz.zone(value) !== null, "Invalid timezone"),
     enableRegistration: z.boolean(),
 });

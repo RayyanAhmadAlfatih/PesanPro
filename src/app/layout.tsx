@@ -2,6 +2,13 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { TopLoader } from "@/components/ui/top-loader";
+import { prisma } from "@/lib/prisma";
+import {
+  DEFAULT_APP_NAME,
+  DEFAULT_FAVICON_URL,
+  normalizeAppName,
+  normalizeBrandAssetUrl,
+} from "@/lib/brand-config";
 
 const APP_DESCRIPTION = "PesanPro — Self-hosted WhatsApp Gateway SaaS multi-tenant dengan multi-device, queue yang tahan restart, dan API yang aman.";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.BASE_URL || "https://pesanpro.app";
@@ -15,9 +22,19 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export function generateMetadata(): Metadata {
-  const appName = process.env.APP_NAME?.trim() || "PesanPro";
+export async function generateMetadata(): Promise<Metadata> {
+  let configured: { appName: string; faviconUrl: string | null } | null = null;
+  try {
+    configured = await prisma.systemConfig.findUnique({
+      where: { id: "default" },
+      select: { appName: true, faviconUrl: true },
+    });
+  } catch {
+    // Metadata must remain available even when the database is temporarily unavailable.
+  }
 
+  const appName = normalizeAppName(configured?.appName ?? process.env.APP_NAME ?? DEFAULT_APP_NAME);
+  const faviconUrl = normalizeBrandAssetUrl(configured?.faviconUrl, DEFAULT_FAVICON_URL);
   const appDefaultTitle = `${appName} | Premium WhatsApp Gateway`;
 
   return {
@@ -28,6 +45,7 @@ export function generateMetadata(): Metadata {
     },
     description: APP_DESCRIPTION,
     applicationName: appName,
+    icons: { icon: faviconUrl },
     generator: "Next.js",
     keywords: [
       "whatsapp gateway", "whatsapp api", "whatsapp bot", "whatsapp management",

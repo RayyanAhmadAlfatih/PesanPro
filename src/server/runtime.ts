@@ -162,10 +162,12 @@ app.prepare().then(async () => {
   if (env.SMTP_HOST) {
     const { EmailWorker } = await import("../email/email-worker");
     const workerId = `embedded-email-${os.hostname()}-${process.pid}-${crypto.randomUUID().slice(0, 8)}`;
+    const healthReporter = await createHeartbeat("EMAIL_WORKER", workerId, "embedded");
     emailWorker = new EmailWorker({
       workerId,
       pollMs: env.EMAIL_WORKER_POLL_MS,
       leaseMs: env.EMAIL_WORKER_LEASE_MS,
+      healthReporter,
     });
     emailWorker.start();
   }
@@ -203,8 +205,16 @@ app.prepare().then(async () => {
   const dailyMaintenance = setInterval(runMaintenance, 86_400_000);
   dailyMaintenance.unref?.();
 
-  // Graceful shutdown (Gate 0)
+  // Graceful shutdown (Gate 0). PM2/process managers may deliver more
+  // than one signal while async cleanup is still running, so cleanup must be
+  // single-flight to avoid stopping workers and shared resources twice.
+  let shuttingDown = false;
   const shutdown = async (signal: string) => {
+    if (shuttingDown) {
+      logger.info("Server", `Shutdown already in progress; ignoring ${signal}`);
+      return;
+    }
+    shuttingDown = true;
     logger.info("Server", `Received ${signal}, shutting down gracefully...`);
     try {
       clearInterval(operationalScan);

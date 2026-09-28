@@ -9,7 +9,7 @@ services:
       MYSQL_ROOT_PASSWORD: ${MYSQL_ROOT_PASSWORD}
       MYSQL_DATABASE: ${MYSQL_DATABASE:-pesanpro}
     ports:
-      - "3306:3306"
+      - "127.0.0.1:3306:3306"
     volumes:
       - mysql_data:/var/lib/mysql
     healthcheck:
@@ -25,7 +25,7 @@ services:
     container_name: pesanpro-app
     restart: always
     ports:
-      - "3000:3000"
+      - "127.0.0.1:3000:3000"
     environment:
       - DATABASE_URL=mysql://root:${MYSQL_ROOT_PASSWORD}@db:3306/${MYSQL_DATABASE:-pesanpro}
       - AUTH_SECRET=${AUTH_SECRET}
@@ -73,6 +73,7 @@ services:
       - BACKUP_RETENTION_DAYS=${BACKUP_RETENTION_DAYS:-30}
       - BACKUP_ENCRYPTION_PASSPHRASE=${BACKUP_ENCRYPTION_PASSPHRASE}
       - MONTHLY_INFRA_COST_IDR=${MONTHLY_INFRA_COST_IDR:-0}
+      - TRUSTED_PROXY_HOPS=${TRUSTED_PROXY_HOPS:-1}
     depends_on:
       db:
         condition: service_healthy
