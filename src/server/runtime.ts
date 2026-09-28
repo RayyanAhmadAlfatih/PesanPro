@@ -203,8 +203,16 @@ app.prepare().then(async () => {
   const dailyMaintenance = setInterval(runMaintenance, 86_400_000);
   dailyMaintenance.unref?.();
 
-  // Graceful shutdown (Gate 0)
+  // Graceful shutdown (Gate 0). PM2/process managers may deliver more
+  // than one signal while async cleanup is still running, so cleanup must be
+  // single-flight to avoid stopping workers and shared resources twice.
+  let shuttingDown = false;
   const shutdown = async (signal: string) => {
+    if (shuttingDown) {
+      logger.info("Server", `Shutdown already in progress; ignoring ${signal}`);
+      return;
+    }
+    shuttingDown = true;
     logger.info("Server", `Received ${signal}, shutting down gracefully...`);
     try {
       clearInterval(operationalScan);
