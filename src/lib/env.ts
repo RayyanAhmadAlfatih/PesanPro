@@ -13,8 +13,6 @@ const envSchema = z.object({
   AUTH_SECRET: z.string().min(32, "AUTH_SECRET must be at least 32 characters"),
   BASE_URL: optionalString(z.string().url()),
   PASSWORD_RESET_BASE_URL: optionalString(z.string().url()),
-  RESEND_API_KEY: optionalString(z.string().min(1)),
-  PASSWORD_RESET_FROM: optionalString(z.string().min(3)),
   APP_NAME: z.string().min(1).default("PesanPro"),
   PESANPRO_QA_MODE: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   SMTP_HOST: optionalString(z.string().min(1)),
