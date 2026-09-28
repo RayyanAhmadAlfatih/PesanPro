@@ -15,6 +15,7 @@ function setRequiredEnvironment() {
   process.env.DATABASE_URL = "mysql://user:password@127.0.0.1:3306/pesanpro";
   process.env.AUTH_SECRET = "a".repeat(32);
   process.env.ENCRYPTION_KEY = "b".repeat(64);
+  process.env.BASE_URL = "https://pesanpro.example.com";
   process.env.MESSAGE_WORKER_MODE = "embedded";
 }
 
