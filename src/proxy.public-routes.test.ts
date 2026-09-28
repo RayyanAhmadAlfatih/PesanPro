@@ -53,11 +53,23 @@ describe("public website and authenticated app routing", () => {
     expect(mocks.auth).not.toHaveBeenCalled();
   });
 
-  it("does not turn an API route public just because it looks like an asset", async () => {
-    const response = await proxy(request("/api/private/logo.webp"));
+  it.each([
+    "/api/private/logo.webp",
+    "/api/auth-malicious",
+    "/api/test-malicious",
+  ])("does not make protected API lookalikes public: %s", async (path) => {
+    const response = await proxy(request(path));
 
     expect(response.status).toBe(401);
     expect(mocks.auth).toHaveBeenCalledOnce();
+    mocks.auth.mockClear();
+  });
+
+  it("does not treat a dashboard lookalike as an authenticated app route", async () => {
+    const response = await proxy(request("/dashboard-marketing"));
+
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(mocks.auth).not.toHaveBeenCalled();
   });
 
   it("still redirects anonymous dashboard traffic to login with callbackUrl", async () => {
