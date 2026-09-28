@@ -1,4 +1,5 @@
 import crypto from "crypto";
+import { isIP } from "node:net";
 import { prisma } from "./prisma";
 
 /**
@@ -116,22 +117,33 @@ export async function checkPersistentRateLimit(
 }
 
 /**
- * Extract client IP from NextRequest headers (x-forwarded-for aware)
+ * Extract the public client IP from forwarding headers using an explicit
+ * trusted-hop policy. The deployment must keep the Node port private and the
+ * trusted edge proxy must overwrite/sanitize forwarding headers.
  */
 export function getClientIp(headers: Headers | Record<string, string | null | undefined>): string {
   const get = (name: string): string | null => {
     if (headers instanceof Headers) return headers.get(name);
-    const v = (headers as Record<string, string | null | undefined>)[name];
-    return v ?? null;
+    const source = headers as Record<string, string | null | undefined>;
+    return source[name] ?? source[name.toLowerCase()] ?? null;
   };
+
+  const configuredHops = Number.parseInt(process.env.TRUSTED_PROXY_HOPS ?? "1", 10);
+  const trustedProxyHops = Number.isInteger(configuredHops) && configuredHops >= 0
+    ? Math.min(10, configuredHops)
+    : 1;
+  if (trustedProxyHops === 0) return "unknown";
 
   const forwarded = get("x-forwarded-for");
   if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
-    if (first) return first;
+    const chain = forwarded.split(",").map((value) => value.trim()).filter(Boolean);
+    const candidateIndex = chain.length - trustedProxyHops;
+    const candidate = candidateIndex >= 0 ? chain[candidateIndex] : null;
+    if (candidate && isIP(candidate)) return candidate;
   }
-  const realIp = get("x-real-ip");
-  if (realIp) return realIp.trim();
+
+  const realIp = get("x-real-ip")?.trim();
+  if (trustedProxyHops === 1 && realIp && isIP(realIp)) return realIp;
   return "unknown";
 }
 
