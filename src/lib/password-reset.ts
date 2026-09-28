@@ -1,6 +1,9 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { logger } from "./logger";
+import { getEnv } from "./env";
+import { buildPasswordResetEmail } from "./email-notifications";
+import { sendSmtpEmail } from "./email-transport";
 import {
   generatePasswordResetSecret,
   hashPasswordResetSecret,
@@ -13,37 +16,11 @@ export interface PasswordResetRequestResult {
   accepted: true;
 }
 
-async function sendResetEmail(email: string, resetUrl: string): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.PASSWORD_RESET_FROM;
-
-  if (!apiKey || !from) {
-    return false;
-  }
-
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: [email],
-      subject: "Reset password PesanPro",
-      text: `Gunakan tautan berikut untuk mengatur ulang password PesanPro. Tautan berlaku 30 menit: ${resetUrl}`,
-      html: `<p>Gunakan tautan berikut untuk mengatur ulang password PesanPro.</p><p><a href="${resetUrl}">Reset password</a></p><p>Tautan berlaku 30 menit.</p>`,
-    }),
-  });
-
-  return response.ok;
-}
-
 export async function requestPasswordReset(emailInput: string): Promise<PasswordResetRequestResult> {
   const email = emailInput.trim().toLowerCase();
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, email: true, status: true },
+    select: { id: true, name: true, email: true, status: true },
   });
 
   if (!user || user.status !== "ACTIVE") {
@@ -63,16 +40,21 @@ export async function requestPasswordReset(emailInput: string): Promise<Password
     }),
   ]);
 
-  const baseUrl = process.env.PASSWORD_RESET_BASE_URL ?? process.env.BASE_URL ?? "http://localhost:3000";
+  const env = getEnv();
+  const baseUrl = env.PASSWORD_RESET_BASE_URL ?? env.BASE_URL ?? "http://localhost:3000";
   const resetUrl = `${baseUrl.replace(/\/$/, "")}/auth/reset-password?token=${encodeURIComponent(secret)}`;
+  const content = buildPasswordResetEmail({ userName: user.name, resetUrl });
 
   try {
-    const delivered = await sendResetEmail(user.email, resetUrl);
-    if (!delivered && process.env.NODE_ENV === "production") {
-      logger.error("Auth", "Password reset email delivery is not configured or failed");
-    }
-  } catch (error) {
-    logger.error("Auth", "Password reset email delivery failed", error);
+    await sendSmtpEmail({
+      messageId: `<password-reset-${tokenHash.slice(0, 40)}@pesanpro.local>`,
+      toEmail: user.email,
+      toName: user.name,
+      ...content,
+    });
+  } catch {
+    // Preserve anti-enumeration behavior and never log the reset URL/token or SMTP credentials.
+    logger.error("Auth", "Password reset email delivery failed");
   }
 
   return { accepted: true };
