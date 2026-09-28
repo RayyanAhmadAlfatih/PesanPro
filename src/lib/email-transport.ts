@@ -1,6 +1,8 @@
 import { SMTPClient } from "emailjs";
 import { getEnv } from "./env";
 
+export const SMTP_SEND_TIMEOUT_MS = 30_000;
+
 export type OutgoingEmail = {
   messageId: string;
   toEmail: string;
@@ -35,8 +37,9 @@ export async function sendSmtpEmail(email: OutgoingEmail) {
   const env = getEnv();
   if (!env.SMTP_FROM) throw new EmailTransportError("SMTP_NOT_CONFIGURED");
   const client = smtpClient();
+  let timeout: ReturnType<typeof setTimeout> | null = null;
   try {
-    await client.sendAsync({
+    const send = client.sendAsync({
       "message-id": email.messageId,
       from: env.SMTP_FROM,
       to: email.toEmail,
@@ -44,10 +47,16 @@ export async function sendSmtpEmail(email: OutgoingEmail) {
       text: email.textBody,
       attachment: [{ data: email.htmlBody, alternative: true, type: "text/html" }],
     });
+    const deadline = new Promise<never>((_, reject) => {
+      timeout = setTimeout(() => reject(new EmailTransportError("SMTP_DELIVERY_FAILED")), SMTP_SEND_TIMEOUT_MS);
+      timeout.unref?.();
+    });
+    await Promise.race([send, deadline]);
   } catch (error) {
     if (error instanceof EmailTransportError) throw error;
     throw new EmailTransportError("SMTP_DELIVERY_FAILED");
   } finally {
+    if (timeout) clearTimeout(timeout);
     client.smtp.close();
   }
 }

@@ -15,6 +15,8 @@ import { io } from "socket.io-client";
 
 interface NavbarProps {
     appName?: string;
+    logoUrl?: string;
+    timezone?: string;
 }
 
 interface Notification {
@@ -27,7 +29,7 @@ interface Notification {
     createdAt: string;
 }
 
-export function Navbar({ appName }: NavbarProps) {
+export function Navbar({ appName, logoUrl, timezone = "Asia/Jakarta" }: NavbarProps) {
     const router = useRouter();
     const { data: session } = useSession();
     const [notifications, setNotifications] = useState<Notification[]>([]);
@@ -141,11 +143,11 @@ export function Navbar({ appName }: NavbarProps) {
     return (
         <header className="sticky top-0 z-30 flex h-[72px] w-full items-center justify-between border-b border-[var(--pp-line)] bg-[var(--pp-paper)] px-4 sm:px-6">
             <div className="flex items-center gap-3">
-                <MobileNav appName={appName} />
+                <MobileNav appName={appName} logoUrl={logoUrl} />
             </div>
 
             <div className="flex items-center gap-2 sm:gap-4 min-w-0">
-                <span className="hidden sm:inline"><RealtimeClock /></span>
+                <span className="hidden sm:inline"><RealtimeClock timezone={timezone} /></span>
                 {session?.user?.id && <SessionSelector />}
                 <div className="hidden h-7 w-px bg-[var(--pp-line)] sm:block" />
 

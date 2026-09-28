@@ -56,6 +56,7 @@ export function requiredProcessTypes(modes: {
   campaign: string;
   autoreply: string;
   webhook: string;
+  email: string;
 }): RuntimeProcessType[] {
   const required: RuntimeProcessType[] = ["WEB"];
   if (modes.message !== "disabled") required.push("MESSAGE_WORKER");
@@ -64,6 +65,7 @@ export function requiredProcessTypes(modes: {
   if (modes.campaign !== "disabled") required.push("CAMPAIGN_WORKER");
   if (modes.autoreply !== "disabled") required.push("AUTOREPLY_WORKER");
   if (modes.webhook !== "disabled") required.push("WEBHOOK_WORKER");
+  if (modes.email !== "disabled") required.push("EMAIL_WORKER");
   return required;
 }
 

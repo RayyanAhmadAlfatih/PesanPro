@@ -5,8 +5,8 @@ const now = new Date("2026-09-05T00:10:00.000Z");
 
 describe("operational readiness and alert policy", () => {
   it("requires every enabled worker and ignores disabled workers", () => {
-    expect(requiredProcessTypes({ message: "external", schedule: "embedded", broadcast: "disabled", campaign: "external", autoreply: "external", webhook: "external" }))
-      .toEqual(["WEB", "MESSAGE_WORKER", "SCHEDULE_WORKER", "CAMPAIGN_WORKER", "AUTOREPLY_WORKER", "WEBHOOK_WORKER"]);
+    expect(requiredProcessTypes({ message: "external", schedule: "embedded", broadcast: "disabled", campaign: "external", autoreply: "external", webhook: "external", email: "embedded" }))
+      .toEqual(["WEB", "MESSAGE_WORKER", "SCHEDULE_WORKER", "CAMPAIGN_WORKER", "AUTOREPLY_WORKER", "WEBHOOK_WORKER", "EMAIL_WORKER"]);
   });
 
   it("uses an inclusive stale boundary", () => {

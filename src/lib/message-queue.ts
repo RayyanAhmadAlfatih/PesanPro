@@ -10,11 +10,107 @@ export const DEFAULT_MESSAGE_LEASE_MS = 30_000;
 
 export type ClaimedMessageJob = NonNullable<Awaited<ReturnType<typeof claimNextMessageJob>>>;
 
+
+const EXHAUSTED_MESSAGE_ERROR = {
+  code: "MAX_ATTEMPTS_EXCEEDED",
+  message: "Message delivery exceeded the retry limit",
+} as const;
+
+async function terminalizeExhaustedMessageJobs(now: Date, limit = 25) {
+  // Prisma's object query API cannot compare attempts to maxAttempts, so select
+  // only exhausted IDs with a parameterized raw query and hydrate them normally.
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT id
+    FROM MessageJob
+    WHERE attempts >= maxAttempts
+      AND (
+        status = 'QUEUED'
+        OR (status = 'PROCESSING' AND leaseExpiresAt <= ${now})
+      )
+    ORDER BY updatedAt ASC, id ASC
+    LIMIT ${limit}
+  `);
+  if (rows.length === 0) return 0;
+
+  const candidates = await prisma.messageJob.findMany({
+    where: { id: { in: rows.map((row) => row.id) } },
+    include: { session: true },
+  });
+
+  for (const job of candidates) {
+    // Release first and idempotently. If the process crashes before the state
+    // transition, the next reconciliation repeats the same RELEASE safely.
+    await settleMessageQuota(job, "RELEASE");
+
+    await prisma.$transaction(async (tx) => {
+      const updated = await tx.messageJob.updateMany({
+        where: {
+          id: job.id,
+          attempts: { gte: job.maxAttempts },
+          OR: [
+            { status: "QUEUED" },
+            { status: "PROCESSING", lockedBy: job.lockedBy, leaseExpiresAt: { lte: now } },
+          ],
+        },
+        data: {
+          status: "FAILED",
+          failedAt: now,
+          deadLetteredAt: now,
+          safeErrorCode: EXHAUSTED_MESSAGE_ERROR.code,
+          safeErrorMessage: EXHAUSTED_MESSAGE_ERROR.message,
+          lastErrorAt: now,
+          lockedBy: null,
+          leaseExpiresAt: null,
+          heartbeatAt: null,
+        },
+      });
+      if (updated.count === 0) return;
+
+      await tx.messageJobAttempt.updateMany({
+        where: { jobId: job.id, status: "PROCESSING" },
+        data: {
+          status: "FAILED",
+          safeErrorCode: EXHAUSTED_MESSAGE_ERROR.code,
+          safeErrorMessage: EXHAUSTED_MESSAGE_ERROR.message,
+          finishedAt: now,
+        },
+      });
+      await tx.broadcastRecipient.updateMany({
+        where: { messageJobId: job.id, status: { in: ["ENQUEUED", "SENT"] } },
+        data: {
+          status: "FAILED",
+          failedAt: now,
+          safeErrorCode: EXHAUSTED_MESSAGE_ERROR.code,
+          safeErrorMessage: EXHAUSTED_MESSAGE_ERROR.message,
+        },
+      });
+      await createWebhookOutboxEvent(tx, {
+        tenantId: job.tenantId,
+        sessionDbId: job.sessionId,
+        sessionPublicId: job.session.sessionId,
+        eventType: "message.status",
+        eventKey: `message-job:${job.id}:FAILED`,
+        data: {
+          jobId: job.id,
+          messageId: job.whatsappMessageId,
+          recipient: job.recipient,
+          status: "FAILED",
+          errorCode: EXHAUSTED_MESSAGE_ERROR.code,
+        },
+        now,
+      });
+    });
+  }
+
+  return candidates.length;
+}
+
 export async function claimNextMessageJob(workerId: string, leaseMs = DEFAULT_MESSAGE_LEASE_MS) {
   if (!workerId.trim()) throw new Error("workerId is required");
   if (!Number.isInteger(leaseMs) || leaseMs < 5_000) throw new Error("leaseMs must be at least 5000");
 
   const now = new Date();
+  await terminalizeExhaustedMessageJobs(now);
   const leaseExpiresAt = new Date(now.getTime() + leaseMs);
   const claimToken = `${workerId}:${crypto.randomUUID()}`;
 
@@ -26,8 +122,9 @@ export async function claimNextMessageJob(workerId: string, leaseMs = DEFAULT_ME
         SELECT id
         FROM MessageJob
         WHERE
-          (status = 'QUEUED' AND availableAt <= ${now})
-          OR (status = 'PROCESSING' AND leaseExpiresAt < ${now})
+          ((status = 'QUEUED' AND availableAt <= ${now})
+          OR (status = 'PROCESSING' AND leaseExpiresAt < ${now}))
+          AND attempts < maxAttempts
         ORDER BY priority DESC, availableAt ASC, createdAt ASC
         LIMIT 1
       ) AS candidate
@@ -40,8 +137,9 @@ export async function claimNextMessageJob(workerId: string, leaseMs = DEFAULT_ME
       job.attempts = job.attempts + 1,
       job.updatedAt = ${now}
     WHERE
-      (job.status = 'QUEUED' AND job.availableAt <= ${now})
-      OR (job.status = 'PROCESSING' AND job.leaseExpiresAt < ${now})
+      ((job.status = 'QUEUED' AND job.availableAt <= ${now})
+      OR (job.status = 'PROCESSING' AND job.leaseExpiresAt < ${now}))
+      AND job.attempts < job.maxAttempts
   `);
 
   if (claimed !== 1) return null;
@@ -62,23 +160,23 @@ export async function claimNextMessageJob(workerId: string, leaseMs = DEFAULT_ME
 export async function heartbeatMessageJob(jobId: string, claimToken: string, leaseMs = DEFAULT_MESSAGE_LEASE_MS) {
   const now = new Date();
   return prisma.messageJob.updateMany({
-    where: { id: jobId, status: "PROCESSING", lockedBy: claimToken },
+    where: { id: jobId, status: "PROCESSING", lockedBy: claimToken, leaseExpiresAt: { gt: now } },
     data: { heartbeatAt: now, leaseExpiresAt: new Date(now.getTime() + leaseMs) },
   });
 }
 
 export async function completeMessageJob(job: ClaimedMessageJob, whatsappMessageId: string) {
+  const now = new Date();
   const owned = await prisma.messageJob.findFirst({
-    where: { id: job.id, status: "PROCESSING", lockedBy: job.claimToken },
+    where: { id: job.id, status: "PROCESSING", lockedBy: job.claimToken, leaseExpiresAt: { gt: now } },
     select: { id: true },
   });
   if (!owned) return false;
 
   await settleMessageQuota(job, "COMMIT");
-  const now = new Date();
   const result = await prisma.$transaction(async (tx) => {
     const updated = await tx.messageJob.updateMany({
-      where: { id: job.id, status: "PROCESSING", lockedBy: job.claimToken },
+      where: { id: job.id, status: "PROCESSING", lockedBy: job.claimToken, leaseExpiresAt: { gt: now } },
       data: {
         status: "SENT",
         whatsappMessageId,
@@ -124,7 +222,7 @@ export async function failMessageJob(job: ClaimedMessageJob, error: unknown) {
   const now = new Date();
   const shouldRetry = safeError.retryable && job.attempts < job.maxAttempts;
   const owned = await prisma.messageJob.findFirst({
-    where: { id: job.id, status: "PROCESSING", lockedBy: job.claimToken },
+    where: { id: job.id, status: "PROCESSING", lockedBy: job.claimToken, leaseExpiresAt: { gt: now } },
     select: { id: true },
   });
   if (!owned) return { updated: false, retrying: false, error: safeError };
@@ -133,7 +231,7 @@ export async function failMessageJob(job: ClaimedMessageJob, error: unknown) {
   const availableAt = shouldRetry ? new Date(now.getTime() + calculateMessageRetryDelay(job.attempts)) : now;
   const result = await prisma.$transaction(async (tx) => {
     const updated = await tx.messageJob.updateMany({
-      where: { id: job.id, status: "PROCESSING", lockedBy: job.claimToken },
+      where: { id: job.id, status: "PROCESSING", lockedBy: job.claimToken, leaseExpiresAt: { gt: now } },
       data: {
         status: shouldRetry ? "QUEUED" : "FAILED",
         availableAt,
@@ -195,35 +293,71 @@ export async function failMessageJob(job: ClaimedMessageJob, error: unknown) {
 export async function recoverMessageJobsForWorker(workerId: string) {
   const claims = await prisma.messageJob.findMany({
     where: { status: "PROCESSING", lockedBy: { startsWith: `${workerId}:` } },
-    select: { id: true, attempts: true },
+    include: { session: true },
   });
   if (claims.length === 0) return 0;
   const now = new Date();
+
+  for (const job of claims.filter((item) => item.attempts >= item.maxAttempts)) {
+    await settleMessageQuota(job, "RELEASE");
+  }
+
   await prisma.$transaction(async (tx) => {
     for (const job of claims) {
+      const exhausted = job.attempts >= job.maxAttempts;
+      const code = exhausted ? EXHAUSTED_MESSAGE_ERROR.code : "WORKER_SHUTDOWN";
+      const message = exhausted ? EXHAUSTED_MESSAGE_ERROR.message : "Worker stopped before delivery completed";
+
       await tx.messageJobAttempt.updateMany({
         where: { jobId: job.id, attemptNumber: job.attempts, status: "PROCESSING" },
-        data: {
+        data: { status: "FAILED", safeErrorCode: code, safeErrorMessage: message, finishedAt: now },
+      });
+
+      const updated = await tx.messageJob.updateMany({
+        where: { id: job.id, status: "PROCESSING", lockedBy: job.lockedBy },
+        data: exhausted ? {
           status: "FAILED",
-          safeErrorCode: "WORKER_SHUTDOWN",
-          safeErrorMessage: "Worker stopped before delivery completed",
-          finishedAt: now,
+          failedAt: now,
+          deadLetteredAt: now,
+          lockedBy: null,
+          leaseExpiresAt: null,
+          heartbeatAt: null,
+          safeErrorCode: code,
+          safeErrorMessage: message,
+          lastErrorAt: now,
+        } : {
+          status: "QUEUED",
+          availableAt: now,
+          lockedBy: null,
+          leaseExpiresAt: null,
+          heartbeatAt: null,
+          safeErrorCode: code,
+          safeErrorMessage: message,
+          lastErrorAt: now,
         },
       });
+      if (updated.count === 0 || !exhausted) continue;
+
+      await tx.broadcastRecipient.updateMany({
+        where: { messageJobId: job.id, status: { in: ["ENQUEUED", "SENT"] } },
+        data: { status: "FAILED", failedAt: now, safeErrorCode: code, safeErrorMessage: message },
+      });
+      await createWebhookOutboxEvent(tx, {
+        tenantId: job.tenantId,
+        sessionDbId: job.sessionId,
+        sessionPublicId: job.session.sessionId,
+        eventType: "message.status",
+        eventKey: `message-job:${job.id}:FAILED`,
+        data: {
+          jobId: job.id,
+          messageId: job.whatsappMessageId,
+          recipient: job.recipient,
+          status: "FAILED",
+          errorCode: code,
+        },
+        now,
+      });
     }
-    await tx.messageJob.updateMany({
-      where: { id: { in: claims.map((job) => job.id) }, status: "PROCESSING", lockedBy: { startsWith: `${workerId}:` } },
-      data: {
-        status: "QUEUED",
-        availableAt: now,
-        lockedBy: null,
-        leaseExpiresAt: null,
-        heartbeatAt: null,
-        safeErrorCode: "WORKER_SHUTDOWN",
-        safeErrorMessage: "Worker stopped before delivery completed",
-        lastErrorAt: now,
-      },
-    });
   });
   return claims.length;
 }

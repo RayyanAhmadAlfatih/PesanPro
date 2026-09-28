@@ -4,22 +4,9 @@ import { useEffect, useState, useSyncExternalStore } from "react";
 import moment from "moment-timezone";
 import { Clock } from "lucide-react";
 
-export function RealtimeClock() {
+export function RealtimeClock({ timezone = "Asia/Jakarta" }: { timezone?: string }) {
     const [time, setTime] = useState("");
-    const [timezone, setTimezone] = useState("Asia/Jakarta");
     const mounted = useSyncExternalStore(() => () => {}, () => true, () => false);
-
-    useEffect(() => {
-        // Fetch global timezone
-        fetch('/api/settings/system')
-            .then(r => r.json())
-            .then(data => {
-                if (data && data.data && data.data.timezone) {
-                    setTimezone(data.data.timezone);
-                }
-            })
-            .catch(() => { });
-    }, []);
 
     useEffect(() => {
         if (!mounted) return;

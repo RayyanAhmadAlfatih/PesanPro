@@ -17,6 +17,7 @@ import {
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
 import { Bot, ArrowRight, Loader2 } from "lucide-react";
+import { safeInternalRedirect } from "@/lib/safe-redirect";
 import Link from 'next/link';
 
 const formSchema = z.object({
@@ -27,7 +28,7 @@ const formSchema = z.object({
 function LoginForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
-  const callbackUrl = searchParams.get('callbackUrl') || '/dashboard';
+  const callbackUrl = safeInternalRedirect(searchParams.get('callbackUrl'));
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(false);
 

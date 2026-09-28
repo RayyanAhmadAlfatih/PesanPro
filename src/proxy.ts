@@ -31,8 +31,11 @@ export async function proxy(request: NextRequest) {
         "/privacy",
     ];
 
-    // Check if it's a public route
-    const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
+    // Match only the route itself or a real descendant. Avoid accidentally
+    // treating lookalike paths such as /auth/login-malicious as public.
+    const isPathOrDescendant = (route: string) =>
+        pathname === route || pathname.startsWith(`${route}/`);
+    const isPublicRoute = publicRoutes.some(isPathOrDescendant);
 
     // Allow Next.js internals and favicon only
     if (
@@ -42,9 +45,16 @@ export async function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Allow known static asset extensions in root path only (e.g. /vercel.svg)
+    // Allow known static assets at any public path (e.g. /brand/logo.webp).
+    // Never let an /api/* route bypass auth merely because its path has an
+    // asset-looking extension.
     const staticExtensions = [".svg", ".ico", ".png", ".jpg", ".jpeg", ".webp", ".woff", ".woff2", ".ttf"];
-    if (pathname.lastIndexOf("/") === 0 && staticExtensions.some(ext => pathname.endsWith(ext))) {
+    const lowerPathname = pathname.toLowerCase();
+    if (
+        !isPathOrDescendant("/api") &&
+        !isPathOrDescendant("/dashboard") &&
+        staticExtensions.some(ext => lowerPathname.endsWith(ext))
+    ) {
         return NextResponse.next();
     }
 
@@ -55,8 +65,8 @@ export async function proxy(request: NextRequest) {
             return NextResponse.next();
         }
 
-        // Skip auth endpoints
-        if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/test")) {
+        // Skip only the intended public API namespaces, not lookalike prefixes.
+        if (isPathOrDescendant("/api/auth") || isPathOrDescendant("/api/test")) {
             return NextResponse.next();
         }
 
@@ -124,7 +134,7 @@ export async function proxy(request: NextRequest) {
     }
 
     // Dashboard routes: Require login
-    if (pathname.startsWith("/dashboard")) {
+    if (isPathOrDescendant("/dashboard")) {
         const session = await auth();
 
         if (!session?.user || session.user.accountActive === false) {
@@ -158,14 +168,9 @@ export async function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Default: require auth for everything else
-    const session = await auth();
-    if (!session?.user || session.user.accountActive === false) {
-        const loginUrl = new URL("/auth/login", request.url);
-        loginUrl.searchParams.set("callbackUrl", pathname);
-        return NextResponse.redirect(loginUrl);
-    }
-
+    // Everything outside /dashboard and protected APIs belongs to the public
+    // website surface. Unknown public URLs must reach Next.js so the custom 404
+    // can render for anonymous visitors instead of forcing a login.
     return NextResponse.next();
 }
 
