@@ -1,6 +1,7 @@
 "use client";
 
 import { useState } from "react";
+import Image, { type ImageLoaderProps } from "next/image";
 import { Sheet, SheetContent, SheetTrigger, SheetHeader, SheetTitle, SheetDescription } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { Menu } from "lucide-react";
@@ -29,6 +30,8 @@ import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
 import pkg from "../../../package.json";
 import { canAccessDashboardPath } from "@/lib/access-policy";
+
+const passthroughImageLoader = ({ src }: ImageLoaderProps) => src;
 
 interface NavGroup {
     label: string;
@@ -106,10 +109,14 @@ export function MobileNav({ appName = "PesanPro", logoUrl }: { appName?: string;
             <SheetContent side="left" className="flex w-[85vw] flex-col border-r border-[var(--pp-ink)] bg-[var(--pp-paper)] p-0 sm:w-[320px]">
                 <SheetHeader className="border-b border-[var(--pp-line)] px-5 py-4 text-left">
                     <div className="flex items-center gap-3">
-                        <img
+                        <Image
+                            loader={passthroughImageLoader}
+                            unoptimized
                             src={logoUrl || "/brand/pesanpro-icon.webp"}
                             alt=""
                             aria-hidden="true"
+                            width={36}
+                            height={36}
                             className="size-9 rounded-md border border-[var(--pp-ink)] object-contain"
                         />
                         <SheetTitle className="font-[family-name:var(--font-display)] text-xl font-extrabold text-foreground">{appName}</SheetTitle>
