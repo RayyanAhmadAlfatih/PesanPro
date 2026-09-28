@@ -141,6 +141,7 @@ enum RuntimeProcessType {
   CAMPAIGN_WORKER
   AUTOREPLY_WORKER
   WEBHOOK_WORKER
+  EMAIL_WORKER
 }
 
 enum RuntimeProcessStatus {
