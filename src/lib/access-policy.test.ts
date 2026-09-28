@@ -26,6 +26,7 @@ describe("access policy", () => {
       "/dashboard/settings",
       "/dashboard/system-monitor",
       "/dashboard/notifications",
+      "/dashboard/qa/error-boundary",
     ];
 
     for (const path of protectedPaths) {
