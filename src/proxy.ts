@@ -51,7 +51,8 @@ export async function proxy(request: NextRequest) {
     const staticExtensions = [".svg", ".ico", ".png", ".jpg", ".jpeg", ".webp", ".woff", ".woff2", ".ttf"];
     const lowerPathname = pathname.toLowerCase();
     if (
-        !pathname.startsWith("/api/") &&
+        !isPathOrDescendant("/api") &&
+        !isPathOrDescendant("/dashboard") &&
         staticExtensions.some(ext => lowerPathname.endsWith(ext))
     ) {
         return NextResponse.next();
