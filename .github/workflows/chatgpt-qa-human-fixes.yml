@@ -42,3 +42,13 @@ jobs:
 
       - name: Production build
         run: npm run build
+
+      - name: Package reviewed source
+        run: git archive --format=zip --output=pesanpro-chatgpt-qa-fixed-source.zip HEAD
+
+      - name: Upload reviewed source
+        uses: actions/upload-artifact@v4
+        with:
+          name: pesanpro-chatgpt-qa-fixed-source
+          path: pesanpro-chatgpt-qa-fixed-source.zip
+          if-no-files-found: error
