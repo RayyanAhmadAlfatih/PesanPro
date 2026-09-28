@@ -17,23 +17,25 @@ const EXHAUSTED_MESSAGE_ERROR = {
 } as const;
 
 async function terminalizeExhaustedMessageJobs(now: Date, limit = 25) {
-  const exhausted = await prisma.messageJob.findMany({
-    where: {
-      attempts: { gte: 1 },
-      OR: [
-        { status: "QUEUED" },
-        { status: "PROCESSING", leaseExpiresAt: { lte: now } },
-      ],
-    },
-    orderBy: [{ updatedAt: "asc" }, { id: "asc" }],
-    take: limit,
+  // Prisma's object query API cannot compare attempts to maxAttempts, so select
+  // only exhausted IDs with a parameterized raw query and hydrate them normally.
+  const rows = await prisma.$queryRaw<Array<{ id: string }>>(Prisma.sql`
+    SELECT id
+    FROM MessageJob
+    WHERE attempts >= maxAttempts
+      AND (
+        status = 'QUEUED'
+        OR (status = 'PROCESSING' AND leaseExpiresAt <= ${now})
+      )
+    ORDER BY updatedAt ASC, id ASC
+    LIMIT ${limit}
+  `);
+  if (rows.length === 0) return 0;
+
+  const candidates = await prisma.messageJob.findMany({
+    where: { id: { in: rows.map((row) => row.id) } },
     include: { session: true },
   });
-
-  // Prisma cannot express a column-to-column attempts >= maxAttempts predicate.
-  // Keep only exhausted rows after the bounded candidate read; the claim query
-  // below independently enforces attempts < maxAttempts at the database layer.
-  const candidates = exhausted.filter((job) => job.attempts >= job.maxAttempts);
 
   for (const job of candidates) {
     // Release first and idempotently. If the process crashes before the state
