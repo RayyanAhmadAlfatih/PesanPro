@@ -16,6 +16,7 @@ export default async function DashboardLayout({
     const session = await auth();
     const systemConfig = await prisma.systemConfig.findUnique({ where: { id: "default" } });
     const appName = systemConfig?.appName || "PesanPro";
+    const timezone = systemConfig?.timezone || "Asia/Jakarta";
 
     return (
         <SessionProvider>
@@ -28,7 +29,7 @@ export default async function DashboardLayout({
                         version={pkg.version}
                     />
                     <div className="flex min-w-0 flex-1 flex-col overflow-hidden" suppressHydrationWarning={true}>
-                        <Navbar appName={appName} />
+                        <Navbar appName={appName} timezone={timezone} />
                         <main className="styled-scrollbar flex-1 overflow-auto">
                             <div className="mx-auto w-full max-w-[1440px] px-4 py-6 sm:px-6 lg:px-9 lg:py-8">
                                 {children}
