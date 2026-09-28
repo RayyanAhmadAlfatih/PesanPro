@@ -85,7 +85,7 @@ const navGroups: NavGroup[] = [
     },
 ];
 
-export function MobileNav({ appName = "PesanPro" }: { appName?: string }) {
+export function MobileNav({ appName = "PesanPro", logoUrl }: { appName?: string; logoUrl?: string }) {
     const [open, setOpen] = useState(false);
     const pathname = usePathname();
     const { data: session } = useSession();
@@ -105,7 +105,10 @@ export function MobileNav({ appName = "PesanPro" }: { appName?: string }) {
             </SheetTrigger>
             <SheetContent side="left" className="flex w-[85vw] flex-col border-r border-[var(--pp-ink)] bg-[var(--pp-paper)] p-0 sm:w-[320px]">
                 <SheetHeader className="border-b border-[var(--pp-line)] px-5 py-4 text-left">
-                    <SheetTitle className="font-[family-name:var(--font-display)] text-xl font-extrabold text-foreground">{appName}</SheetTitle>
+                    <div className="flex items-center gap-3">
+                        {logoUrl ? <img src={logoUrl} alt="" aria-hidden="true" className="size-9 rounded-md border border-[var(--pp-ink)] object-contain" /> : null}
+                        <SheetTitle className="font-[family-name:var(--font-display)] text-xl font-extrabold text-foreground">{appName}</SheetTitle>
+                    </div>
                     <SheetDescription className="-mt-1 text-[11px] text-muted-foreground">WhatsApp operations</SheetDescription>
                 </SheetHeader>
 
