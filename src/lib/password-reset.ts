@@ -1,6 +1,8 @@
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { logger } from "./logger";
+import { buildPasswordResetEmail } from "./email-notifications";
+import { EmailTransportError, sendSmtpEmail } from "./email-transport";
 import {
   generatePasswordResetSecret,
   hashPasswordResetSecret,
@@ -13,37 +15,41 @@ export interface PasswordResetRequestResult {
   accepted: true;
 }
 
-async function sendResetEmail(email: string, resetUrl: string): Promise<boolean> {
-  const apiKey = process.env.RESEND_API_KEY;
-  const from = process.env.PASSWORD_RESET_FROM;
-
-  if (!apiKey || !from) {
-    return false;
+/**
+ * The Message-ID must not carry the raw reset secret. The token hash is
+ * one-way, so deriving the identifier from it is safe to expose in mail
+ * headers and logs.
+ */
+function passwordResetMessageId(tokenHash: string, resetUrl: string): string {
+  let host = "pesanpro.local";
+  try {
+    host = new URL(resetUrl).hostname;
+  } catch {
+    // keep the fallback host
   }
+  return `password-reset.${tokenHash.slice(0, 32)}@${host}`;
+}
 
-  const response = await fetch("https://api.resend.com/emails", {
-    method: "POST",
-    headers: {
-      Authorization: `Bearer ${apiKey}`,
-      "Content-Type": "application/json",
-    },
-    body: JSON.stringify({
-      from,
-      to: [email],
-      subject: "Reset password PesanPro",
-      text: `Gunakan tautan berikut untuk mengatur ulang password PesanPro. Tautan berlaku 30 menit: ${resetUrl}`,
-      html: `<p>Gunakan tautan berikut untuk mengatur ulang password PesanPro.</p><p><a href="${resetUrl}">Reset password</a></p><p>Tautan berlaku 30 menit.</p>`,
-    }),
+async function sendResetEmail(input: {
+  toEmail: string;
+  toName: string | null;
+  tokenHash: string;
+  resetUrl: string;
+}): Promise<void> {
+  const content = buildPasswordResetEmail({ userName: input.toName, resetUrl: input.resetUrl });
+  await sendSmtpEmail({
+    messageId: passwordResetMessageId(input.tokenHash, input.resetUrl),
+    toEmail: input.toEmail,
+    toName: input.toName,
+    ...content,
   });
-
-  return response.ok;
 }
 
 export async function requestPasswordReset(emailInput: string): Promise<PasswordResetRequestResult> {
   const email = emailInput.trim().toLowerCase();
   const user = await prisma.user.findUnique({
     where: { email },
-    select: { id: true, email: true, status: true },
+    select: { id: true, email: true, name: true, status: true },
   });
 
   if (!user || user.status !== "ACTIVE") {
@@ -67,12 +73,19 @@ export async function requestPasswordReset(emailInput: string): Promise<Password
   const resetUrl = `${baseUrl.replace(/\/$/, "")}/auth/reset-password?token=${encodeURIComponent(secret)}`;
 
   try {
-    const delivered = await sendResetEmail(user.email, resetUrl);
-    if (!delivered && process.env.NODE_ENV === "production") {
-      logger.error("Auth", "Password reset email delivery is not configured or failed");
-    }
+    await sendResetEmail({ toEmail: user.email, toName: user.name, tokenHash, resetUrl });
   } catch (error) {
-    logger.error("Auth", "Password reset email delivery failed", error);
+    // Keep the public response generic regardless of delivery outcome:
+    // it must never hint whether the account exists, and logs must never
+    // carry the reset secret, the reset URL, or SMTP credentials.
+    if (error instanceof EmailTransportError && error.code === "SMTP_NOT_CONFIGURED") {
+      if (process.env.NODE_ENV === "production") {
+        logger.error("Auth", "Password reset email delivery is not configured");
+      }
+    } else {
+      const code = error instanceof EmailTransportError ? error.code : "unknown";
+      logger.error("Auth", `Password reset email delivery failed (${code})`);
+    }
   }
 
   return { accepted: true };

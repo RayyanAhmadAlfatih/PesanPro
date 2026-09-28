@@ -2,6 +2,7 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetEnvCache } from "./env";
 import {
   buildPaymentApprovedEmail,
+  buildPasswordResetEmail,
   buildPaymentSubmittedEmail,
   queuePaymentSubmittedEmails,
 } from "./email-notifications";
@@ -103,5 +104,50 @@ describe("payment email notifications", () => {
       ]),
       skipDuplicates: true,
     });
+  });
+});
+
+describe("password reset email template", () => {
+  const resetUrl = "https://pesanpro.example.com/auth/reset-password?token=secret-token";
+
+  it("uses the exact subject and carries the reset URL in both bodies", () => {
+    const email = buildPasswordResetEmail({ userName: "Raka", resetUrl });
+
+    expect(email.subject).toBe("Atur ulang kata sandi PesanPro");
+    expect(email.textBody).toContain(`Buka tautan berikut untuk membuat kata sandi baru:\n${resetUrl}`);
+    expect(email.htmlBody).toContain(`href="${resetUrl}"`);
+    expect(email.htmlBody).toContain(resetUrl);
+  });
+
+  it("greets the user by name, falling back to a nameless greeting", () => {
+    const named = buildPasswordResetEmail({ userName: "  Raka  ", resetUrl });
+    const unnamed = buildPasswordResetEmail({ userName: null, resetUrl });
+
+    expect(named.htmlBody).toContain("Halo Raka,");
+    expect(named.textBody).toContain("Halo Raka,");
+    expect(unnamed.htmlBody).toContain("Halo,");
+    expect(unnamed.textBody).toContain("Halo,");
+    expect(unnamed.textBody).not.toContain("Halo null");
+  });
+
+  it("escapes the user name in HTML but keeps it readable in plain text", () => {
+    const name = `Ana <Admin> & "Co"`;
+    const email = buildPasswordResetEmail({ userName: name, resetUrl });
+
+    expect(email.htmlBody).toContain("Halo Ana &lt;Admin&gt; &amp; &quot;Co&quot;,");
+    expect(email.htmlBody).not.toContain(name);
+    expect(email.textBody).toContain(`Halo ${name},`);
+  });
+
+  it("states the 30-minute expiry, one-time use, and the ignore-if-unsolicited note", () => {
+    const email = buildPasswordResetEmail({ userName: null, resetUrl });
+    const combined = `${email.textBody}\n${email.htmlBody}`;
+
+    expect(combined).toContain("Tautan ini berlaku selama 30 menit.");
+    expect(combined).toContain("Tautan ini berlaku selama 30 menit dan hanya dapat digunakan satu kali.");
+    expect(combined).toContain("Jika Anda tidak meminta reset kata sandi, abaikan email ini. Tidak ada perubahan yang dilakukan pada akun Anda.");
+    expect(combined).toContain("Atur ulang kata sandi");
+    expect(combined).toContain("Jika tombol tidak berfungsi, salin dan buka tautan berikut di browser:");
+    expect(combined).toContain("Email ini dikirim otomatis oleh PesanPro. Mohon jangan membalas email ini.");
   });
 });
