@@ -7,8 +7,7 @@ export function normalizeBrandAssetUrl(
 ): string {
   const candidate = value?.trim();
   if (!candidate) return fallback;
-  if (/[
-\\]/.test(candidate)) return fallback;
+  if (candidate.includes("\r") || candidate.includes("\n") || candidate.includes("\\")) return fallback;
 
   if (candidate.startsWith("/")) {
     if (candidate.startsWith("//")) return fallback;
