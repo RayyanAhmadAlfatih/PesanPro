@@ -1,6 +1,7 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 import { _resetEnvCache } from "./env";
 import {
+  buildPasswordResetEmail,
   buildPaymentApprovedEmail,
   buildPaymentSubmittedEmail,
   queuePaymentSubmittedEmails,
@@ -20,6 +21,33 @@ describe("payment email notifications", () => {
   afterEach(() => {
     vi.unstubAllEnvs();
     _resetEnvCache();
+  });
+
+  it("builds the password-reset copy with escaped user data and one-time security guidance", () => {
+    const resetUrl = "https://pesanpro.example.com/auth/reset-password?token=abc123";
+    const email = buildPasswordResetEmail({
+      userName: "Raka <Owner>",
+      resetUrl,
+    });
+
+    expect(email.subject).toBe("Atur ulang kata sandi PesanPro");
+    expect(email.textBody).toContain("Tautan ini berlaku selama 30 menit dan hanya dapat digunakan satu kali.");
+    expect(email.textBody).toContain("Tidak ada perubahan yang dilakukan pada akun Anda.");
+    expect(email.textBody).toContain(resetUrl);
+    expect(email.htmlBody).toContain("Raka &lt;Owner&gt;");
+    expect(email.htmlBody).toContain("Atur ulang kata sandi");
+    expect(email.htmlBody).toContain("Tautan ini berlaku selama 30 menit.");
+    expect(email.htmlBody).toContain("Mohon jangan membalas email ini.");
+  });
+
+  it("uses a neutral greeting when a password-reset account has no name", () => {
+    const email = buildPasswordResetEmail({
+      userName: null,
+      resetUrl: "https://pesanpro.example.com/auth/reset-password?token=abc123",
+    });
+
+    expect(email.textBody).toContain("\nHalo,\n");
+    expect(email.htmlBody).toContain(">Halo,<");
   });
 
   it("builds a concise admin email from real payment data", () => {
