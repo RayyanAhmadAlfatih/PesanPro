@@ -16,6 +16,7 @@ const envSchema = z.object({
   RESEND_API_KEY: optionalString(z.string().min(1)),
   PASSWORD_RESET_FROM: optionalString(z.string().min(3)),
   APP_NAME: z.string().min(1).default("PesanPro"),
+  PESANPRO_QA_MODE: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   SMTP_HOST: optionalString(z.string().min(1)),
   SMTP_PORT: z.coerce.number().int().min(1).max(65_535).default(587),
   SMTP_SECURE: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
