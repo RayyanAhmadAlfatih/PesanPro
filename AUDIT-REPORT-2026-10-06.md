@@ -565,6 +565,52 @@ the work.
 
 ---
 
+## Verification of the fixes
+
+All commands were run against branch `workbuddy-audit-hardening-2026-10` in this workspace.
+
+| Gate | Command | Result |
+|---|---|---|
+| TypeScript | `node node_modules/typescript/bin/tsc --noEmit` | **0 errors** |
+| Lint | `node node_modules/eslint/bin/eslint.js` | **exit 0** |
+| Tests | `node node_modules/vitest/vitest.mjs run --maxWorkers=1` | **303 passed**, 1 failed\* (79 files) |
+| Build | `node node_modules/next/dist/bin/next build --webpack` | **compiled successfully**; TypeScript passed; 67/67 static pages generated; full `.next` artifacts present (`BUILD_ID`, all manifests, `required-server-files.json`)\* |
+
+\* Both asterisked results are the same **environment artifact, not a code failure**: this machine
+runs a `safe-delete` shim that blocks bulk deletions
+(`[safe-delete][SAFE_DELETE_BULK_CONFIRM_REQUIRED] {"count":63,"threshold":50,...}`). It trips on
+(a) the vitest teardown `rm -rf` of a temp fixture directory and (b) Next.js's own post-build
+cleanup `unlink` of a manifest. Evidence they are environmental:
+
+- `src/lib/private-media-storage.test.ts` and `src/lib/payment-proof.test.ts` pass **100% (7/7)**
+  when run in isolation — only the cumulative per-turn delete counter trips them in a full run.
+- The build reached `✓ Generating static pages (67/67)` and `Finalizing page optimization` before
+  the guard fired, and every build artifact was written.
+
+### Regression coverage added
+
+`src/lib/client-ip.test.ts` — 12 tests covering address normalization (IPv4/IPv6/bracketed/ported/
+IPv4-mapped), the spoof-resistance rule (a forged `x-forwarded-for` is ignored unless
+`TRUST_PROXY=true`), trusted-hop walking, and header precedence in `getClientIp`.
+
+### How to verify each fix manually
+
+| Fix | Verification |
+|---|---|
+| H-1 | Send any authenticated request with `X-Forwarded-For: 203.0.113.10` while `TRUST_PROXY=false`. `recordAudit` and the rate-limit bucket now use the socket IP. Then set `TRUST_PROXY=true`, `TRUST_PROXY_HOPS=1` behind one proxy and confirm the real client IP is used. |
+| H-2 | Replay an inbound document with `documentMessage.mimetype = "x/..\\..\\..\\tmp\\pwn"`; confirm a file appears inside `data/media` with a sanitized name and nothing is written outside it. |
+| H-3 | Replay an inbound media message with no `mediaKey` and `directPath: "http://169.254.169.254/..."`; confirm it is rejected (`SSRFError`) instead of fetched. |
+| H-4 | With `MEDIA_STORAGE_DRIVER=b2`, revoke `s3:DeleteObject` and `DELETE /api/v1/media/{id}`; confirm `UsageCounter.consumed` for `MEDIA_STORAGE_BYTES` is decremented and a warning names the orphan. |
+| H-5 | Point `/api/v1/media/import` at a chunked endpoint with no `Content-Length` and an oversized body; confirm the request is aborted mid-stream instead of buffering. |
+| M-1 | As tenant A, `PUT /api/labels/S_A/chat/<jid>/labels` with tenant B's label id and `action: "remove"`; confirm 0 rows deleted. |
+| M-2 | `POST /api/auth/reset-password` with a random token; confirm no bcrypt work happens for unknown tokens. |
+| M-3 | Force a job to crash the worker repeatedly; confirm `attempts` stops at `maxAttempts` and the job is dead-lettered with `ATTEMPTS_EXHAUSTED`. |
+| M-6 | `PATCH /api/users/<id>` with only `{"email": ...}`; confirm the target's existing session is rejected. |
+| M-7 | Deliver a message, then trigger a late failure for the same job; confirm the recipient stays `SENT`. |
+| M-8 | POST a chunked multipart body with an oversized `proof` part; confirm a 413 without a full-body buffer. |
+
+---
+
 ## Files changed in this pass
 
 | File | Finding |
