@@ -214,7 +214,48 @@ export async function safeFetch(
 }
 
 /**
- * Helper to fetch and return buffer with size limit enforced
+ * Read a response body while enforcing `maxBytes` on the stream itself.
+ *
+ * The `Content-Length` pre-check in `safeFetch` is advisory only: a server can
+ * omit it or use chunked transfer encoding, so the real limit must be applied
+ * while reading. Aborting as soon as the limit is exceeded prevents a remote
+ * host from exhausting process memory.
+ */
+export async function readResponseBufferWithLimit(response: Response, maxBytes: number): Promise<Buffer> {
+  const declared = response.headers.get("content-length");
+  if (declared) {
+    const len = parseInt(declared, 10);
+    if (!Number.isNaN(len) && len > maxBytes) {
+      throw new SSRFError(`Response too large: ${len} bytes exceeds limit ${maxBytes}`);
+    }
+  }
+
+  const body = response.body;
+  if (!body) return Buffer.alloc(0);
+
+  const reader = body.getReader();
+  const chunks: Uint8Array[] = [];
+  let total = 0;
+  try {
+    for (;;) {
+      const { done, value } = await reader.read();
+      if (done) break;
+      if (!value) continue;
+      total += value.byteLength;
+      if (total > maxBytes) {
+        throw new SSRFError(`Response body too large: exceeds limit ${maxBytes}`);
+      }
+      chunks.push(value);
+    }
+  } finally {
+    // Cancel the stream so the socket is released even when we bail out early.
+    await reader.cancel().catch(() => undefined);
+  }
+  return Buffer.concat(chunks, total);
+}
+
+/**
+ * Helper to fetch and return buffer with size limit enforced on the stream
  */
 export async function safeFetchBuffer(
   rawUrl: string,
@@ -222,12 +263,7 @@ export async function safeFetchBuffer(
 ): Promise<Buffer> {
   const res = await safeFetch(rawUrl, {}, opts);
   if (!res.ok) throw new Error(`HTTP ${res.status} ${res.statusText}`);
-  const ab = await res.arrayBuffer();
-  const maxBytes = opts.maxBytes ?? 10 * 1024 * 1024;
-  if (ab.byteLength > maxBytes) {
-    throw new SSRFError(`Response body too large: ${ab.byteLength} > ${maxBytes}`);
-  }
-  return Buffer.from(ab);
+  return readResponseBufferWithLimit(res, opts.maxBytes ?? 10 * 1024 * 1024);
 }
 
 // Export for testing

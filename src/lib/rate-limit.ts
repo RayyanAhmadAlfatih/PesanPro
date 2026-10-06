@@ -1,5 +1,6 @@
 import crypto from "crypto";
 import { prisma } from "./prisma";
+import { normalizeClientIp, TRUSTED_CLIENT_IP_HEADER } from "./client-ip";
 
 /**
  * In-memory sliding-window rate limiter.
@@ -116,7 +117,14 @@ export async function checkPersistentRateLimit(
 }
 
 /**
- * Extract client IP from NextRequest headers (x-forwarded-for aware)
+ * Extract the client IP used for rate limiting, audit records, and API-key IP
+ * allowlists.
+ *
+ * The value written by our own Node server takes precedence. It is derived from
+ * the socket peer address (and, only when `TRUST_PROXY=true`, from the forwarded
+ * chain) and is always overwritten on the way in, so a client cannot forge it.
+ * `x-forwarded-for`/`x-real-ip` are only a fallback for execution contexts that
+ * bypass the custom server (for example unit tests).
  */
 export function getClientIp(headers: Headers | Record<string, string | null | undefined>): string {
   const get = (name: string): string | null => {
@@ -125,13 +133,16 @@ export function getClientIp(headers: Headers | Record<string, string | null | un
     return v ?? null;
   };
 
+  const trusted = normalizeClientIp(get(TRUSTED_CLIENT_IP_HEADER));
+  if (trusted) return trusted;
+
   const forwarded = get("x-forwarded-for");
   if (forwarded) {
-    const first = forwarded.split(",")[0]?.trim();
+    const first = normalizeClientIp(forwarded.split(",")[0] ?? null);
     if (first) return first;
   }
-  const realIp = get("x-real-ip");
-  if (realIp) return realIp.trim();
+  const realIp = normalizeClientIp(get("x-real-ip"));
+  if (realIp) return realIp;
   return "unknown";
 }
 

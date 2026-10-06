@@ -4,6 +4,7 @@ import { MessageJobType, Prisma, type Role } from "@prisma/client";
 import { canAccessSession } from "./api-auth";
 import { resolveTenantId } from "./billing";
 import { getEnv } from "./env";
+import { logger } from "./logger";
 import { MessageJobError } from "./message-job-errors";
 import { prepareMediaForStorage } from "./media-optimization";
 import { prisma } from "./prisma";
@@ -150,7 +151,14 @@ export async function deletePrivateMedia(actor: PrivateMediaActor, mediaId: stri
     if (changed.count !== 1) throw new MessageJobError("MEDIA_DELETE_CONFLICT", "Media state changed while deleting", 409, true);
     return current;
   }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
-  await deletePrivateMediaObject({ cacheKey: media.id, storagePath: media.storagePath });
+  // The row is already DELETED, so a storage-delete failure must not block the
+  // quota release: leaving `consumed` untouched would permanently deny the
+  // tenant storage quota with no reconciliation path. Log the orphan instead.
+  try {
+    await deletePrivateMediaObject({ cacheKey: media.id, storagePath: media.storagePath });
+  } catch (error) {
+    logger.error("Media", `Failed to delete private media object ${media.id}; an orphan object may remain`, error);
+  }
   await releaseStorageQuota({
     userId: media.uploaderId,
     bytes: Number(media.sizeBytes),

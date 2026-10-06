@@ -22,8 +22,15 @@ export async function runWithStorageQuota<T>(input: {
     await commitReservedUsage({ userId: input.userId, feature: "MEDIA_STORAGE_BYTES", idempotencyKey });
     return result;
   } catch (error) {
-    if (!stored) {
-      await releaseReservedUsage({ userId: input.userId, feature: "MEDIA_STORAGE_BYTES", idempotencyKey }).catch(() => undefined);
+    // The reservation must never be orphaned: `reserved` participates in the
+    // limit check, so a leaked reservation permanently denies the tenant quota
+    // with no reconciliation path. Settling is idempotent, so releasing after a
+    // failed COMMIT is safe even if the commit actually landed.
+    await releaseReservedUsage({ userId: input.userId, feature: "MEDIA_STORAGE_BYTES", idempotencyKey }).catch(() => undefined);
+    if (stored) {
+      // The object was written but the commit failed. Bytes stay unaccounted,
+      // which is preferable to locking the tenant out; surface it for operators.
+      console.warn(`[storage-quota] reservation released after storage commit failure for ${idempotencyKey}`);
     }
     throw error;
   }

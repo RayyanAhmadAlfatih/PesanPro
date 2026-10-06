@@ -2,6 +2,7 @@ import { setTimeout as sleep } from "node:timers/promises";
 import {
   claimNextMessageJob,
   completeMessageJob,
+  deadLetterExhaustedMessageJobs,
   DEFAULT_MESSAGE_LEASE_MS,
   failMessageJob,
   heartbeatMessageJob,
@@ -32,6 +33,12 @@ export class MessageQueueWorker {
     this.running = true;
     this.loopPromise = this.run();
     logger.info("MessageWorker", `Started ${this.options.workerId}`);
+    // Clear poison jobs left by a previous hard kill before claiming new work.
+    void deadLetterExhaustedMessageJobs()
+      .then((count) => {
+        if (count > 0) logger.warn("MessageWorker", `Dead-lettered ${count} exhausted message job(s)`);
+      })
+      .catch((error) => logger.error("MessageWorker", "Failed to dead-letter exhausted jobs", error));
   }
 
   async stop() {
