@@ -203,8 +203,10 @@ export async function failClaimedCampaign(claim: ClaimedCampaign, error: unknown
   return { retrying: changed.count === 1 && !terminal, code };
 }
 
-export async function reconcileCampaign(campaignId: string) {
-  const campaign = await prisma.campaign.findUnique({ where: { id: campaignId }, select: { id: true, tenantId: true, status: true, broadcast: { select: { id: true, sessionDbId: true, status: true, completedAt: true, failedAt: true, cancelledAt: true, session: { select: { sessionId: true } } } } } });
+export async function reconcileCampaign(campaignId: string, tenantId?: string) {
+  // Always carry a tenant predicate, even for the system-internal sweep, so a
+  // stray id can never reconcile a campaign that belongs to another tenant.
+  const campaign = await prisma.campaign.findFirst({ where: { id: campaignId, ...(tenantId ? { tenantId } : {}) }, select: { id: true, tenantId: true, status: true, broadcast: { select: { id: true, sessionDbId: true, status: true, completedAt: true, failedAt: true, cancelledAt: true, session: { select: { sessionId: true } } } } } });
   if (!campaign?.broadcast || campaign.status === "CANCELLED") return null;
   const broadcast = campaign.broadcast;
   const recipients = await prisma.broadcastRecipient.findMany({
@@ -214,8 +216,8 @@ export async function reconcileCampaign(campaignId: string) {
   const progress = calculateCampaignProgress(recipients);
   const targetStatus = campaign.status === "PAUSED" ? "PAUSED" : broadcast.status === "COMPLETED" ? "COMPLETED" : broadcast.status === "FAILED" ? "FAILED" : broadcast.status === "CANCELLED" ? "CANCELLED" : "RUNNING";
   await prisma.$transaction(async (tx) => {
-    await tx.campaign.update({
-      where: { id: campaign.id },
+    await tx.campaign.updateMany({
+      where: { id: campaign.id, tenantId: campaign.tenantId },
       data: {
         ...progress,
         status: targetStatus,
@@ -239,8 +241,8 @@ export async function reconcileCampaign(campaignId: string) {
 }
 
 export async function reconcileActiveCampaigns(limit = 25) {
-  const rows = await prisma.campaign.findMany({ where: { status: { in: ["RUNNING", "PAUSED"] }, broadcast: { isNot: null } }, orderBy: { updatedAt: "asc" }, take: limit, select: { id: true } });
-  for (const row of rows) await reconcileCampaign(row.id);
+  const rows = await prisma.campaign.findMany({ where: { status: { in: ["RUNNING", "PAUSED"] }, broadcast: { isNot: null } }, orderBy: { updatedAt: "asc" }, take: limit, select: { id: true, tenantId: true } });
+  for (const row of rows) await reconcileCampaign(row.id, row.tenantId);
   return rows.length;
 }
 
