@@ -15,7 +15,6 @@ import {
     Bell,
     Send,
     Megaphone,
-    HardDrive,
     Activity,
     Tag,
     MessageCircleReply,
@@ -59,7 +58,6 @@ const navGroups: NavGroup[] = [
             { href: "/dashboard/message-queue", label: "Message Queue", icon: ListRestart },
             { href: "/dashboard/broadcast", label: "Broadcast", icon: Megaphone },
             { href: "/dashboard/campaigns", label: "Campaigns", icon: Send },
-            { href: "/dashboard/media", label: "Media Manager", icon: HardDrive },
         ],
     },
     {

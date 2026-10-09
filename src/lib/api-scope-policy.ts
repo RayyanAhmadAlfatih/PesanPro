@@ -22,7 +22,6 @@ export function getRequiredApiScope(method: string, pathname: string): ApiKeySco
   }
   if (/^\/api\/messages\/[^/]+\/broadcast(?:\/|$)/.test(pathname)) return write ? "broadcast:write" : "broadcast:read";
   if (pathname.startsWith("/api/messages/")) return write ? "message:send" : "message:read";
-  if (pathname.startsWith("/api/media")) return write ? "media:write" : "media:read";
   if (pathname.startsWith("/api/scheduler/")) return write ? "schedule:write" : "schedule:read";
   if (pathname.startsWith("/api/webhooks/")) return write ? "webhook:write" : "webhook:read";
   if (

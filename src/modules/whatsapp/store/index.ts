@@ -1,7 +1,7 @@
 import { prisma } from "@/lib/prisma";
 import type { WASocket, WAMessage } from "@whiskeysockets/baileys";
 import { normalizeMessageContent } from "@whiskeysockets/baileys";
-import { onMessageReceived, onMessageSent, dispatchWebhook, downloadAndSaveMedia } from "@/lib/webhook";
+import { onMessageReceived, onMessageSent, dispatchWebhook } from "@/lib/webhook";
 import { resolveToPhoneJid, isLidJid, normalizeJid } from "@/lib/jid-utils";
 
 import { Server } from "socket.io";
@@ -488,17 +488,6 @@ async function processAndSaveMessage(
     }
 
 
-    // Only persist media for a live notification. History replay may contain
-    // thousands of old attachments and must stay metadata-only.
-    let fileUrl: string | null = null;
-    if (triggerWebhook) {
-        try {
-            fileUrl = await downloadAndSaveMedia(msg, sessionId);
-        } catch (e) {
-            logger.error("Store", "Error downloading media in store", e);
-        }
-    }
-
     // Extract contextInfo (quoted message ID)
     let quoteId: string | null = null;
     if (msg.message) {
@@ -522,7 +511,10 @@ async function processAndSaveMessage(
                 pushName,
                 type: messageType,
                 content: text,
-                mediaUrl: fileUrl, // Save Media URL
+                // Message media is never downloaded or persisted: PesanPro is a
+                // gateway, not a media store. WhatsApp media stays on WhatsApp's
+                // servers; only metadata and text/caption are retained.
+                mediaUrl: null,
                 status: fromMe ? "SENT" : "PENDING",
                 timestamp,
                 quoteId,
@@ -580,9 +572,9 @@ async function processAndSaveMessage(
         // Trigger webhook for new messages only (not history sync)
         if (triggerWebhook) {
             if (fromMe) {
-                onMessageSent(sessionId, msg, fileUrl).catch(e => logger.error("Webhook", "Error in onMessageSent", e));
+                onMessageSent(sessionId, msg).catch(e => logger.error("Webhook", "Error in onMessageSent", e));
             } else {
-                onMessageReceived(sessionId, msg, fileUrl).catch(e => logger.error("Webhook", "Error in onMessageReceived", e));
+                onMessageReceived(sessionId, msg).catch(e => logger.error("Webhook", "Error in onMessageReceived", e));
             }
         }
 

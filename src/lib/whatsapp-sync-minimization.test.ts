@@ -2,13 +2,14 @@ import { readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("WhatsApp sync data minimization", () => {
-  it("keeps history media metadata-only", () => {
-    const source = readFileSync("src/modules/whatsapp/store/index.ts", "utf8");
-    const mediaGuard = source.indexOf("if (triggerWebhook) {");
-    const mediaDownload = source.indexOf("downloadAndSaveMedia(msg, sessionId)", mediaGuard);
+  it("never downloads or persists WhatsApp message media", () => {
+    const store = readFileSync("src/modules/whatsapp/store/index.ts", "utf8");
+    const webhook = readFileSync("src/lib/webhook.ts", "utf8");
 
-    expect(mediaGuard).toBeGreaterThan(-1);
-    expect(mediaDownload).toBeGreaterThan(mediaGuard);
+    expect(store).not.toContain("downloadAndSaveMedia");
+    expect(store).toContain("mediaUrl: null");
+    expect(webhook).not.toContain("downloadAndSaveMedia");
+    expect(webhook).not.toContain('"data", "media"');
   });
 
   it("does not import the complete address book", () => {

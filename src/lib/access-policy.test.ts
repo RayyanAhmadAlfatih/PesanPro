@@ -43,6 +43,7 @@ describe("access policy", () => {
       "/dashboard/bot-settings",
       "/dashboard/profile",
       "/dashboard/chat",
+      "/dashboard/media",
     ];
 
     for (const path of removedPaths) {
@@ -56,7 +57,6 @@ describe("access policy", () => {
     expect(canAccessDashboardPath("USER", "/dashboard")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/billing")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/developer")).toBe(true);
-    expect(canAccessDashboardPath("USER", "/dashboard/media")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/labels")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/inbox")).toBe(true);
     expect(isSuperadmin("USER")).toBe(false);
@@ -66,7 +66,6 @@ describe("access policy", () => {
     const tenantPaths = [
       "/dashboard/sessions",
       "/dashboard/autoreply",
-      "/dashboard/media",
       "/dashboard/developer",
       "/dashboard/billing",
       "/dashboard/inbox",

@@ -1,55 +1,27 @@
-import { NextResponse, NextRequest } from "next/server";
-import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
-import { prisma } from "@/lib/prisma";
+import { NextResponse } from "next/server";
 
-// GET: Download media from message
-export async function GET(
-    request: NextRequest,
-    { params }: { params: Promise<{ sessionId: string; messageId: string }> }
-) {
-    const { sessionId, messageId } = await params;
-    try {
-        const user = await getAuthenticatedUser(request);
-        if (!user) {
-            return NextResponse.json({ status: false, message: "Unauthorized", error: "Unauthorized" }, { status: 401 });
-        }
-
-        // Check if user can access this session
-        const canAccess = await canAccessSession(user.id, user.role, sessionId);
-        if (!canAccess) {
-            return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
-        }
-
-        // Find message in database
-        const message = await prisma.message.findUnique({
-            where: { id: messageId },
-        });
-
-        if (!message) {
-            return NextResponse.json({ status: false, message: "Message not found", error: "Message not found" }, { status: 404 });
-        }
-
-        if (message.sessionId !== sessionId) {
-            return NextResponse.json({ status: false, message: "Message does not belong to this session", error: "Message does not belong to this session" }, { status: 403 });
-        }
-
-        if (!message.mediaUrl) {
-            return NextResponse.json({ status: false, message: "Message has no media", error: "Message has no media" }, { status: 404 });
-        }
-
-        if (message.mediaUrl.startsWith("http://") || message.mediaUrl.startsWith("https://")) {
-            return NextResponse.redirect(new URL(message.mediaUrl));
-        }
-
-        if (!message.mediaUrl.startsWith("/api/media/")) {
-            return NextResponse.json({ status: false, message: "Invalid media location", error: "Invalid media location" }, { status: 400 });
-        }
-
-        // The private media route performs filename and tenant validation again.
-        return NextResponse.redirect(new URL(message.mediaUrl, request.url));
-
-    } catch (error) {
-        console.error("Download media error:", error);
-        return NextResponse.json({ status: false, message: "Failed to download media", error: "Failed to download media" }, { status: 500 });
-    }
+/**
+ * GET /api/messages/{sessionId}/download/{messageId}/media
+ *
+ * Retired (410 Gone) — intentional, not an error.
+ *
+ * PesanPro is a WhatsApp gateway, not a media store. Message media is no
+ * longer downloaded from WhatsApp or persisted to disk, so there is nothing
+ * for this endpoint to serve. The webhook payloads for `message.received` and
+ * `message.sent` no longer carry a `fileUrl` field either.
+ *
+ * Media that the tenant uploads to send (payment proof, broadcast/campaign
+ * attachments) is unaffected and still served through the private-media APIs.
+ */
+export async function GET() {
+    return NextResponse.json(
+        {
+            status: false,
+            code: "MEDIA_DOWNLOAD_RETIRED",
+            message:
+                "Message media download has been retired. PesanPro no longer stores WhatsApp message media; webhook payloads no longer include fileUrl.",
+            error: "Gone",
+        },
+        { status: 410 }
+    );
 }

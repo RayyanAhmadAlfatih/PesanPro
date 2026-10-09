@@ -1,13 +1,9 @@
 import { prisma } from "./prisma";
-import { normalizeMessageContent, downloadMediaMessage, type WAMessage, type WAMessageContent } from "@whiskeysockets/baileys";
-import { writeFile, mkdir } from "fs/promises";
-import path from "path";
+import { normalizeMessageContent, type WAMessage, type WAMessageContent } from "@whiskeysockets/baileys";
 import { resolveToPhoneJidBySessionId as resolveToPhoneJid } from "./jid-utils";
 import { logger } from "./logger";
 import { waManager } from "@/modules/whatsapp/manager";
 import { Prisma } from "@prisma/client";
-import { runWithStorageQuota } from "./storage-quota";
-import { safeFetchBuffer } from "./ssrf";
 import { publishWebhookEvent } from "./webhook-outbox";
 import type { WebhookEventType } from "./webhook-contract";
 
@@ -25,45 +21,10 @@ type QuotedWebhookMessage = {
     type: string;
     content: string;
     caption?: string;
-    fileUrl: string | null;
 };
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
-}
-
-/** Upper bound for inbound media persisted from a message-supplied URL. */
-const MAX_INBOUND_MEDIA_BYTES = 25 * 1024 * 1024;
-
-/**
- * File extensions we are willing to persist for inbound media. Anything else
- * (including `.html`, `.svg`, `.js`) falls back to the message-type default so
- * a hostile mimetype can never choose an executable or markup extension.
- */
-const ALLOWED_MEDIA_EXTENSIONS = new Set([
-    "jpg", "jpeg", "png", "webp", "gif", "bmp", "heic",
-    "mp4", "3gp", "mkv", "webm", "mov", "avi",
-    "mp3", "ogg", "opus", "m4a", "wav", "aac", "amr",
-    "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
-    "txt", "csv", "zip", "rar", "7z", "bin",
-]);
-
-/**
- * Reduce an attacker-controlled path component to a safe filename fragment.
- * Prevents traversal (`..`, `/`, `\`) and drive/UNC prefixes on every platform.
- */
-function sanitizePathSegment(value: unknown, fallback: string): string {
-    const cleaned = path.basename(String(value ?? "").trim()).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 96);
-    return cleaned.length > 0 ? cleaned : fallback;
-}
-
-/** Derive a safe extension from the declared mimetype, restricted to the allowlist. */
-function safeMediaExtension(messageType: string, mime: unknown, fallback: string): string {
-    if (typeof mime === "string") {
-        const candidate = mime.split("/")[1]?.split(";")[0]?.trim().toLowerCase() ?? "";
-        if (/^[a-z0-9]{1,8}$/.test(candidate) && ALLOWED_MEDIA_EXTENSIONS.has(candidate)) return candidate;
-    }
-    return ALLOWED_MEDIA_EXTENSIONS.has(fallback) ? fallback : "bin";
 }
 
 function isGroupParticipant(value: Prisma.JsonValue): value is GroupParticipant {
@@ -83,124 +44,6 @@ export async function dispatchWebhook(
 }
 
 /**
- * Helper to download and save media
- */
-export async function downloadAndSaveMedia(message: WAMessage, sessionId: string): Promise<string | null> {
-    try {
-        const messageContent = normalizeMessageContent(message.message);
-        if (!messageContent) {
-            logger.debug("Media", "No content normalized");
-            return null;
-        }
-
-        const messageType = Object.keys(messageContent)[0];
-
-        if (!['imageMessage', 'videoMessage', 'audioMessage', 'documentMessage', 'stickerMessage'].includes(messageType)) {
-            logger.debug("Media", `Message type ${messageType} is not a downloadable media.`);
-            return null;
-        }
-
-        logger.info("Media", `Attempting to download ${messageType}...`);
-
-        let buffer: Buffer | null = null;
-        const mediaObj = Object.values(messageContent).find((value) => isRecord(value));
-        if (!mediaObj) return null;
-
-        // Newsletter media is NOT encrypted — no mediaKey present
-        const directPath = typeof mediaObj.directPath === "string"
-            ? mediaObj.directPath
-            : typeof mediaObj.thumbnailDirectPath === "string"
-                ? mediaObj.thumbnailDirectPath
-                : null;
-        const isNewsletterMedia = !mediaObj.mediaKey && directPath;
-
-        if (isNewsletterMedia) {
-            logger.info("Media", "Downloading unencrypted media (newsletter) via direct fetch...");
-
-            const downloadUrl = directPath.startsWith("http") ? directPath : `https://mmg.whatsapp.net${directPath}`;
-
-            try {
-                // The URL is attacker-influenced, so it must go through the SSRF
-                // guard (protocol/host/port allowlist + public-IP DNS validation
-                // + redirect re-validation + bounded body read).
-                const res = await safeFetchBuffer(downloadUrl, { timeoutMs: 15_000, maxBytes: MAX_INBOUND_MEDIA_BYTES, maxRedirects: 2 });
-
-                buffer = res;
-                logger.success("Media", `Newsletter media downloaded: ${buffer.length} bytes`);
-            } catch (e) {
-                logger.error("Media", "Failed to download newsletter media:", e);
-                return null;
-            }
-        } else {
-            // Regular encrypted media — use Baileys downloadMediaMessage
-            try {
-                buffer = await downloadMediaMessage(
-                    message,
-                    "buffer",
-                    {}
-                ) as Buffer;
-            } catch (e) {
-                logger.error("Media", "Failed to download encrypted media:", e);
-                return null;
-            }
-        }
-
-        if (!buffer) {
-            logger.warn("Media", "Buffer is empty/null");
-            return null;
-        }
-
-        logger.success("Media", `Downloaded ${buffer.length} bytes.`);
-
-        // Generate filename
-        const extMap: Record<string, string> = {
-            imageMessage: 'jpg',
-            videoMessage: 'mp4',
-            audioMessage: 'mp3',
-            documentMessage: 'bin',
-            stickerMessage: 'webp'
-        };
-
-        const ext = safeMediaExtension(messageType, mediaObj.mimetype, extMap[messageType] ?? 'bin');
-
-        // `message.key.id`, the mimetype, and the session id are all
-        // attacker-influenced. Sanitize every path component and re-check the
-        // resolved path so media can never be written outside the media root.
-        const filename = `${sanitizePathSegment(sessionId, "session")}-${sanitizePathSegment(message.key?.id, "message")}.${ext}`;
-        const mediaRoot = path.resolve(process.cwd(), "data", "media");
-        const filePath = path.resolve(mediaRoot, filename);
-        if (!filePath.startsWith(`${mediaRoot}${path.sep}`)) {
-            logger.error("Media", "Refusing to write media outside the media directory");
-            return null;
-        }
-
-        // Ensure directory exists (redundant if handled by OS, but safe)
-        await mkdir(path.dirname(filePath), { recursive: true });
-
-        const session = await prisma.session.findUnique({ where: { sessionId }, select: { userId: true } });
-        if (!session) {
-            logger.warn("Media", `Skipping media persistence for unknown session ${sessionId}`);
-            return null;
-        }
-        await runWithStorageQuota({
-            userId: session.userId,
-            bytes: buffer.length,
-            sessionId,
-            filename,
-        }, () => writeFile(filePath, buffer));
-
-        // Return URL path using API route for reliable serving
-        const fileUrl = `/api/media/${filename}`;
-        logger.success("Media", `Success. URL: ${fileUrl}`);
-        return fileUrl;
-
-    } catch (e) {
-        logger.error("Media", "Failed to download media:", e);
-        return null;
-    }
-}
-
-/**
  * Get PesanPro's own clean phone JID for a session
  * Strips device suffix (e.g. :47@s.whatsapp.net → @s.whatsapp.net)
  */
@@ -216,7 +59,7 @@ function getOwnJid(sessionId: string): string | null {
     }
 }
 
-export async function onMessageReceived(sessionId: string, message: WAMessage, existingFileUrl?: string | null) {
+export async function onMessageReceived(sessionId: string, message: WAMessage) {
     // Re-calculate fields to match store logic EXACTLY
     const remoteJid = message.key?.remoteJid || "";
     const fromMe = message.key?.fromMe || false;
@@ -270,18 +113,8 @@ export async function onMessageReceived(sessionId: string, message: WAMessage, e
         }
     }
 
-    // Download media if available (or use existing)
-    let fileUrl: string | null = existingFileUrl || null;
-    if (!fileUrl) {
-        try {
-            fileUrl = await downloadAndSaveMedia(message, sessionId);
-        } catch (e) {
-            logger.error("Media", "Error handling media download", e);
-        }
-    }
-
     const normalized = extractMessageContent(message);
-    const quoted = await extractQuotedMessageAsync(message, sessionId);
+    const quoted = await extractQuotedMessageAsync(message);
 
     dispatchWebhook(sessionId, "message.received", {
         key: {
@@ -303,7 +136,6 @@ export async function onMessageReceived(sessionId: string, message: WAMessage, e
         // Message Content
         type: normalized.type,
         content: normalized.content,
-        fileUrl: fileUrl,
         caption: normalized.caption,
         quoted: quoted,
 
@@ -313,20 +145,12 @@ export async function onMessageReceived(sessionId: string, message: WAMessage, e
 /**
  * Helper to dispatch message sent event
  */
-export async function onMessageSent(sessionId: string, message: WAMessage, existingFileUrl?: string | null) {
+export async function onMessageSent(sessionId: string, message: WAMessage) {
     const normalized = extractMessageContent(message);
-    const quoted = await extractQuotedMessageAsync(message, sessionId);
+    const quoted = await extractQuotedMessageAsync(message);
     const remoteJid = message.key?.remoteJid || "";
     const isGroup = remoteJid.endsWith("@g.us");
     const remoteJidAlt = message.key?.remoteJidAlt || null;
-
-    // Download media for sent messages too
-    let fileUrl: string | null = existingFileUrl || null;
-    if (!fileUrl) {
-        try {
-            fileUrl = await downloadAndSaveMedia(message, sessionId);
-        } catch { /* ignore */ }
-    }
 
     // --- Consistent JID Normalization (same as onMessageReceived) ---
     const normalizedFrom = await resolveToPhoneJid(remoteJid, sessionId, remoteJidAlt);
@@ -353,7 +177,6 @@ export async function onMessageSent(sessionId: string, message: WAMessage, exist
 
         type: normalized.type,
         content: normalized.content,
-        fileUrl: fileUrl,
         caption: normalized.caption,
         quoted: quoted,
 
@@ -473,9 +296,12 @@ function extractMessageContent(msg: { message?: WAMessageContent | null }): { ty
 
 
 /**
- * Extract Quoted Message recursively (Async to Lookup DB)
+ * Extract Quoted Message recursively.
+ *
+ * Media is intentionally not resolved: PesanPro no longer stores WhatsApp
+ * message media, so a quoted message carries metadata only.
  */
-async function extractQuotedMessageAsync(msg: { message?: WAMessageContent | null }, sessionId: string): Promise<QuotedWebhookMessage | null> {
+async function extractQuotedMessageAsync(msg: { message?: WAMessageContent | null }): Promise<QuotedWebhookMessage | null> {
     const messageContent = normalizeMessageContent(msg.message);
     if (!messageContent) return null;
 
@@ -493,41 +319,6 @@ async function extractQuotedMessageAsync(msg: { message?: WAMessageContent | nul
         const quotedMsg = contextInfo.quotedMessage;
         const normalized = extractMessageContent({ message: quotedMsg });
 
-        let fileUrl = null;
-
-        // Lookup Media URL in DB if possible
-        if (contextInfo.stanzaId) {
-            try {
-                // We need the dbSessionId... this is tricky without fetching session again.
-                // But we can try to look up by sessionId (baileys ID) and keyId
-                // Message table has @@unique([sessionId, keyId]). BUT sessionId there is the CUID, not the string.
-
-                // Fetch CUID First
-                const session = await prisma.session.findUnique({
-                    where: { sessionId },
-                    select: { id: true }
-                });
-
-                if (session) {
-                    const savedMsg = await prisma.message.findUnique({
-                        where: {
-                            sessionId_keyId: {
-                                sessionId: session.id,
-                                keyId: contextInfo.stanzaId
-                            }
-                        },
-                        select: { mediaUrl: true }
-                    });
-
-                    if (savedMsg?.mediaUrl) {
-                        fileUrl = savedMsg.mediaUrl;
-                    }
-                }
-            } catch (e) {
-                logger.error("Media", "Failed to lookup quoted media url", e);
-            }
-        }
-
         return {
             key: {
                 remoteJid: contextInfo.remoteJid || null, // Group JID
@@ -538,9 +329,6 @@ async function extractQuotedMessageAsync(msg: { message?: WAMessageContent | nul
             type: normalized.type,
             content: normalized.content, // Text or Caption
             caption: normalized.caption,
-            fileUrl: fileUrl, // <--- Added!
-            // We don't download quoted media automatically unless it was already saved
-            // raw: quotedMsg 
         };
     }
 
