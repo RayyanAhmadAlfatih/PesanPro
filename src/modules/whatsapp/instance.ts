@@ -8,6 +8,7 @@ import makeWASocket, {
     type MiscMessageGenerationOptions,
 } from "@whiskeysockets/baileys";
 import { prisma } from "@/lib/prisma";
+import { browserIdentity } from "@/lib/wa-device-identity";
 import { createPrismaAuthState } from "./auth/usePrismaAuthState";
 import { Server } from "socket.io";
 import pino from "pino";
@@ -70,7 +71,7 @@ export class WhatsAppInstance {
                 creds: state.creds,
                 keys: makeCacheableSignalKeyStore(state.keys, pino({ level: process.env.BAILEYS_LOG_LEVEL || "error" })),
             },
-            browser: ["Ubuntu", "Chrome", "20.0.04"],
+            browser: browserIdentity(this.sessionId),
             markOnlineOnConnect: botConfig?.alwaysOnline ?? true,
             syncFullHistory: true,
         });
