@@ -100,8 +100,7 @@ export async function GET(
                         select: {
                             name: true,
                             notify: true,
-                            verifiedName: true,
-                            profilePic: true
+                            verifiedName: true
                         }
                     }
                 }

@@ -1,5 +1,6 @@
 import { prisma } from "./prisma";
 import { logger } from "./logger";
+import { maskAutoReplyJid as maskJid } from "./autoreply-privacy";
 
 /**
  * Check if a JID is in @lid format (WhatsApp Linked ID)
@@ -72,7 +73,7 @@ export async function resolveToPhoneJid(
             }
         }
     } catch (e) {
-        logger.error("JID", `resolveToPhoneJid: DB lookup failed for ${jid}`, e);
+        logger.error("JID", `resolveToPhoneJid: DB lookup failed for ${maskJid(jid)}`, e);
     }
 
     // 3. Fallback: return original JID

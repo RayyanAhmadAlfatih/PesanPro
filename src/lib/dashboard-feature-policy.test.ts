@@ -42,4 +42,14 @@ describe("dashboard feature policy", () => {
       expect(source).not.toContain("/dashboard/labels");
     }
   });
+
+  it("removes the Contacts and contact-tag API surfaces", () => {
+    for (const path of [
+      "src/app/api/v1/contacts/[id]/profile/route.ts",
+      "src/app/api/v1/contact-tags/route.ts",
+      "src/app/api/v1/contact-tags/[id]/route.ts",
+    ]) {
+      expect(existsSync(path), path).toBe(false);
+    }
+  });
 });

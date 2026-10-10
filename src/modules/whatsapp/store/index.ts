@@ -3,6 +3,7 @@ import type { WASocket, WAMessage } from "@whiskeysockets/baileys";
 import { normalizeMessageContent } from "@whiskeysockets/baileys";
 import { onMessageReceived, onMessageSent, dispatchWebhook } from "@/lib/webhook";
 import { resolveToPhoneJid, isLidJid, normalizeJid } from "@/lib/jid-utils";
+import { maskAutoReplyJid as maskJid } from "@/lib/autoreply-privacy";
 
 import { Server } from "socket.io";
 import { logger } from "@/lib/logger";
@@ -156,7 +157,6 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                         name: c.name || undefined,
                         notify: c.notify || undefined,
                         verifiedName: syncedContact.verifiedName || undefined,
-                        profilePic: c.imgUrl || undefined,
                     },
                 });
 
@@ -548,10 +548,10 @@ async function processAndSaveMessage(
             if (!fromMe && isUnsubscribeText(text)) {
                 try {
                     await suppressFromInbound(dbSessionId, contactJid, keyId);
-                    logger.info("Store", `Recorded broadcast opt-out for ${contactJid}`);
+                    logger.info("Store", `Recorded broadcast opt-out for ${maskJid(contactJid)}`);
                 } catch (error) {
                     // Opt-out persistence must not discard the inbound WhatsApp message.
-                    logger.error("Store", `Failed to record broadcast opt-out for ${contactJid}`, error);
+                    logger.error("Store", `Failed to record broadcast opt-out for ${maskJid(contactJid)}`, error);
                 }
             }
 
@@ -563,7 +563,7 @@ async function processAndSaveMessage(
                 });
 
                 if (msgCount === 1) {
-                    logger.info("Store", `Sending welcome message to ${finalRemoteJid}`);
+                    logger.info("Store", `Sending welcome message to ${maskJid(finalRemoteJid)}`);
                     await sock.sendMessage(finalRemoteJid, { text: config.welcomeMessage });
                 }
             }

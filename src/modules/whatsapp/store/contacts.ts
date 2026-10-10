@@ -45,8 +45,7 @@ export function bindContactSync(sock: WASocket, sessionId: string) {
                     where: { sessionId: dbSessionId, jid: update.id },
                     data: {
                         name: update.name || undefined,
-                        notify: update.notify || undefined,
-                        profilePic: update.imgUrl || undefined
+                        notify: update.notify || undefined
                     }
                 });
             } catch (e) {

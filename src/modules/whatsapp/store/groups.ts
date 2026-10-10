@@ -38,7 +38,6 @@ export async function syncGroups(sock: WASocket, sessionId: string) {
                          restrict: g.restrict,
                          announce: g.announce,
                          participants: g.participants as unknown as Prisma.InputJsonValue,
-                         metadata: g as unknown as Prisma.InputJsonValue,
                          isCommunity: g.isCommunity || false,
                          linkedParentJid: g.linkedParent || null
                      },
@@ -49,7 +48,6 @@ export async function syncGroups(sock: WASocket, sessionId: string) {
                          restrict: g.restrict,
                          announce: g.announce,
                          participants: g.participants as unknown as Prisma.InputJsonValue,
-                         metadata: g as unknown as Prisma.InputJsonValue,
                          isCommunity: g.isCommunity || false,
                          linkedParentJid: g.linkedParent || null
                      }
