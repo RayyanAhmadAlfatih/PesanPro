@@ -14,8 +14,6 @@ const TENANT_DASHBOARD_PREFIXES = [
   "/dashboard/sessions",
   "/dashboard/message-queue",
   "/dashboard/broadcast",
-  "/dashboard/campaigns",
-  "/dashboard/labels",
   "/dashboard/autoreply",
   "/dashboard/scheduler",
   "/dashboard/developer",
@@ -32,6 +30,8 @@ const REMOVED_DASHBOARD_FEATURE_PREFIXES = [
   "/dashboard/profile",
   "/dashboard/chat",
   "/dashboard/media",
+  "/dashboard/campaigns",
+  "/dashboard/labels",
 ] as const;
 
 const LEGACY_COMMERCIAL_FEATURES = new Set(["STAFF"]);

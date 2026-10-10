@@ -44,6 +44,8 @@ describe("access policy", () => {
       "/dashboard/profile",
       "/dashboard/chat",
       "/dashboard/media",
+      "/dashboard/campaigns",
+      "/dashboard/labels",
     ];
 
     for (const path of removedPaths) {
@@ -57,7 +59,6 @@ describe("access policy", () => {
     expect(canAccessDashboardPath("USER", "/dashboard")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/billing")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/developer")).toBe(true);
-    expect(canAccessDashboardPath("USER", "/dashboard/labels")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/inbox")).toBe(true);
     expect(isSuperadmin("USER")).toBe(false);
   });

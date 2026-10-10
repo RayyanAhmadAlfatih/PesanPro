@@ -17,12 +17,10 @@ import {
     Inbox,
     Megaphone,
     Activity,
-    Tag,
     MessageCircleReply,
     CreditCard,
     BadgeDollarSign,
     ListRestart,
-    Send,
     Code2,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
@@ -48,8 +46,6 @@ const navGroups: NavGroup[] = [
         items: [
             { href: "/dashboard/message-queue", label: "Antrian Pesan", icon: ListRestart },
             { href: "/dashboard/broadcast", label: "Kirim Massal", icon: Megaphone },
-            { href: "/dashboard/campaigns", label: "Kampanye", icon: Send },
-            { href: "/dashboard/labels", label: "Label", icon: Tag },
             { href: "/dashboard/scheduler", label: "Jadwal Kirim", icon: CalendarClock },
             { href: "/dashboard/autoreply", label: "Balasan Otomatis", icon: MessageCircleReply },
         ],

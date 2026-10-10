@@ -25,9 +25,7 @@ export function getRequiredApiScope(method: string, pathname: string): ApiKeySco
   if (pathname.startsWith("/api/scheduler/")) return write ? "schedule:write" : "schedule:read";
   if (pathname.startsWith("/api/webhooks/")) return write ? "webhook:write" : "webhook:read";
   if (
-    pathname.startsWith("/api/sessions") ||
-    pathname.startsWith("/api/contacts/") ||
-    pathname.startsWith("/api/labels/")
+    pathname.startsWith("/api/sessions")
   ) {
     return write ? "device:write" : "device:read";
   }

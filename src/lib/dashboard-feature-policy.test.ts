@@ -21,4 +21,25 @@ describe("dashboard feature policy", () => {
       expect(readFileSync(filename, "utf8")).not.toContain("/dashboard/chat");
     }
   });
+
+  it("removes the Campaigns and Labels surfaces", () => {
+    for (const path of [
+      "src/app/dashboard/campaigns/page.tsx",
+      "src/app/dashboard/labels/page.tsx",
+      "src/app/api/v1/campaigns/route.ts",
+      "src/app/api/v1/segments/route.ts",
+      "src/app/api/labels/[sessionId]/route.ts",
+    ]) {
+      expect(existsSync(path), path).toBe(false);
+    }
+
+    for (const filename of [
+      "src/components/dashboard/sidebar-nav.tsx",
+      "src/components/dashboard/mobile-nav.tsx",
+    ]) {
+      const source = readFileSync(filename, "utf8");
+      expect(source).not.toContain("/dashboard/campaigns");
+      expect(source).not.toContain("/dashboard/labels");
+    }
+  });
 });
