@@ -14,6 +14,7 @@ import {
     Webhook,
     CalendarClock,
     Bell,
+    Inbox,
     Megaphone,
     Activity,
     Tag,
@@ -38,47 +39,43 @@ const navGroups: NavGroup[] = [
     {
         label: "Main",
         items: [
-            { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
-            { href: "/dashboard/sessions", label: "Sessions / QR", icon: QrCode },
+            { href: "/dashboard", label: "Ringkasan", icon: LayoutDashboard },
+            { href: "/dashboard/sessions", label: "Perangkat & QR", icon: QrCode },
         ],
     },
     {
-        label: "Messaging",
+        label: "Pengiriman",
         items: [
-            { href: "/dashboard/message-queue", label: "Message Queue", icon: ListRestart },
-            { href: "/dashboard/broadcast", label: "Broadcast", icon: Megaphone },
-            { href: "/dashboard/campaigns", label: "Campaigns", icon: Send },
+            { href: "/dashboard/message-queue", label: "Antrian Pesan", icon: ListRestart },
+            { href: "/dashboard/broadcast", label: "Kirim Massal", icon: Megaphone },
+            { href: "/dashboard/campaigns", label: "Kampanye", icon: Send },
+            { href: "/dashboard/labels", label: "Label", icon: Tag },
+            { href: "/dashboard/scheduler", label: "Jadwal Kirim", icon: CalendarClock },
+            { href: "/dashboard/autoreply", label: "Balasan Otomatis", icon: MessageCircleReply },
         ],
     },
     {
-        label: "Data",
+        label: "Integrasi",
         items: [
-            { href: "/dashboard/labels", label: "Labels", icon: Tag },
+            { href: "/dashboard/developer", label: "Kunci API", icon: Code2 },
+            { href: "/dashboard/webhooks", label: "Webhook", icon: Webhook },
         ],
     },
     {
-        label: "Automation",
+        label: "Akun",
         items: [
-            { href: "/dashboard/autoreply", label: "Auto Reply", icon: MessageCircleReply },
-            { href: "/dashboard/scheduler", label: "Scheduler", icon: CalendarClock },
+            { href: "/dashboard/billing", label: "Tagihan", icon: CreditCard },
+            { href: "/dashboard/settings", label: "Pengaturan", icon: Settings },
+            { href: "/dashboard/inbox", label: "Notifikasi", icon: Inbox },
         ],
     },
     {
-        label: "Developer",
+        label: "Operasi",
         items: [
-            { href: "/dashboard/developer", label: "Developer", icon: Code2 },
-            { href: "/dashboard/webhooks", label: "Webhooks", icon: Webhook },
-            { href: "/dashboard/billing", label: "Billing", icon: CreditCard },
-        ],
-    },
-    {
-        label: "Administration",
-        items: [
-            { href: "/dashboard/users", label: "Users", icon: Users },
-            { href: "/dashboard/commercial", label: "Commercial", icon: BadgeDollarSign },
-            { href: "/dashboard/settings", label: "Settings", icon: Settings },
-            { href: "/dashboard/system-monitor", label: "System Monitor", icon: Activity },
-            { href: "/dashboard/notifications", label: "Notifications", icon: Bell },
+            { href: "/dashboard/users", label: "Pengguna", icon: Users },
+            { href: "/dashboard/commercial", label: "Operasi Komersial", icon: BadgeDollarSign },
+            { href: "/dashboard/system-monitor", label: "Monitor Sistem", icon: Activity },
+            { href: "/dashboard/notifications", label: "Kirim Pengumuman", icon: Bell },
         ],
     },
 ];
