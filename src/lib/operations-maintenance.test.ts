@@ -12,6 +12,14 @@ describe("operational maintenance policy", () => {
     expect(boundaries.autoReplyLogBefore.toISOString()).toBe("2026-08-06T12:00:00.000Z");
   });
 
+  it("leaves message history untouched until a retention window is configured", () => {
+    const now = new Date("2026-09-05T12:00:00.000Z");
+
+    expect(operationalRetentionBoundaries(now, 30).messageBefore).toBeNull();
+    expect(operationalRetentionBoundaries(now, 30, 0).messageBefore).toBeNull();
+    expect(operationalRetentionBoundaries(now, 30, 30).messageBefore?.toISOString()).toBe("2026-08-06T12:00:00.000Z");
+  });
+
   it("masks phone-like JIDs before returning trigger logs to the dashboard", () => {
     expect(maskAutoReplyJid("628123456789@s.whatsapp.net")).toBe("628••••789@s.whatsapp.net");
     expect(maskAutoReplyJid("[redacted]")).toBe("[redacted]");

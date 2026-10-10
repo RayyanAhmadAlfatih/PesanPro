@@ -73,6 +73,9 @@ const envSchema = z.object({
   OPS_DATABASE_WARNING_MS: z.coerce.number().int().min(50).max(30_000).default(500),
   OPS_DATABASE_CRITICAL_MS: z.coerce.number().int().min(100).max(60_000).default(2000),
   AUDIT_RETENTION_DAYS: z.coerce.number().int().min(30).max(3650).default(365),
+  // 0 disables the purge: message history is kept forever unless explicitly bounded.
+  // A gateway only relays messages, so bounding this window is the privacy default to enable.
+  MESSAGE_RETENTION_DAYS: z.coerce.number().int().min(0).max(3650).default(0),
   BACKUP_DIR: z.string().min(1).default("backups"),
   BACKUP_RETENTION_DAYS: z.coerce.number().int().min(1).max(3650).default(30),
   BACKUP_ENCRYPTION_PASSPHRASE: optionalString(z.string().min(32)),
