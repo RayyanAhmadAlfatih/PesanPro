@@ -75,19 +75,6 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                 if (savedMessage) {
                     processedMessages.push(savedMessage);
                 }
-
-                // Execute Bot Commands (Only for Notify / New Messages)
-                if (type === 'notify' && savedMessage) {
-                    await ingestAutoReplyMessage({
-                        sessionDbId: dbSessionId,
-                        sourceMessageId: savedMessage.keyId,
-                        text: savedMessage.content ?? "",
-                        recipientJid: savedMessage.remoteJid,
-                        senderJid: savedMessage.senderJid ?? savedMessage.remoteJid,
-                        isGroup: savedMessage.remoteJid.endsWith("@g.us"),
-                        fromMe: savedMessage.fromMe,
-                    });
-                }
             } catch (error) {
                 logger.error("Store", "Error saving message", error);
             }
@@ -317,11 +304,8 @@ async function processAndSaveMessage(
                 if (normalizedEdit?.conversation) newText = normalizedEdit.conversation;
                 else if (normalizedEdit?.extendedTextMessage?.text) newText = normalizedEdit.extendedTextMessage.text;
 
-                // Update DB safely
-                await prisma.message.updateMany({
-                    where: { sessionId: dbSessionId, keyId: targetKeyId },
-                    data: { content: newText } // Note: we don't update timestamp of original
-                });
+                // Message text is not persisted, so there is no stored body to
+                // rewrite. The edit still reaches the tenant through the webhook.
 
                 // Trigger Webhook
                 if (triggerWebhook) {
@@ -338,48 +322,13 @@ async function processAndSaveMessage(
 
         // Message Revoke/Deleted (Type 0)
         if (pMessage?.type === 0 && targetKeyId) {
-            // Check anti-delete config
-            let antiDeleteEnabled = false;
-            try {
-                const s = await prisma.session.findUnique({
-                    where: { sessionId },
-                    select: { config: true }
-                });
-                const sessionConfig = s?.config;
-                antiDeleteEnabled = typeof sessionConfig === "object"
-                    && sessionConfig !== null
-                    && !Array.isArray(sessionConfig)
-                    && sessionConfig.antiDelete === true;
-            } catch {}
-
-            if (antiDeleteEnabled) {
-                // Anti-delete: read original, keep content, append marker
-                const orig = await prisma.message.findFirst({
-                    where: { sessionId: dbSessionId, keyId: targetKeyId },
-                    select: { content: true }
-                });
-                const preserved = (orig?.content || "") + "\n\n🛡️ [Deleted by sender — preserved]";
-                await prisma.message.updateMany({
-                    where: { sessionId: dbSessionId, keyId: targetKeyId },
-                    data: { content: preserved }
-                });
-                // Re-fetch & re-emit so frontend updates
-                const updated = await prisma.message.findFirst({
-                    where: { sessionId: dbSessionId, keyId: targetKeyId }
-                });
-                if (updated) {
-                    io?.to(sessionId).emit("message.update", [{
-                        ...updated,
-                        timestamp: updated.timestamp instanceof Date ? updated.timestamp.toISOString() : updated.timestamp
-                    }]);
-                }
-            } else {
-                // Normal: mark as deleted
-                await prisma.message.updateMany({
-                    where: { sessionId: dbSessionId, keyId: targetKeyId },
-                    data: { content: "[This message was deleted]", status: "FAILED" }
-                });
-            }
+            // Anti-delete is retired: it existed to keep the text of a message
+            // the sender had deleted, and message text is no longer stored at
+            // all. Only the delivery state is marked.
+            await prisma.message.updateMany({
+                where: { sessionId: dbSessionId, keyId: targetKeyId },
+                data: { status: "FAILED" }
+            });
 
             // Trigger Webhook
             if (triggerWebhook) {
@@ -510,10 +459,9 @@ async function processAndSaveMessage(
                 keyId,
                 pushName,
                 type: messageType,
-                content: text,
-                // Message media is never downloaded or persisted: PesanPro is a
-                // gateway, not a media store. WhatsApp media stays on WhatsApp's
-                // servers; only metadata and text/caption are retained.
+                // Message text is never persisted. The gateway relays it to the
+                // webhook and to auto-reply in the same tick, then drops it;
+                // only delivery metadata (keyId, status, JIDs, timestamp) stays.
                 mediaUrl: null,
                 status: fromMe ? "SENT" : "PENDING",
                 timestamp,
@@ -576,6 +524,19 @@ async function processAndSaveMessage(
             } else {
                 onMessageReceived(sessionId, msg).catch(e => logger.error("Webhook", "Error in onMessageReceived", e));
             }
+
+            // Auto-reply consumes the live text here, where it is still in
+            // scope. It used to read the stored row back, but message text is
+            // no longer persisted. A failure must not fail message persistence.
+            await ingestAutoReplyMessage({
+                sessionDbId: dbSessionId,
+                sourceMessageId: newMessage.keyId,
+                text,
+                recipientJid: newMessage.remoteJid,
+                senderJid: newMessage.senderJid ?? newMessage.remoteJid,
+                isGroup: newMessage.remoteJid.endsWith("@g.us"),
+                fromMe: newMessage.fromMe,
+            }).catch((e) => logger.error("Store", "Auto-reply ingestion failed", e));
         }
 
         return newMessage;
