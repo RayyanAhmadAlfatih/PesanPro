@@ -72,3 +72,9 @@ next-env.d.ts
 session-*.json
 creds-*.json
 authstate-*
+
+# Local agent workspace data. Never publish: it holds local notes and paths.
+/.workbuddy-ai/
+
+# Intermediate SVG from render-preview.mjs. LANDING-PREVIEW.png is the deliverable.
+/landing-preview.svg
