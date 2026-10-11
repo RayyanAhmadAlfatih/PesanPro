@@ -150,7 +150,7 @@ export default async function Home() {
       <header className="sticky top-0 z-40 border-b border-[var(--pp-line)] bg-[var(--pp-paper)]">
         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
           <Link href="/" className="flex items-center gap-3">
-            <Image src="/brand/maskot-1-netral.png" alt="" width={371} height={501} className="h-9 w-auto" priority />
+            <Image src="/brand/maskot-netral.png" alt="" width={275} height={328} className="h-9 w-auto" priority />
             <span className="font-[family-name:var(--font-display)] text-lg font-extrabold tracking-tight">
               {appName}
             </span>
@@ -206,10 +206,10 @@ export default async function Home() {
 
             <div className="justify-self-center">
               <Image
-                src="/brand/maskot-4-kirim.png"
+                src="/brand/maskot-kirim.png"
                 alt="Maskot PesanPro, burung merpati, membawa amplop tertutup di paruhnya"
-                width={370}
-                height={502}
+                width={293}
+                height={319}
                 className="h-auto w-52 sm:w-64 lg:w-full lg:max-w-[320px]"
                 priority
               />
@@ -345,10 +345,10 @@ export default async function Home() {
 
               <div className="justify-self-center self-center">
                 <Image
-                  src="/brand/maskot-2-senang.png"
+                  src="/brand/maskot-senang.png"
                   alt="Maskot PesanPro dengan ekspresi senang dan sayap terbuka"
-                  width={384}
-                  height={496}
+                  width={336}
+                  height={328}
                   className="h-auto w-40 sm:w-48 lg:w-full lg:max-w-[220px]"
                 />
               </div>
@@ -413,10 +413,10 @@ export default async function Home() {
 
               <div className="justify-self-center self-start">
                 <Image
-                  src="/brand/maskot-3-bingung.png"
+                  src="/brand/maskot-bingung.png"
                   alt="Maskot PesanPro dengan ekspresi bingung dan tanda tanya"
-                  width={384}
-                  height={522}
+                  width={291}
+                  height={335}
                   className="h-auto w-40 sm:w-48 lg:w-full lg:max-w-[200px]"
                 />
               </div>
@@ -451,7 +451,7 @@ export default async function Home() {
       <footer className="border-t border-[var(--pp-line)] bg-[var(--pp-paper)]">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-3">
-            <Image src="/brand/maskot-1-netral.png" alt="" width={371} height={501} className="h-7 w-auto" />
+            <Image src="/brand/maskot-netral.png" alt="" width={275} height={328} className="h-7 w-auto" />
             <span className="text-sm font-semibold">{appName}</span>
             <span className="font-[family-name:var(--font-mono-ui)] text-xs text-[var(--pp-muted)]">
               v{pkg.version}
