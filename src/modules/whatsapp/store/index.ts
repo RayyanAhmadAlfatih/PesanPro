@@ -503,14 +503,31 @@ async function processAndSaveMessage(
                 }
             }
 
-            // Welcome Message Logic
+            // Welcome message, sent at most once per contact.
+            //
+            // This used to count stored messages and fire when the count was 1.
+            // That stopped being reliable once message retention began purging
+            // rows: a contact returning after the retention window looked brand
+            // new and received the welcome again. The marker lives on the
+            // contact row now, and contacts have no retention.
+            //
+            // Marking before sending is deliberate. A crash between mark and
+            // send costs one missed welcome; the other order costs a duplicate,
+            // and a duplicate welcome reads as spam.
+            //
+            // Groups never reach this branch: only one-to-one chats get a
+            // contact row, and a welcome was never meant for a group.
             if (!fromMe && triggerWebhook && config?.welcomeMessage && sock) {
-                // Let's check if message count for this contact is exactly 1 (the one we just saved)
-                const msgCount = await prisma.message.count({
-                    where: { sessionId: dbSessionId, remoteJid: finalRemoteJid }
+                const contact = await prisma.contact.findUnique({
+                    where: { sessionId_jid: { sessionId: dbSessionId, jid: finalRemoteJid } },
+                    select: { id: true, welcomedAt: true },
                 });
 
-                if (msgCount === 1) {
+                if (contact && !contact.welcomedAt) {
+                    await prisma.contact.update({
+                        where: { id: contact.id },
+                        data: { welcomedAt: new Date() },
+                    });
                     logger.info("Store", `Sending welcome message to ${maskJid(finalRemoteJid)}`);
                     await sock.sendMessage(finalRemoteJid, { text: config.welcomeMessage });
                 }
@@ -545,4 +562,3 @@ async function processAndSaveMessage(
         throw e;
     }
 }
-// Placeholder - verified that I need to find the logic first

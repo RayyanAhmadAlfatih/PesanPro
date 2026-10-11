@@ -795,6 +795,11 @@ model Contact {
   consentSource    String?
   source           String               @default("WHATSAPP")
   lastActivityAt   DateTime?
+  // Set when the welcome message is sent, so it fires at most once per
+  // contact. Null means it has not been sent yet. This lives on the contact
+  // rather than being derived from stored messages, because message retention
+  // purges rows and a returning contact would otherwise look brand new.
+  welcomedAt       DateTime?
   customAttributes Json?
   createdAt        DateTime             @default(now())
   updatedAt        DateTime             @updatedAt
