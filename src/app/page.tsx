@@ -149,11 +149,15 @@ export default async function Home() {
     <div className="flex min-h-screen flex-col bg-[var(--pp-paper)] text-[var(--pp-ink)]">
       <header className="sticky top-0 z-40 border-b border-[var(--pp-line)] bg-[var(--pp-paper)]">
         <div className="mx-auto flex h-16 w-full max-w-5xl items-center justify-between gap-4 px-4 sm:px-6">
-          <Link href="/" className="flex items-center gap-3">
-            <Image src="/brand/maskot-netral.png" alt="" width={275} height={328} className="h-9 w-auto" priority />
-            <span className="font-[family-name:var(--font-display)] text-lg font-extrabold tracking-tight">
-              {appName}
-            </span>
+          <Link href="/" className="flex items-center">
+            <Image
+              src="/brand/logo-lockup.png"
+              alt={appName}
+              width={1730}
+              height={514}
+              className="h-9 w-auto sm:h-10"
+              priority
+            />
           </Link>
 
           <nav className="flex items-center gap-6">
@@ -451,8 +455,7 @@ export default async function Home() {
       <footer className="border-t border-[var(--pp-line)] bg-[var(--pp-paper)]">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-4 px-4 py-8 sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <div className="flex items-center gap-3">
-            <Image src="/brand/maskot-netral.png" alt="" width={275} height={328} className="h-7 w-auto" />
-            <span className="text-sm font-semibold">{appName}</span>
+            <Image src="/brand/logo-lockup.png" alt={appName} width={1730} height={514} className="h-7 w-auto" />
             <span className="font-[family-name:var(--font-mono-ui)] text-xs text-[var(--pp-muted)]">
               v{pkg.version}
             </span>

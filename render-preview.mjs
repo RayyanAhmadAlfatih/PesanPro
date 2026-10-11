@@ -43,6 +43,11 @@ for (const name of ["netral", "senang", "bingung", "kirim"]) {
   mascots[name] = `data:image/png;base64,${buf.toString("base64")}`;
   mascotMeta[name] = await sharp(buf).metadata();
 }
+{
+  const buf = await readFile("public/brand/logo-lockup.png");
+  mascots.logo = `data:image/png;base64,${buf.toString("base64")}`;
+  mascotMeta.logo = await sharp(buf).metadata();
+}
 
 // Always set width AND height. Without an explicit width, librsvg falls back to
 // the PNG's intrinsic width, and the bird then renders centred inside that box
@@ -57,8 +62,7 @@ const mascotImg = (name, x, yy, h) => {
 // Header
 rect(0, 0, W, 72, PAPER);
 parts.push(`<line x1="0" y1="72" x2="${W}" y2="72" stroke="${LINE}" stroke-width="1"/>`);
-const navLogoW = mascotImg("netral", PAD, 20, 34);
-text(PAD + navLogoW + 12, 45, "PesanPro", { size: 19, weight: 700 });
+mascotImg("logo", PAD, 18, 38);
 for (const [i, label] of ["Sebelum & sesudah", "Cara kerja", "Harga"].entries()) {
   text([836, 944, 1018][i], 44, label, { size: 14, fill: MUTED, anchor: "end" });
 }
@@ -216,9 +220,8 @@ y += 220;
 // Footer
 rect(0, y, W, 110, PAPER);
 parts.push(`<line x1="0" y1="${y}" x2="${W}" y2="${y}" stroke="${LINE}" stroke-width="1"/>`);
-const footLogoW = mascotImg("netral", PAD, y + 42, 26);
-text(PAD + footLogoW + 12, y + 62, "PesanPro", { size: 14, weight: 600 });
-text(PAD + footLogoW + 80, y + 62, "v0.1.0", { size: 12, fill: MUTED, mono: true });
+const footLogoW = mascotImg("logo", PAD, y + 44, 24);
+text(PAD + footLogoW + 16, y + 62, "v0.1.0", { size: 12, fill: MUTED, mono: true });
 text(W - PAD, y + 62, "Kebijakan privasi", { size: 14, fill: MUTED, anchor: "end" });
 text(W - PAD - 150, y + 62, "Ketentuan layanan", { size: 14, fill: MUTED, anchor: "end" });
 y += 110;
