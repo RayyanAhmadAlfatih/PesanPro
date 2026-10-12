@@ -14,7 +14,10 @@ import { checkPersistentRateLimit, getClientIp, rateLimitHeaders } from "@/lib/r
 
 const createSchema = z.object({
   name: z.string().trim().min(2).max(64),
-  scopes: z.array(z.enum(API_KEY_SCOPES)).min(1).max(API_KEY_SCOPES.length).optional(),
+  // Scopes are required: an omitted list used to fall back to every scope,
+  // which handed out over-privileged credentials to any caller that skipped
+  // the field. Least privilege means the caller states what it needs.
+  scopes: z.array(z.enum(API_KEY_SCOPES)).min(1).max(API_KEY_SCOPES.length),
   ipAllowlist: z.array(z.string().refine((value) => isIP(value.trim()) > 0, "Invalid IP address")).max(20).optional(),
   expiresAt: z.string().datetime().optional().nullable(),
 });
