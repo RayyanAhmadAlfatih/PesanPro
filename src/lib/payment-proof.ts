@@ -20,6 +20,8 @@ export type ParsedPaymentProofUpload = {
   originalName: string;
   planId: string;
   reference: string;
+  /** Raw multipart value. Validated against the enum by the caller. */
+  billingCycle: string;
 };
 
 /**
@@ -47,7 +49,8 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
     let settled = false;
     let planId = "";
     let reference = "";
-    let fileResult: Omit<ParsedPaymentProofUpload, "planId" | "reference"> | null = null;
+    let billingCycle = "";
+    let fileResult: Omit<ParsedPaymentProofUpload, "planId" | "reference" | "billingCycle"> | null = null;
     let fileCount = 0;
     let tooLarge = false;
 
@@ -71,6 +74,7 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
     parser.on("field", (name, value) => {
       if (name === "planId") planId = value;
       if (name === "reference") reference = value;
+      if (name === "billingCycle") billingCycle = value;
     });
     parser.on("file", (fieldName, stream, info) => {
       fileCount += 1;
@@ -110,7 +114,7 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
         return;
       }
       settled = true;
-      resolve({ ...fileResult, planId, reference });
+      resolve({ ...fileResult, planId, reference, billingCycle });
     });
 
     Readable.fromWeb(request.body as never)

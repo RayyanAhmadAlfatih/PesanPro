@@ -96,6 +96,24 @@ Repository mempunyai Login, Register, Forgot Password, Reset Password, account s
 | L1-49   | Keyboard saja (Tab, Enter)                                 | Fokus terlihat, form bisa disubmit                                    |
 | L1-50   | Ganti tab bolak-balik setelah kode terkirim                | Tidak ada error konsol, kode tetap bisa diverifikasi                  |
 
+### Harga tahunan dan free trial
+
+| ID      | Test                                                      | Expected                                                             |
+| ------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| L1-51   | Buka halaman harga publik                                  | Tampil 3 paket: Starter, Bisnis, Pro. Paket trial tidak muncul        |
+| L1-52   | Baris "Bayar 12 bulan"                                     | Angka dari kolom harga tahunan: 750.000 / 1.490.000 / 2.990.000       |
+| L1-53   | Baris "Hemat dibanding bayar bulanan"                      | Selisih harga bulanan x 12 dikurangi harga tahunan (±17%), ada persen |
+| L1-54   | Daftar akun baru                                           | Subscription `TRIAL` pada paket trial, `trialEndsAt` = 7 hari         |
+| L1-55   | Lewati 7 hari trial tanpa bayar                            | Login masih bisa, tapi fitur komersial ditolak (status `EXPIRED`)     |
+| L1-56   | Kirim bukti bayar periode Bulanan                          | Nominal = harga bulanan paket, tidak bisa diubah dari sisi klien      |
+| L1-57   | Kirim bukti bayar periode Tahunan                          | Nominal = harga tahunan paket                                         |
+| L1-58   | Paket tanpa harga tahunan, pilih Tahunan                   | Tombol kirim nonaktif + pesan jelas; API balas 422                    |
+| L1-59   | Admin setujui pembayaran tahunan                           | Subscription `ACTIVE`, `billingCycle=YEARLY`, `endsAt` = +12 bulan    |
+| L1-60   | Admin setujui pembayaran bulanan                           | `billingCycle=MONTHLY`, `endsAt` = +1 bulan                           |
+| L1-61   | Riwayat pembayaran di dashboard billing                    | Menampilkan label BULANAN / TAHUNAN per baris                         |
+| L1-62   | Halaman Operasi Komersial                                  | Kartu paket menampilkan harga bulanan dan harga tahunan               |
+| L1-63   | Ubah harga tahunan lewat editor paket superadmin           | Halaman harga publik ikut berubah, tanpa deploy ulang                 |
+
 ---
 
 # Phase L2 — RBAC dan Tenant Isolation **P0**

@@ -26,6 +26,7 @@ const planSchema = z.object({
   isDefault: z.boolean().default(false),
   trialDays: z.number().int().min(0).max(365).default(0),
   priceMonthly: z.string().regex(/^\d+(\.\d{1,2})?$/).optional().nullable(),
+  priceYearly: z.string().regex(/^\d+(\.\d{1,2})?$/).optional().nullable(),
   currency: z.string().trim().toUpperCase().length(3).default("IDR"),
   entitlements: z.array(entitlementSchema).min(1).max(Object.keys(EntitlementFeature).length),
 }).superRefine((value, context) => {
@@ -38,10 +39,11 @@ const planSchema = z.object({
   }
 });
 
-function serializePlan<T extends { priceMonthly: Prisma.Decimal | null; entitlements: Array<{ feature: string; limitValue: bigint | null }> }>(plan: T) {
+function serializePlan<T extends { priceMonthly: Prisma.Decimal | null; priceYearly: Prisma.Decimal | null; entitlements: Array<{ feature: string; limitValue: bigint | null }> }>(plan: T) {
   return {
     ...plan,
     priceMonthly: plan.priceMonthly?.toString() ?? null,
+    priceYearly: plan.priceYearly?.toString() ?? null,
     entitlements: plan.entitlements
       .filter((item) => isCommercialFeatureVisible(item.feature))
       .map((item) => ({ ...item, limitValue: item.limitValue?.toString() ?? null })),
@@ -78,6 +80,7 @@ export async function POST(request: NextRequest) {
           isDefault: parsed.data.isDefault,
           trialDays: parsed.data.trialDays,
           priceMonthly: parsed.data.priceMonthly,
+          priceYearly: parsed.data.priceYearly,
           currency: parsed.data.currency,
           entitlements: {
             create: parsed.data.entitlements.map((item) => ({

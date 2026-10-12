@@ -16,6 +16,7 @@ export async function GET() {
       description: true,
       trialDays: true,
       priceMonthly: true,
+      priceYearly: true,
       currency: true,
       entitlements: { select: { feature: true, enabled: true, limitValue: true }, orderBy: { feature: "asc" } },
     },
@@ -25,6 +26,7 @@ export async function GET() {
     data: plans.map((plan) => ({
       ...plan,
       priceMonthly: plan.priceMonthly?.toString() ?? null,
+      priceYearly: plan.priceYearly?.toString() ?? null,
       entitlements: plan.entitlements.map((item) => ({ ...item, limitValue: item.limitValue?.toString() ?? null })),
     })),
   });

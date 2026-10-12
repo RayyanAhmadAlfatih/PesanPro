@@ -1,7 +1,12 @@
-import { PaymentVerificationStatus, type Prisma } from "@prisma/client";
+import { PaymentVerificationStatus, type BillingCycle, type Prisma } from "@prisma/client";
 import { queuePaymentApprovedEmail } from "./email-notifications";
 
 type ReviewStatus = Exclude<PaymentVerificationStatus, "PENDING">;
+
+export const BILLING_CYCLE_MONTHS: Record<BillingCycle, number> = {
+  MONTHLY: 1,
+  YEARLY: 12,
+};
 
 export class PaymentVerificationReviewError extends Error {
   constructor(
@@ -13,14 +18,24 @@ export class PaymentVerificationReviewError extends Error {
   }
 }
 
-export function addOneBillingMonth(startsAt: Date) {
+export function addBillingMonths(startsAt: Date, months: number) {
   const result = new Date(startsAt);
   const day = result.getUTCDate();
   result.setUTCDate(1);
-  result.setUTCMonth(result.getUTCMonth() + 1);
+  result.setUTCMonth(result.getUTCMonth() + months);
   const lastDay = new Date(Date.UTC(result.getUTCFullYear(), result.getUTCMonth() + 1, 0)).getUTCDate();
   result.setUTCDate(Math.min(day, lastDay));
   return result;
+}
+
+export function addOneBillingMonth(startsAt: Date) {
+  return addBillingMonths(startsAt, 1);
+}
+
+export function billingPeriodEnd(startsAt: Date, cycle: BillingCycle) {
+  // Falls back to a month for an unrecognised value, so a row read before the
+  // cycle column existed can never produce an invalid end date.
+  return addBillingMonths(startsAt, BILLING_CYCLE_MONTHS[cycle] ?? BILLING_CYCLE_MONTHS.MONTHLY);
 }
 
 export async function reviewPaymentVerificationInTransaction(
@@ -77,12 +92,16 @@ export async function reviewPaymentVerificationInTransaction(
     throw new PaymentVerificationReviewError("PAYMENT_PLAN_UNAVAILABLE", "The selected plan is no longer active");
   }
 
-  const endsAt = addOneBillingMonth(input.reviewedAt);
+  // One approved payment buys one month or one year, whichever the customer
+  // actually paid for. The cycle is read from the submission, never inferred
+  // from the amount.
+  const endsAt = billingPeriodEnd(input.reviewedAt, verification.billingCycle);
   const subscription = await tx.subscription.upsert({
     where: { userId: verification.userId },
     update: {
       planId: verification.plan.id,
       status: "ACTIVE",
+      billingCycle: verification.billingCycle,
       startsAt: input.reviewedAt,
       trialEndsAt: null,
       endsAt,
@@ -92,6 +111,7 @@ export async function reviewPaymentVerificationInTransaction(
       userId: verification.userId,
       planId: verification.plan.id,
       status: "ACTIVE",
+      billingCycle: verification.billingCycle,
       startsAt: input.reviewedAt,
       trialEndsAt: null,
       endsAt,

@@ -1,5 +1,6 @@
 import Link from "next/link";
 import Image from "next/image";
+import { Check, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { prisma } from "@/lib/prisma";
 import pkg from "../../package.json";
@@ -129,11 +130,72 @@ function formatPrice(value: unknown, currency: string) {
   }
 }
 
+type LimitKind = "flag" | "count" | "seconds" | "bytes";
+
+// Rows in the order a buyer reads them: what they get to run, then the
+// ceilings. Campaigns are deliberately absent: that surface is retired, so
+// advertising it here would promise something a tenant cannot open.
+const FEATURE_ROWS: Array<{ feature: string; label: string; kind: LimitKind }> = [
+  { feature: "API_ACCESS", label: "Akses REST API", kind: "flag" },
+  { feature: "DEVICES", label: "Perangkat WhatsApp", kind: "count" },
+  { feature: "STAFF", label: "Anggota tim", kind: "count" },
+  { feature: "MESSAGES_MONTHLY", label: "Pesan terkirim per bulan", kind: "count" },
+  { feature: "SCHEDULED_MESSAGES", label: "Pesan terjadwal", kind: "count" },
+  { feature: "BROADCASTS_MONTHLY", label: "Broadcast per bulan", kind: "count" },
+  { feature: "BROADCAST_RECIPIENTS_PER_BATCH", label: "Penerima per broadcast", kind: "count" },
+  { feature: "BROADCAST_MIN_DELAY_MS", label: "Jeda minimum antar pesan", kind: "seconds" },
+  { feature: "AUTOREPLY_RULES", label: "Aturan balasan otomatis", kind: "count" },
+  { feature: "WEBHOOKS", label: "Endpoint webhook", kind: "count" },
+  { feature: "API_KEYS", label: "Kunci API", kind: "count" },
+  { feature: "API_REQUESTS_PER_MINUTE", label: "Permintaan API per menit", kind: "count" },
+  { feature: "API_REQUESTS_MONTHLY", label: "Permintaan API per bulan", kind: "count" },
+  { feature: "MEDIA_STORAGE_BYTES", label: "Penyimpanan media", kind: "bytes" },
+];
+
+function formatLimit(kind: LimitKind, limitValue: bigint | null): string {
+  if (limitValue === null) return "Tanpa batas";
+  const value = Number(limitValue);
+  if (!Number.isFinite(value) || value <= 0) return "Tidak termasuk";
+  if (kind === "seconds") return `${Math.round(value / 1000)} detik`;
+  if (kind === "bytes") {
+    const mb = value / (1024 * 1024);
+    if (mb < 1024) return `${Math.round(mb)} MB`;
+    const gb = mb / 1024;
+    return `${Number.isInteger(gb) ? gb : gb.toFixed(1)} GB`;
+  }
+  return value.toLocaleString("id-ID");
+}
+
+// The yearly rate is a stored price, never monthly x 12. Deriving it here used
+// to advertise Rp 900.000 for Starter while the plan is actually sold at
+// Rp 750.000, so the page now reads the same column the billing flow charges.
+function yearlySaving(monthly: unknown, yearly: unknown) {
+  const monthlyAmount = Number(monthly ?? 0);
+  const yearlyAmount = Number(yearly ?? 0);
+  if (!Number.isFinite(monthlyAmount) || !Number.isFinite(yearlyAmount)) return null;
+  if (monthlyAmount <= 0 || yearlyAmount <= 0) return null;
+  const fullYear = monthlyAmount * 12;
+  if (yearlyAmount >= fullYear) return null;
+  const saved = fullYear - yearlyAmount;
+  return { amount: saved, percent: Math.round((saved / fullYear) * 100) };
+}
+
 async function loadPlans() {
   try {
     return await prisma.plan.findMany({
-      where: { isActive: true },
-      select: { id: true, name: true, description: true, priceMonthly: true, currency: true, trialDays: true },
+      // Paid plans only. The trial plan is an internal default handed to new
+      // accounts, not a package a visitor can buy, so listing it here would
+      // advertise a free tier the product does not sell.
+      where: { isActive: true, priceMonthly: { gt: 0 } },
+      select: {
+        id: true,
+        name: true,
+        description: true,
+        priceMonthly: true,
+        priceYearly: true,
+        currency: true,
+        entitlements: { select: { feature: true, enabled: true, limitValue: true } },
+      },
       orderBy: [{ priceMonthly: "asc" }, { name: "asc" }],
     });
   } catch {
@@ -364,28 +426,126 @@ export default async function Home() {
           <section id="harga" className="border-t border-[var(--pp-line)]">
             <div className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
               <p className="pp-eyebrow">Harga</p>
-              <h2 className="pp-section-title mt-3">Bayar per bulan, tanpa biaya per pesan.</h2>
+              <h2 className="pp-section-title mt-3">Bayar bulanan atau tahunan, tanpa biaya per pesan.</h2>
+              <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--pp-muted)]">
+                Kami menampilkan angka dari paket yang sedang aktif, jadi sama dengan yang berlaku di akun Anda.
+              </p>
 
-              <div className="mt-10 grid gap-4 md:grid-cols-3">
-                {plans.map((plan) => (
-                  <div key={plan.id} className="flex flex-col rounded-xl border border-[var(--pp-line)] bg-[var(--pp-white)] p-6">
-                    <h3 className="text-lg font-bold tracking-tight">{plan.name}</h3>
-                    <p className="mt-3 font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight">
-                      {formatPrice(plan.priceMonthly, plan.currency)}
-                    </p>
-                    <p className="mt-1 text-xs text-[var(--pp-muted)]">
-                      {Number(plan.priceMonthly ?? 0) > 0
-                        ? "per bulan"
-                        : plan.trialDays > 0
-                          ? `${plan.trialDays} hari, tanpa kartu`
-                          : "tanpa biaya"}
-                    </p>
-                    {plan.description && (
-                      <p className="mt-4 text-sm leading-relaxed text-[var(--pp-muted)]">{plan.description}</p>
+              <div className="mt-10 overflow-x-auto">
+                <table className="w-full min-w-[44rem] border-collapse text-sm">
+                  <caption className="sr-only">Perbandingan paket PesanPro</caption>
+                  <thead>
+                    <tr className="bg-[var(--pp-mint)]">
+                      <th scope="col" className="border border-[var(--pp-line)] px-4 py-3 text-left font-semibold">
+                        Rincian
+                      </th>
+                      {plans.map((plan) => (
+                        <th key={plan.id} scope="col" className="border border-[var(--pp-line)] px-4 py-3 text-left align-top">
+                          <span className="block font-bold">{plan.name}</span>
+                          <span className="mt-1 block font-[family-name:var(--font-display)] text-xl font-extrabold tracking-tight">
+                            {formatPrice(plan.priceMonthly, plan.currency)}
+                          </span>
+                          <span className="mt-0.5 block text-xs font-normal text-[var(--pp-ink)]">per bulan</span>
+                        </th>
+                      ))}
+                    </tr>
+                  </thead>
+                  <tbody>
+                    <tr className="bg-[var(--pp-white)]">
+                      <th scope="row" className="border border-[var(--pp-line)] px-4 py-2 text-left font-medium">
+                        Bayar 12 bulan
+                      </th>
+                      {plans.map((plan) => (
+                        <td key={plan.id} className="border border-[var(--pp-line)] px-4 py-2 tabular-nums">
+                          {plan.priceYearly ? formatPrice(plan.priceYearly, plan.currency) : "Tidak tersedia"}
+                        </td>
+                      ))}
+                    </tr>
+                    <tr className="bg-[var(--pp-white)]">
+                      <th scope="row" className="border border-[var(--pp-line)] px-4 py-2 text-left font-medium">
+                        Hemat dibanding bayar bulanan
+                      </th>
+                      {plans.map((plan) => {
+                        const saving = yearlySaving(plan.priceMonthly, plan.priceYearly);
+                        return (
+                          <td key={plan.id} className="border border-[var(--pp-line)] px-4 py-2">
+                            {saving ? (
+                              <span className="tabular-nums">
+                                {formatPrice(saving.amount, plan.currency)}{" "}
+                                <span className="text-[var(--pp-muted)]">({saving.percent}%)</span>
+                              </span>
+                            ) : (
+                              <span className="text-[var(--pp-muted)]">Tidak tersedia</span>
+                            )}
+                          </td>
+                        );
+                      })}
+                    </tr>
+                    {FEATURE_ROWS.map((row) => (
+                      <tr
+                        key={row.feature}
+                        className="bg-[var(--pp-white)] transition-colors hover:bg-[color-mix(in_srgb,var(--pp-highlight)_14%,transparent)]"
+                      >
+                        <th scope="row" className="border border-[var(--pp-line)] px-4 py-2 text-left font-medium">
+                          {row.label}
+                        </th>
+                        {plans.map((plan) => {
+                          const entitlement = plan.entitlements.find((item) => item.feature === row.feature);
+                          const included = entitlement?.enabled === true;
+                          return (
+                            <td key={plan.id} className="border border-[var(--pp-line)] px-4 py-2">
+                              {!included ? (
+                                <span className="inline-flex items-center gap-2 text-[var(--pp-muted)]">
+                                  <Minus aria-hidden="true" className="h-4 w-4 shrink-0" />
+                                  <span className="sr-only">Tidak termasuk</span>
+                                </span>
+                              ) : row.kind === "flag" ? (
+                                <span className="inline-flex items-center gap-2">
+                                  <Check aria-hidden="true" className="h-4 w-4 shrink-0" />
+                                  <span className="sr-only">Termasuk</span>
+                                </span>
+                              ) : (
+                                <span className="tabular-nums">{formatLimit(row.kind, entitlement.limitValue)}</span>
+                              )}
+                            </td>
+                          );
+                        })}
+                      </tr>
+                    ))}
+                    {plans.some((plan) => plan.description) && (
+                      <tr className="bg-[var(--pp-white)]">
+                        <th scope="row" className="border border-[var(--pp-line)] px-4 py-2 text-left align-top font-medium">
+                          Catatan paket
+                        </th>
+                        {plans.map((plan) => (
+                          <td
+                            key={plan.id}
+                            className="border border-[var(--pp-line)] px-4 py-2 align-top text-xs leading-relaxed text-[var(--pp-muted)]"
+                          >
+                            {plan.description ?? "Tidak ada catatan tambahan."}
+                          </td>
+                        ))}
+                      </tr>
                     )}
-                  </div>
-                ))}
+                    <tr className="bg-[var(--pp-white)]">
+                      <th scope="row" className="border border-[var(--pp-line)] px-4 py-3 text-left font-medium">
+                        Mulai
+                      </th>
+                      {plans.map((plan) => (
+                        <td key={plan.id} className="border border-[var(--pp-line)] px-4 py-3">
+                          <Button asChild variant="outline" size="sm">
+                            <Link href="/auth/register">Buat akun</Link>
+                          </Button>
+                        </td>
+                      ))}
+                    </tr>
+                  </tbody>
+                </table>
               </div>
+
+              <p className="mt-4 text-xs text-[var(--pp-muted)]">
+                Harga tahunan adalah harga tersendiri, bukan tarif bulanan dikali dua belas. Akun baru bisa mencoba gratis satu minggu.
+              </p>
             </div>
           </section>
         )}

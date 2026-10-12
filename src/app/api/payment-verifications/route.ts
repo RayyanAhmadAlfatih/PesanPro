@@ -13,6 +13,9 @@ import { logger } from "@/lib/logger";
 const submissionSchema = z.object({
   planId: z.string().min(1),
   reference: z.string().trim().min(3).max(120),
+  // Omitted means monthly, which is what every submission meant before the
+  // yearly option existed.
+  billingCycle: z.enum(["MONTHLY", "YEARLY"]).default("MONTHLY"),
 });
 
 function publicSubmission<T extends {
@@ -68,11 +71,24 @@ export async function POST(request: NextRequest) {
     }
     return NextResponse.json({ error: "Invalid payment proof" }, { status: 400 });
   }
-  const parsed = submissionSchema.safeParse({ planId: upload.planId, reference: upload.reference });
+  const parsed = submissionSchema.safeParse({
+    planId: upload.planId,
+    reference: upload.reference,
+    billingCycle: upload.billingCycle.trim() || undefined,
+  });
   if (!parsed.success) return NextResponse.json({ error: "Invalid payment proof", details: parsed.error.flatten() }, { status: 400 });
 
   const plan = await prisma.plan.findFirst({ where: { id: parsed.data.planId, isActive: true, priceMonthly: { gt: 0 } } });
   if (!plan) return NextResponse.json({ error: "Active plan not found" }, { status: 404 });
+  // The amount is always read from the plan, never from the request body, so a
+  // caller cannot declare a cheaper price for a yearly period.
+  const amount = parsed.data.billingCycle === "YEARLY" ? plan.priceYearly : plan.priceMonthly;
+  if (!amount) {
+    return NextResponse.json(
+      { error: "This plan does not offer a yearly price", code: "PLAN_YEARLY_PRICE_MISSING" },
+      { status: 422 },
+    );
+  }
   const verificationId = crypto.randomUUID();
   let storedProof: Awaited<ReturnType<typeof storePaymentProof>> | null = null;
   let submission;
@@ -91,7 +107,8 @@ export async function POST(request: NextRequest) {
           id: verificationId,
           userId: session.user.id,
           planId: plan.id,
-          amount: plan.priceMonthly!,
+          amount,
+          billingCycle: parsed.data.billingCycle,
           currency: plan.currency,
           reference: parsed.data.reference,
           proofUrl: `/api/payment-verifications/${verificationId}/proof`,
@@ -105,7 +122,7 @@ export async function POST(request: NextRequest) {
         verificationId: record.id,
         payerId: record.userId,
         planName: plan.name,
-        amount: plan.priceMonthly!.toString(),
+        amount: amount.toString(),
         currency: plan.currency,
         reference: parsed.data.reference,
         submittedAt: record.createdAt,
@@ -129,7 +146,7 @@ export async function POST(request: NextRequest) {
     resourceId: submission.id,
     ip,
     userAgent: request.headers.get("user-agent"),
-    meta: { planId: plan.id, amount: plan.priceMonthly!.toString(), currency: plan.currency, queuedEmailCount },
+    meta: { planId: plan.id, amount: amount.toString(), billingCycle: parsed.data.billingCycle, currency: plan.currency, queuedEmailCount },
   });
   if (queuedEmailCount === 0) {
     logger.warn("PaymentVerification", `No active superadmin recipient was found for payment ${submission.id}`);

@@ -29,6 +29,13 @@ enum SubscriptionStatus {
   CANCELLED
 }
 
+// How long a single payment buys. MONTHLY is the default so every existing row
+// keeps the behaviour it already had.
+enum BillingCycle {
+  MONTHLY
+  YEARLY
+}
+
 enum EntitlementFeature {
   API_ACCESS
   API_KEYS
@@ -379,6 +386,10 @@ model Plan {
   isDefault    Boolean  @default(false)
   trialDays    Int      @default(0)
   priceMonthly Decimal? @db.Decimal(18, 2)
+  // The yearly rate is its own stored price, never a multiple of the monthly
+  // one: the marketing page used to derive it as monthly x 12, which advertised
+  // a number nobody could actually be charged.
+  priceYearly  Decimal? @db.Decimal(18, 2)
   currency     String   @default("IDR")
   createdAt    DateTime @default(now())
   updatedAt    DateTime @updatedAt
@@ -431,6 +442,7 @@ model Subscription {
   userId      String             @unique
   planId      String
   status      SubscriptionStatus @default(TRIAL)
+  billingCycle BillingCycle      @default(MONTHLY)
   startsAt    DateTime           @default(now())
   trialEndsAt DateTime?
   endsAt      DateTime?
@@ -538,6 +550,7 @@ model PaymentVerification {
   userId              String
   planId              String?
   amount              Decimal                   @db.Decimal(18, 2)
+  billingCycle        BillingCycle              @default(MONTHLY)
   currency            String                    @default("IDR")
   reference           String?
   proofUrl            String?                   @db.Text

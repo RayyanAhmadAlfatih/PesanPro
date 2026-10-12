@@ -28,6 +28,7 @@ interface AvailablePlan {
   name: string;
   description: string | null;
   priceMonthly: string | null;
+  priceYearly: string | null;
   currency: string;
   entitlements: Array<{ feature: string; enabled: boolean; limitValue: string | null }>;
 }
@@ -35,6 +36,7 @@ interface AvailablePlan {
 interface PaymentSubmission {
   id: string;
   amount: string;
+  billingCycle: string;
   currency: string;
   reference: string | null;
   proofUrl: string | null;
@@ -51,7 +53,7 @@ export default function BillingPage() {
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlanId, setPaymentPlanId] = useState("");
-  const [paymentAmount, setPaymentAmount] = useState("");
+  const [paymentCycle, setPaymentCycle] = useState<"MONTHLY" | "YEARLY">("MONTHLY");
   const [paymentReference, setPaymentReference] = useState("");
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [proofInputKey, setProofInputKey] = useState(0);
@@ -90,6 +92,7 @@ export default function BillingPage() {
     try {
       const form = new FormData();
       form.set("planId", paymentPlanId);
+      form.set("billingCycle", paymentCycle);
       form.set("reference", paymentReference);
       if (paymentProof) form.set("proof", paymentProof);
       const response = await fetch("/api/payment-verifications", {
@@ -100,7 +103,6 @@ export default function BillingPage() {
       if (!response.ok) throw new Error(body.error ?? "Unable to submit payment proof");
       toast.success("Payment proof submitted for manual verification");
       setPaymentPlanId("");
-      setPaymentAmount("");
       setPaymentReference("");
       setPaymentProof(null);
       setProofInputKey((current) => current + 1);
@@ -115,6 +117,15 @@ export default function BillingPage() {
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
   const usageMap = new Map(billing?.usage.map((item) => [item.feature, item]));
+
+  // The amount is never typed by the tenant. It is read from the plan and the
+  // chosen cycle, exactly like the server does when it stores the submission.
+  const selectedPlan = plans.find((plan) => plan.id === paymentPlanId) ?? null;
+  let paymentAmount = "";
+  if (selectedPlan) {
+    paymentAmount = (paymentCycle === "YEARLY" ? selectedPlan.priceYearly : selectedPlan.priceMonthly) ?? "";
+  }
+  const paymentAmountMissing = selectedPlan !== null && paymentAmount === "";
 
   return (
     <div className="space-y-6 p-4 md:p-8">
@@ -158,19 +169,20 @@ export default function BillingPage() {
           <h2 className="text-xl font-semibold">Available plans</h2>
           <p className="text-sm text-muted-foreground">Pilih plan berdasarkan kebutuhan; tidak ada tier yang dipaksakan sebagai pilihan utama.</p>
           <div className="mt-3 grid gap-3 md:grid-cols-2 xl:grid-cols-3">
-            {plans.map((plan) => <Card key={plan.id} className={paymentPlanId === plan.id ? "border-[var(--pp-ink)]" : undefined}><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>{plan.name}</CardTitle><CardDescription>{plan.description || plan.code}</CardDescription></div><p className="whitespace-nowrap text-sm font-semibold">{plan.priceMonthly} {plan.currency}<span className="font-normal text-muted-foreground">/mo</span></p></div></CardHeader><CardContent><ul className="space-y-1 text-sm text-muted-foreground">{plan.entitlements.filter((item) => item.enabled).slice(0, 5).map((item) => <li key={item.feature} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--pp-ink)]" /><span>{item.feature}: {item.limitValue ?? "unlimited"}</span></li>)}</ul><Button className="mt-4 w-full" variant={paymentPlanId === plan.id ? "default" : "outline"} onClick={() => { setPaymentPlanId(plan.id); setPaymentAmount(plan.priceMonthly ?? ""); }}>{paymentPlanId === plan.id ? "Selected" : "Choose plan"}</Button></CardContent></Card>)}
+            {plans.map((plan) => <Card key={plan.id} className={paymentPlanId === plan.id ? "border-[var(--pp-ink)]" : undefined}><CardHeader><div className="flex items-start justify-between gap-3"><div><CardTitle>{plan.name}</CardTitle><CardDescription>{plan.description || plan.code}</CardDescription></div><p className="whitespace-nowrap text-sm font-semibold">{plan.priceMonthly} {plan.currency}<span className="font-normal text-muted-foreground">/bulan</span>{plan.priceYearly && <><br /><span className="font-normal text-muted-foreground">{plan.priceYearly} {plan.currency}/tahun</span></>}</p></div></CardHeader><CardContent><ul className="space-y-1 text-sm text-muted-foreground">{plan.entitlements.filter((item) => item.enabled).slice(0, 5).map((item) => <li key={item.feature} className="flex gap-2"><CheckCircle2 className="mt-0.5 h-4 w-4 shrink-0 text-[var(--pp-ink)]" /><span>{item.feature}: {item.limitValue ?? "unlimited"}</span></li>)}</ul><Button className="mt-4 w-full" variant={paymentPlanId === plan.id ? "default" : "outline"} onClick={() => setPaymentPlanId(plan.id)}>{paymentPlanId === plan.id ? "Selected" : "Choose plan"}</Button></CardContent></Card>)}
           </div>
         </section>
 
         <div className="grid gap-4 xl:grid-cols-[0.8fr_1.2fr]">
           <Card>
-            <CardHeader><CardTitle>Submit payment proof</CardTitle><CardDescription>Setelah bukti disetujui, plan terpilih otomatis aktif untuk satu periode bulanan.</CardDescription></CardHeader>
+            <CardHeader><CardTitle>Submit payment proof</CardTitle><CardDescription>Setelah bukti disetujui, plan terpilih aktif untuk periode yang dibayar: satu bulan atau satu tahun.</CardDescription></CardHeader>
             <CardContent className="space-y-3">
-              <div><Label htmlFor="payment-plan">Plan</Label><select id="payment-plan" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={paymentPlanId} onChange={(event) => { const selected = plans.find((plan) => plan.id === event.target.value); setPaymentPlanId(event.target.value); setPaymentAmount(selected?.priceMonthly ?? ""); }}><option value="">Choose plan</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {plan.priceMonthly ?? "0"} {plan.currency}</option>)}</select></div>
-              <div><Label htmlFor="payment-amount">Nominal sesuai paket</Label><Input id="payment-amount" value={paymentAmount} readOnly /><p className="mt-1 text-xs text-muted-foreground">Nominal ditentukan oleh server sesuai harga paket dan memang tidak dapat diubah.</p></div>
+              <div><Label htmlFor="payment-plan">Plan</Label><select id="payment-plan" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={paymentPlanId} onChange={(event) => setPaymentPlanId(event.target.value)}><option value="">Choose plan</option>{plans.map((plan) => <option key={plan.id} value={plan.id}>{plan.name} · {plan.priceMonthly ?? "0"} {plan.currency}/bulan{plan.priceYearly ? ` · ${plan.priceYearly} ${plan.currency}/tahun` : ""}</option>)}</select></div>
+              <div><Label htmlFor="payment-cycle">Periode pembayaran</Label><select id="payment-cycle" className="h-10 w-full rounded-md border bg-background px-3 text-sm" value={paymentCycle} onChange={(event) => setPaymentCycle(event.target.value === "YEARLY" ? "YEARLY" : "MONTHLY")}><option value="MONTHLY">Bulanan · 1 bulan</option><option value="YEARLY">Tahunan · 12 bulan</option></select></div>
+              <div><Label htmlFor="payment-amount">Nominal sesuai paket</Label><Input id="payment-amount" value={paymentAmount} readOnly /><p className="mt-1 text-xs text-muted-foreground">Nominal ditentukan oleh server sesuai paket dan periode yang dipilih, dan memang tidak dapat diubah.</p>{paymentAmountMissing && <p className="mt-1 text-xs font-medium text-amber-700">Paket ini belum punya harga tahunan. Pilih periode bulanan atau paket lain.</p>}</div>
               <div><Label htmlFor="payment-reference">Payment reference</Label><Input id="payment-reference" value={paymentReference} onChange={(event) => setPaymentReference(event.target.value)} maxLength={120} /></div>
               <div><Label htmlFor="payment-proof">Bukti pembayaran</Label><Input key={proofInputKey} id="payment-proof" type="file" accept="image/jpeg,image/png,image/webp,application/pdf" onChange={(event) => setPaymentProof(event.target.files?.[0] ?? null)} /><p className="mt-1 text-xs text-muted-foreground">JPG, PNG, WebP, atau PDF. Maksimal 5 MB dan tersimpan privat.</p></div>
-              <Button className="w-full" disabled={submitting || !paymentPlanId || paymentReference.trim().length < 3 || !paymentProof || paymentProof.size > 5 * 1024 * 1024} onClick={() => void submitPayment()}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}Kirim untuk diverifikasi</Button>
+              <Button className="w-full" disabled={submitting || !paymentPlanId || paymentAmountMissing || paymentReference.trim().length < 3 || !paymentProof || paymentProof.size > 5 * 1024 * 1024} onClick={() => void submitPayment()}>{submitting ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : <FileUp className="mr-2 h-4 w-4" />}Kirim untuk diverifikasi</Button>
             </CardContent>
           </Card>
 
@@ -178,7 +190,7 @@ export default function BillingPage() {
             <CardHeader><CardTitle>Payment history</CardTitle><CardDescription>Status dan catatan verifikator tersedia sebagai jejak audit.</CardDescription></CardHeader>
             <CardContent className="space-y-3">
               {payments.length === 0 && <p className="rounded-lg border border-dashed p-8 text-center text-muted-foreground">Belum ada pembayaran. Pilih plan untuk mengirim bukti pertama.</p>}
-              {payments.map((payment) => <div key={payment.id} className="rounded-lg border p-4"><div className="flex items-center justify-between gap-2"><p className="font-semibold">{payment.plan?.name ?? "Plan"}</p><Badge variant={payment.status === "PENDING" ? "outline" : "secondary"}>{payment.status}</Badge></div><p className="text-sm text-muted-foreground">{payment.amount} {payment.currency} · {payment.reference}</p><p className="text-xs text-muted-foreground">{new Date(payment.createdAt).toLocaleString()}</p>{payment.proofUrl && <a className="mt-2 inline-block text-sm font-medium underline" href={payment.proofUrl} target="_blank" rel="noreferrer">Lihat bukti</a>}{payment.reviewNote && <p className="mt-2 text-sm">Catatan: {payment.reviewNote}</p>}</div>)}
+              {payments.map((payment) => <div key={payment.id} className="rounded-lg border p-4"><div className="flex items-center justify-between gap-2"><p className="font-semibold">{payment.plan?.name ?? "Plan"}</p><Badge variant={payment.status === "PENDING" ? "outline" : "secondary"}>{payment.status}</Badge></div><p className="text-sm text-muted-foreground">{payment.amount} {payment.currency} · {payment.billingCycle === "YEARLY" ? "tahunan" : "bulanan"} · {payment.reference}</p><p className="text-xs text-muted-foreground">{new Date(payment.createdAt).toLocaleString()}</p>{payment.proofUrl && <a className="mt-2 inline-block text-sm font-medium underline" href={payment.proofUrl} target="_blank" rel="noreferrer">Lihat bukti</a>}{payment.reviewNote && <p className="mt-2 text-sm">Catatan: {payment.reviewNote}</p>}</div>)}
             </CardContent>
           </Card>
         </div>

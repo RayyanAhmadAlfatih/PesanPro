@@ -19,6 +19,7 @@ const updateSchema = z.object({
   isDefault: z.boolean().optional(),
   trialDays: z.number().int().min(0).max(365).optional(),
   priceMonthly: z.string().regex(/^\d+(\.\d{1,2})?$/).nullable().optional(),
+  priceYearly: z.string().regex(/^\d+(\.\d{1,2})?$/).nullable().optional(),
   currency: z.string().trim().toUpperCase().length(3).optional(),
   entitlements: z.array(z.object({
     feature: commercialFeatureSchema,
@@ -60,6 +61,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           isDefault: parsed.data.isDefault,
           trialDays: parsed.data.trialDays,
           priceMonthly: parsed.data.priceMonthly,
+          priceYearly: parsed.data.priceYearly,
           currency: parsed.data.currency,
         },
       });
@@ -87,6 +89,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       data: {
         ...plan,
         priceMonthly: plan.priceMonthly?.toString() ?? null,
+        priceYearly: plan.priceYearly?.toString() ?? null,
         entitlements: plan.entitlements
           .filter((item) => isCommercialFeatureVisible(item.feature))
           .map((item) => ({ ...item, limitValue: item.limitValue?.toString() ?? null })),
