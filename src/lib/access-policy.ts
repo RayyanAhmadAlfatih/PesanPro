@@ -8,6 +8,7 @@ const SUPERADMIN_DASHBOARD_PREFIXES = [
   "/dashboard/settings",
   "/dashboard/system-monitor",
   "/dashboard/notifications",
+  "/dashboard/announcements",
 ] as const;
 
 const TENANT_DASHBOARD_PREFIXES = [

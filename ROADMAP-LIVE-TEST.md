@@ -589,6 +589,25 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L17-29                              | Audit login/logout                  | Ada                                 |
 | L17-30                              | Audit privileged actions            | Ada                                 |
 
+### What's New popup (Pengumuman Pop-up)
+
+| ID      | Test                                                        | Expected                                                        |
+| ------- | ----------------------------------------------------------- | --------------------------------------------------------------- |
+| L17-31  | Buat pengumuman sebagai draf                                | Tersimpan sebagai draf, tidak ada popup untuk siapa pun          |
+| L17-32  | Tayangkan pengumuman                                        | Popup muncul sekali saat user membuka dashboard                  |
+| L17-33  | Tutup popup lalu refresh                                    | Tidak muncul lagi                                                |
+| L17-34  | Login dari browser atau perangkat lain                      | Tidak muncul lagi                                                |
+| L17-35  | Tayangkan pengumuman baru                                   | Popup muncul lagi karena versinya lebih baru                     |
+| L17-36  | Ubah pengumuman yang sudah tayang                           | Tidak memunculkan ulang popup ke user yang sudah menutupnya      |
+| L17-37  | Tarik dari tayangan                                         | Popup tidak muncul untuk user yang belum melihatnya              |
+| L17-38  | Buka `/dashboard/sessions` saat popup tertunda              | Popup tidak menutupi alur QR, muncul setelah pindah halaman      |
+| L17-39  | Tarik draf dari `src/lib/changelog.ts`                      | Masuk sebagai draf, belum tayang                                 |
+| L17-40  | USER biasa buka `/dashboard/announcements`                  | Dialihkan ke `/dashboard`                                        |
+| L17-41  | Isi tautan detail dengan URL eksternal                      | Ditolak, hanya path di dalam aplikasi                            |
+| L17-42  | Isi lebih dari 4 poin                                       | Ditolak dengan pesan batas poin                                  |
+| L17-43  | Mobile viewport                                             | Popup tetap terbaca, tombol minimal 44 px                        |
+| L17-44  | Keyboard saja (Tab, Enter, Escape)                          | Popup bisa ditutup, fokus terlihat jelas                         |
+
 ---
 
 # Phase L18 — Resilience / Production Gate **WAJIB**

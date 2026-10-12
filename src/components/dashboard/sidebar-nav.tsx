@@ -13,6 +13,7 @@ import {
     Webhook,
     CalendarClock,
     Bell,
+    BellRing,
     Inbox,
     Megaphone,
     Activity,
@@ -82,6 +83,7 @@ const navGroups: NavGroup[] = [
             { href: "/dashboard/commercial", label: "Operasi Komersial", icon: BadgeDollarSign },
             { href: "/dashboard/system-monitor", label: "Monitor Sistem", icon: Activity },
             { href: "/dashboard/notifications", label: "Kirim Pengumuman", icon: Bell },
+            { href: "/dashboard/announcements", label: "Pengumuman Pop-up", icon: BellRing },
         ],
     },
 ];

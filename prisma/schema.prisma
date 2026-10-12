@@ -174,6 +174,10 @@ model User {
   staffLimit        Int           @default(5)
   allowStaffApiKeys Boolean       @default(false)
   sessionVersion    Int           @default(0)
+  // Watermark for the in-app announcement popup. It holds the publishedAt of the
+  // last announcement this user dismissed, so a popup shows once per publish
+  // instead of once per device (localStorage would not survive a device switch).
+  lastSeenAnnouncementAt DateTime?
   apiKey            String?       @unique // SHA-256 hash of API key secret
   apiKeyPreview     String?
   apiKeyCreatedAt   DateTime?
@@ -218,6 +222,7 @@ model User {
   autoReplyTriggerLogs        AutoReplyTriggerLog[]       @relation("AutoReplyLogTenant")
   tenantEntitlementOverrides  TenantEntitlementOverride[] @relation("EntitlementOverrideTenant")
   createdEntitlementOverrides TenantEntitlementOverride[] @relation("EntitlementOverrideCreator")
+  createdAnnouncements        Announcement[]              @relation("AnnouncementCreator")
 
   @@index([ownerId, role])
   @@index([status])
@@ -1439,6 +1444,38 @@ model Notification {
   createdAt DateTime @default(now())
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+}
+
+enum AnnouncementStatus {
+  DRAFT
+  PUBLISHED
+}
+
+enum AnnouncementSource {
+  MANUAL
+  AUTO
+}
+
+// "What's new" popup shown once inside the dashboard. Distinct from Notification:
+// a notification waits in the bell list, this one interrupts on purpose, so it
+// stays limited to notable releases and product-wide notices.
+model Announcement {
+  id          String             @id @default(cuid())
+  title       String
+  body        String             @db.Text // One bullet per line.
+  version     String?
+  href        String?
+  status      AnnouncementStatus @default(DRAFT)
+  source      AnnouncementSource @default(MANUAL)
+  createdById String?
+  publishedAt DateTime?
+  createdAt   DateTime           @default(now())
+  updatedAt   DateTime           @updatedAt
+
+  createdBy User? @relation("AnnouncementCreator", fields: [createdById], references: [id], onDelete: SetNull)
+
+  @@index([status, publishedAt])
+  @@index([createdById, createdAt])
 }
 
 // Shared session access — allows session owners to grant access to other users
