@@ -49,13 +49,27 @@ function appUrl(pathname: string) {
   return baseUrl ? new URL(pathname, baseUrl).toString() : null;
 }
 
-function htmlDocument(input: { heading: string; greeting?: string; paragraphs: string[]; details: Array<[string, string]>; action?: { label: string; url: string } }) {
-  const detailRows = input.details.map(([label, value]) => `
+export function htmlDocument(input: {
+  heading: string;
+  greeting?: string;
+  paragraphs: string[];
+  details?: Array<[string, string]>;
+  /** Rendered as one large spaced block. Used for codes the reader must retype. */
+  code?: string;
+  action?: { label: string; url: string };
+}) {
+  const detailRows = (input.details ?? []).map(([label, value]) => `
     <tr>
       <td style="padding:6px 12px 6px 0;color:#64748b;vertical-align:top">${escapeHtml(label)}</td>
       <td style="padding:6px 0;color:#0f172a;font-weight:600">${escapeHtml(value)}</td>
     </tr>`).join("");
   const paragraphs = input.paragraphs.map((paragraph) => `<p style="margin:0 0 14px;color:#334155;line-height:1.6">${escapeHtml(paragraph)}</p>`).join("");
+  const detailTable = detailRows
+    ? `<table role="presentation" style="width:100%;border-collapse:collapse;margin-top:18px">${detailRows}</table>`
+    : "";
+  const codeBlock = input.code
+    ? `<p style="margin:20px 0;padding:14px 18px;border:1px solid #0f172a;border-radius:8px;font-family:'Courier New',monospace;font-size:28px;font-weight:700;letter-spacing:8px;color:#0f172a;text-align:center">${escapeHtml(input.code)}</p>`
+    : "";
   const action = input.action
     ? `<p style="margin:24px 0 0"><a href="${escapeHtml(input.action.url)}" style="display:inline-block;background:#0f172a;color:#ffffff;text-decoration:none;padding:11px 18px;border-radius:8px;font-weight:700">${escapeHtml(input.action.label)}</a></p>`
     : "";
@@ -67,7 +81,8 @@ function htmlDocument(input: { heading: string; greeting?: string; paragraphs: s
         <h1 style="margin:0 0 18px;color:#0f172a;font-size:22px;line-height:1.35">${escapeHtml(input.heading)}</h1>
         ${input.greeting ? `<p style="margin:0 0 14px;color:#334155;line-height:1.6">${escapeHtml(input.greeting)}</p>` : ""}
         ${paragraphs}
-        <table role="presentation" style="width:100%;border-collapse:collapse;margin-top:18px">${detailRows}</table>
+        ${codeBlock}
+        ${detailTable}
         ${action}
       </div>
       <p style="margin:14px 0 0;color:#64748b;font-size:12px;text-align:center">Email otomatis dari ${escapeHtml(getEnv().APP_NAME)}.</p>

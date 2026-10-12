@@ -62,6 +62,40 @@ Repository mempunyai Login, Register, Forgot Password, Reset Password, account s
 | L1-25                                   | Disable registration di Settings        | Registrasi baru ditolak                 |
 | L1-26                                   | Enable registration lagi                | Registrasi berfungsi                    |
 
+### Umur sesi (SESSION_TIMEOUT_HOURS + SESSION_ABSOLUTE_MAX_HOURS)
+
+| ID      | Test                                                      | Expected                                                             |
+| ------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| L1-27   | `SESSION_TIMEOUT_HOURS=1`, diamkan 1 jam lebih             | Sesi mati, bukan lagi 30 hari default NextAuth                        |
+| L1-28   | Aktif sebelum idle window berakhir                         | Sesi diperpanjang, tidak logout                                       |
+| L1-29   | Lewati batas absolut walau terus aktif                     | Logout paksa, harus login ulang                                       |
+| L1-30   | Sesi yang dibuat sebelum deploy ini                        | Tetap jalan, tapi ikut dibatasi cap absolut sejak upgrade             |
+| L1-31   | Set `SESSION_ABSOLUTE_MAX_HOURS` < `SESSION_TIMEOUT_HOURS` | Server menolak start, pesan validasi env jelas                        |
+| L1-32   | Cek `Set-Cookie` pada login                                | `Max-Age` mengikuti `SESSION_TIMEOUT_HOURS`, bukan 30 hari            |
+
+### Login OTP email
+
+| ID      | Test                                                      | Expected                                                             |
+| ------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
+| L1-33   | Tab "Email OTP", kirim kode ke email terdaftar             | Email masuk via SMTP di `.env`, berisi kode 6 digit                   |
+| L1-34   | Masukkan kode benar                                        | Masuk dashboard                                                       |
+| L1-35   | Kode salah 1 kali                                          | Ditolak, pesan menyebut kode tidak benar                              |
+| L1-36   | Kode salah 3 kali                                          | Kode hangus, harus minta kode baru                                    |
+| L1-37   | Kode dipakai setelah 10 menit                              | Ditolak karena kedaluwarsa                                            |
+| L1-38   | Kode yang sama dipakai 2 kali                              | Percobaan kedua ditolak                                               |
+| L1-39   | Kirim ulang kurang dari 60 detik                           | Ditolak, tombol kirim ulang menampilkan hitungan mundur               |
+| L1-40   | 4 kali kirim dalam 15 menit untuk satu email               | Permintaan ke-4 ditolak (limit 3)                                     |
+| L1-41   | 11 kali kirim dalam 1 jam dari satu IP                     | Permintaan ke-11 ditolak (limit 10)                                   |
+| L1-42   | Email belum terdaftar                                      | Pesan jelas, tidak ada email terkirim                                 |
+| L1-43   | Akun suspended minta kode                                  | Pesan sama seperti email tidak terdaftar, tidak ada email terkirim    |
+| L1-44   | `SMTP_HOST` kosong                                         | Pesan "email delivery is not configured", tidak ada baris OtpChallenge |
+| L1-45   | Minta kode baru saat kode lama masih hidup                 | Kode lama langsung tidak berlaku lagi                                 |
+| L1-46   | Audit log permintaan & verifikasi                          | Ada baris `user.otp_request` dan `user.otp_verify`                    |
+| L1-47   | Periksa DB setelah kirim kode                              | `OtpChallenge.codeHash` saja; `EmailOutbox` tidak memuat kode         |
+| L1-48   | Mobile viewport tab OTP                                    | Terbaca, tombol minimal 44 px, input kode `inputMode=numeric`         |
+| L1-49   | Keyboard saja (Tab, Enter)                                 | Fokus terlihat, form bisa disubmit                                    |
+| L1-50   | Ganti tab bolak-balik setelah kode terkirim                | Tidak ada error konsol, kode tetap bisa diverifikasi                  |
+
 ---
 
 # Phase L2 — RBAC dan Tenant Isolation **P0**

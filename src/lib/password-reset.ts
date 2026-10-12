@@ -1,6 +1,8 @@
+import crypto from "node:crypto";
 import bcrypt from "bcryptjs";
 import { prisma } from "./prisma";
 import { logger } from "./logger";
+import { sendSmtpEmail } from "./email-transport";
 import {
   generatePasswordResetSecret,
   hashPasswordResetSecret,
@@ -39,6 +41,29 @@ async function sendResetEmail(email: string, resetUrl: string): Promise<boolean>
   return response.ok;
 }
 
+// Password reset is delivered over the configured SMTP transport first, which
+// is what operators are told to configure. Resend remains as a fallback so
+// deployments that already rely on it keep working.
+function smtpConfigured(): boolean {
+  return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM);
+}
+
+async function sendResetEmailViaSmtp(email: string, resetUrl: string): Promise<boolean> {
+  try {
+    await sendSmtpEmail({
+      messageId: `<${crypto.randomUUID()}@pesanpro>`,
+      toEmail: email,
+      subject: "Reset password PesanPro",
+      textBody: `Gunakan tautan berikut untuk mengatur ulang password PesanPro. Tautan berlaku 30 menit: ${resetUrl}`,
+      htmlBody: `<p>Gunakan tautan berikut untuk mengatur ulang password PesanPro.</p><p><a href="${resetUrl}">Reset password</a></p><p>Tautan berlaku 30 menit.</p>`,
+    });
+    return true;
+  } catch (error) {
+    logger.error("Auth", "Password reset email delivery over SMTP failed", error);
+    return false;
+  }
+}
+
 export async function requestPasswordReset(emailInput: string): Promise<PasswordResetRequestResult> {
   const email = emailInput.trim().toLowerCase();
   const user = await prisma.user.findUnique({
@@ -67,7 +92,9 @@ export async function requestPasswordReset(emailInput: string): Promise<Password
   const resetUrl = `${baseUrl.replace(/\/$/, "")}/auth/reset-password?token=${encodeURIComponent(secret)}`;
 
   try {
-    const delivered = await sendResetEmail(user.email, resetUrl);
+    const delivered = smtpConfigured()
+      ? await sendResetEmailViaSmtp(user.email, resetUrl)
+      : await sendResetEmail(user.email, resetUrl);
     if (!delivered && process.env.NODE_ENV === "production") {
       logger.error("Auth", "Password reset email delivery is not configured or failed");
     }

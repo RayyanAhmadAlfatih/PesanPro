@@ -11,12 +11,18 @@ const DAY_MS = 86_400_000;
 // that stopped emitting.
 const QR_STALE_MS = 60 * 60 * 1000;
 
+// An OTP challenge is dead ten minutes after it is issued. A day is kept so an
+// operator can still explain a failed sign-in; the audit log holds the durable
+// record.
+const OTP_CHALLENGE_RETENTION_MS = DAY_MS;
+
 export function operationalRetentionBoundaries(now = new Date(), autoReplyRetentionDays = 30, messageRetentionDays = 0) {
   return {
     heartbeatBefore: new Date(now.getTime() - 7 * DAY_MS),
     resolvedAlertBefore: new Date(now.getTime() - 90 * DAY_MS),
     autoReplyLogBefore: new Date(now.getTime() - autoReplyRetentionDays * DAY_MS),
     staleQrBefore: new Date(now.getTime() - QR_STALE_MS),
+    otpChallengeBefore: new Date(now.getTime() - OTP_CHALLENGE_RETENTION_MS),
     // null means the operator has not enabled message retention (MESSAGE_RETENTION_DAYS=0),
     // so stored message history must be left untouched.
     messageBefore: messageRetentionDays > 0 ? new Date(now.getTime() - messageRetentionDays * DAY_MS) : null,
@@ -26,7 +32,7 @@ export function operationalRetentionBoundaries(now = new Date(), autoReplyRetent
 export async function runOperationalMaintenance(now = new Date()) {
   const env = getEnv();
   const boundaries = operationalRetentionBoundaries(now, env.AUTOREPLY_TRIGGER_LOG_RETENTION_DAYS, env.MESSAGE_RETENTION_DAYS);
-  const [audit, heartbeats, alerts, autoReplyLogs, overrides, rateLimits, privateMedia, messages, pairingCodes] = await Promise.all([
+  const [audit, heartbeats, alerts, autoReplyLogs, overrides, rateLimits, privateMedia, messages, pairingCodes, otpChallenges] = await Promise.all([
     purgeExpiredAuditLogs(env.AUDIT_RETENTION_DAYS, now),
     prisma.runtimeHeartbeat.deleteMany({ where: { heartbeatAt: { lt: boundaries.heartbeatBefore } } }),
     prisma.operationalAlert.deleteMany({
@@ -51,6 +57,7 @@ export async function runOperationalMaintenance(now = new Date()) {
       },
       data: { qr: null },
     }),
+    prisma.otpChallenge.deleteMany({ where: { expiresAt: { lt: boundaries.otpChallengeBefore } } }),
   ]);
 
   return {
@@ -63,6 +70,7 @@ export async function runOperationalMaintenance(now = new Date()) {
     expiredPrivateMedia: privateMedia.deleted,
     expiredMessages: messages.count,
     expiredPairingCodes: pairingCodes.count,
+    expiredOtpChallenges: otpChallenges.count,
     boundaries,
   };
 }

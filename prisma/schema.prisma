@@ -196,6 +196,7 @@ model User {
   sessionAccesses             SessionAccess[]
   auditLogs                   AuditLog[]
   passwordResets              PasswordResetToken[]
+  otpChallenges               OtpChallenge[]
   apiKeys                     ApiKey[]
   subscription                Subscription?
   subscriptionHistory         SubscriptionHistory[]
@@ -768,6 +769,26 @@ model PasswordResetToken {
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
 
   @@index([userId, createdAt])
+  @@index([expiresAt])
+}
+
+// Email OTP login. Only the HMAC of the code is stored: a six digit code has a
+// million possibilities, so a plain hash would be brute-forced offline in
+// seconds, while an HMAC also needs the server secret.
+model OtpChallenge {
+  id         String    @id @default(cuid())
+  userId     String
+  email      String
+  codeHash   String
+  attempts   Int       @default(0)
+  expiresAt  DateTime
+  consumedAt DateTime?
+  createdAt  DateTime  @default(now())
+
+  user User @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([email, createdAt])
   @@index([expiresAt])
 }
 

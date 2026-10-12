@@ -42,9 +42,13 @@ export async function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Allow known static asset extensions in root path only (e.g. /vercel.svg)
-    const staticExtensions = [".svg", ".ico", ".png", ".jpg", ".jpeg", ".webp", ".woff", ".woff2", ".ttf"];
-    if (pathname.lastIndexOf("/") === 0 && staticExtensions.some(ext => pathname.endsWith(ext))) {
+    // Allow static asset requests in any directory, not just the root. The
+    // previous check used `pathname.lastIndexOf("/") === 0`, which only let
+    // through files like `/vercel.svg` and redirected every nested asset
+    // (`/brand/logo-lockup.png`, `/templates/*`) to the login page. That is
+    // what made the public landing page show broken images.
+    const staticExtensions = [".svg", ".ico", ".png", ".jpg", ".jpeg", ".webp", ".woff", ".woff2", ".ttf", ".txt", ".xml"];
+    if (staticExtensions.some(ext => pathname.endsWith(ext))) {
         return NextResponse.next();
     }
 
@@ -158,14 +162,11 @@ export async function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Default: require auth for everything else
-    const session = await auth();
-    if (!session?.user || session.user.accountActive === false) {
-        const loginUrl = new URL("/auth/login", request.url);
-        loginUrl.searchParams.set("callbackUrl", pathname);
-        return NextResponse.redirect(loginUrl);
-    }
-
+    // Everything left is either a public page or a path that does not exist.
+    // Dashboard and API routes are handled above, so nothing here needs
+    // protection. Redirecting unknown paths to the login page hid real 404s
+    // and also broke /robots.txt, /sitemap.xml, and /error; let Next.js render
+    // its not-found page instead.
     return NextResponse.next();
 }
 

@@ -1,4 +1,12 @@
 import { z } from "zod";
+import {
+  DEFAULT_SESSION_ABSOLUTE_MAX_HOURS,
+  DEFAULT_SESSION_TIMEOUT_HOURS,
+  SESSION_ABSOLUTE_MAX_HOURS_MAX,
+  SESSION_ABSOLUTE_MAX_HOURS_MIN,
+  SESSION_TIMEOUT_HOURS_MAX,
+  SESSION_TIMEOUT_HOURS_MIN,
+} from "./session-policy";
 
 const optionalString = (schema: z.ZodString) => z.preprocess(
   (value) => value === "" ? undefined : value,
@@ -28,6 +36,10 @@ const envSchema = z.object({
     .string()
     .regex(/^[0-9a-fA-F]{64}$/, "ENCRYPTION_KEY must be 64 hex characters (32 bytes) — generate with: openssl rand -hex 32"),
   BAILEYS_LOG_LEVEL: z.enum(["fatal", "error", "warn", "info", "debug", "trace"]).default("error"),
+  // Session lifetime. The idle window slides while the user is active; the
+  // absolute cap does not, so a session can never be renewed without end.
+  SESSION_TIMEOUT_HOURS: z.coerce.number().int().min(SESSION_TIMEOUT_HOURS_MIN).max(SESSION_TIMEOUT_HOURS_MAX).default(DEFAULT_SESSION_TIMEOUT_HOURS),
+  SESSION_ABSOLUTE_MAX_HOURS: z.coerce.number().int().min(SESSION_ABSOLUTE_MAX_HOURS_MIN).max(SESSION_ABSOLUTE_MAX_HOURS_MAX).default(DEFAULT_SESSION_ABSOLUTE_MAX_HOURS),
   MAX_UPLOAD_SIZE_MB: z.coerce.number().int().positive().default(50),
   MAX_CONCURRENT_MEDIA_UPLOADS: z.coerce.number().int().min(1).max(16).default(2),
   MEDIA_STORAGE_DRIVER: z.enum(["local", "b2"]).default("local"),
@@ -92,6 +104,13 @@ const envSchema = z.object({
   TRUST_PROXY_HOPS: z.coerce.number().int().min(1).max(10).default(1),
   TZ: z.string().default("Asia/Jakarta"),
 }).superRefine((env, context) => {
+  if (env.SESSION_ABSOLUTE_MAX_HOURS < env.SESSION_TIMEOUT_HOURS) {
+    context.addIssue({
+      code: "custom",
+      path: ["SESSION_ABSOLUTE_MAX_HOURS"],
+      message: "SESSION_ABSOLUTE_MAX_HOURS must be greater than or equal to SESSION_TIMEOUT_HOURS",
+    });
+  }
   const hasAnySmtpSetting = Boolean(env.SMTP_HOST || env.SMTP_USER || env.SMTP_PASSWORD || env.SMTP_FROM);
   if (hasAnySmtpSetting && !env.SMTP_HOST) {
     context.addIssue({ code: "custom", path: ["SMTP_HOST"], message: "SMTP_HOST is required when SMTP is configured" });
