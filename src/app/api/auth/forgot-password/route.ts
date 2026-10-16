@@ -23,6 +23,17 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({ error: "Valid email is required" }, { status: 400 });
   }
 
+  // Per-email throttle on top of the per-IP limit: without it, an attacker with
+  // an IP pool can flood a victim's mailbox and invalidate their outstanding
+  // reset tokens on every request.
+  const emailRateLimit = await checkPersistentRateLimit(`password-reset-request:email:${parsed.data.email}`, 3, 15 * 60 * 1000);
+  if (!emailRateLimit.success) {
+    return NextResponse.json(
+      { error: "Too many reset requests for this email. Please try again later." },
+      { status: 429, headers: rateLimitHeaders(emailRateLimit, 3) },
+    );
+  }
+
   await requestPasswordReset(parsed.data.email);
   await recordAudit({
     userEmail: parsed.data.email,

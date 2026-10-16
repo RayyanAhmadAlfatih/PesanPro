@@ -15,7 +15,7 @@ const commercialFeatureSchema = z.nativeEnum(EntitlementFeature).refine(
 const overrideSchema = z.object({
   feature: commercialFeatureSchema,
   enabled: z.boolean(),
-  limit: z.string().regex(/^\d+$/).nullable(),
+  limit: z.string().regex(/^\d{1,18}$/, "limit must be an integer with at most 18 digits").nullable(),
   reason: z.string().trim().min(3).max(1000),
   expiresAt: z.string().datetime().nullable().optional(),
 });

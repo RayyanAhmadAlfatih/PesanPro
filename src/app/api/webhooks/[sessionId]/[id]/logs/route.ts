@@ -5,6 +5,12 @@ import { listWebhookDeliveries } from "@/lib/webhook-service";
 
 type Context = { params: Promise<{ sessionId: string; id: string }> };
 
+function parseBoundedInt(raw: string | null, fallback: number, min: number, max: number): number {
+  const parsed = Number(raw ?? fallback);
+  if (!Number.isFinite(parsed) || !Number.isInteger(parsed)) return fallback;
+  return Math.min(max, Math.max(min, parsed));
+}
+
 export async function GET(request: NextRequest, context: Context) {
   try {
     const user = await getAuthenticatedUser(request);
@@ -14,7 +20,10 @@ export async function GET(request: NextRequest, context: Context) {
       { id: user.id, role: user.role, ownerId: user.ownerId, email: user.email },
       sessionId,
       id,
-      { limit: Number(request.nextUrl.searchParams.get("limit") || 50), offset: Number(request.nextUrl.searchParams.get("offset") || 0) },
+      {
+        limit: parseBoundedInt(request.nextUrl.searchParams.get("limit"), 50, 1, 200),
+        offset: parseBoundedInt(request.nextUrl.searchParams.get("offset"), 0, 0, Number.MAX_SAFE_INTEGER),
+      },
     );
     return NextResponse.json({ status: true, ...result }, { headers: { "cache-control": "no-store" } });
   } catch (error) {

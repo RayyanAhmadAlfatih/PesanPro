@@ -240,33 +240,49 @@ export async function retryMessageJob(actor: MessageJobActor, jobId: string) {
   if (job.status !== "FAILED") throw new MessageJobStateError("Only a failed message can be retried");
 
   const quotaReservationKey = `message-retry:${crypto.createHash("sha256").update(`${job.id}:${job.attempts}`).digest("hex")}`;
-  await reserveUsage({
-    userId: actor.id,
-    feature: "MESSAGES_MONTHLY",
-    amount: BigInt(1),
-    idempotencyKey: quotaReservationKey,
-    apiKeyId: actor.apiKeyId,
-    meta: { messageJobId: job.id, operation: "message.retry" },
-  });
+  let reserved = false;
+  try {
+    await reserveUsage({
+      userId: actor.id,
+      feature: "MESSAGES_MONTHLY",
+      amount: BigInt(1),
+      idempotencyKey: quotaReservationKey,
+      apiKeyId: actor.apiKeyId,
+      meta: { messageJobId: job.id, operation: "message.retry" },
+    });
+    reserved = true;
 
-  const updated = await prisma.messageJob.updateMany({
-    where: { id: job.id, tenantId, status: "FAILED" },
-    data: {
-      status: "QUEUED",
-      availableAt: new Date(),
-      maxAttempts: Math.max(job.maxAttempts, job.attempts + 5),
-      quotaReservationKey,
-      failedAt: null,
-      deadLetteredAt: null,
-      safeErrorCode: null,
-      safeErrorMessage: null,
-      lastErrorAt: null,
-    },
-  });
-  if (updated.count === 0) {
-    const current = await prisma.messageJob.findUniqueOrThrow({ where: { id: job.id } });
-    if (current.status === "QUEUED") return publicJob(current);
-    throw new MessageJobStateError("Message state changed before retry could start");
+    const updated = await prisma.messageJob.updateMany({
+      where: { id: job.id, tenantId, status: "FAILED" },
+      data: {
+        status: "QUEUED",
+        availableAt: new Date(),
+        maxAttempts: Math.max(job.maxAttempts, job.attempts + 5),
+        quotaReservationKey,
+        failedAt: null,
+        deadLetteredAt: null,
+        safeErrorCode: null,
+        safeErrorMessage: null,
+        lastErrorAt: null,
+      },
+    });
+    if (updated.count === 0) {
+      const current = await prisma.messageJob.findUniqueOrThrow({ where: { id: job.id } });
+      if (current.status === "QUEUED") return publicJob(current);
+      throw new MessageJobStateError("Message state changed before retry could start");
+    }
+  } catch (error) {
+    // The reservation is only consumed when the retry actually starts. If the
+    // conditional update lost a race or the database call failed, release it so
+    // a failed retry cannot permanently consume monthly quota.
+    if (reserved) {
+      await releaseReservedUsage({
+        userId: actor.id,
+        feature: "MESSAGES_MONTHLY",
+        idempotencyKey: quotaReservationKey,
+      }).catch(() => undefined);
+    }
+    throw error;
   }
   return publicJob(await prisma.messageJob.findUniqueOrThrow({ where: { id: job.id } }));
 }

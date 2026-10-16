@@ -2,7 +2,6 @@ import crypto from "node:crypto";
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { checkPersistentRateLimit, rateLimitHeaders } from "@/lib/rate-limit";
-import { getErrorMessage } from "@/lib/error-utils";
 import { commercialErrorResponse } from "@/lib/commercial-errors";
 import { enqueueMessage } from "@/lib/message-job-service";
 
@@ -76,7 +75,6 @@ export async function POST(
         const commercialError = commercialErrorResponse(error);
         if (commercialError) return commercialError;
         console.error("Send message error:", error);
-        const errorMsg = getErrorMessage(error) || "Failed to send message";
-        return NextResponse.json({ status: false, message: errorMsg, error: errorMsg }, { status: 500 });
+        return NextResponse.json({ status: false, message: "Failed to send message", error: "Failed to send message" }, { status: 500 });
     }
 }

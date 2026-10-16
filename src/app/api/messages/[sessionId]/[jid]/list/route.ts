@@ -25,8 +25,24 @@ export async function POST(
             return NextResponse.json({ status: false, message: "title and options (array) are required", error: "title and options (array) are required" }, { status: 400 });
         }
 
+        if (typeof title !== "string" || title.trim().length === 0 || title.length > 100) {
+            return NextResponse.json({ status: false, message: "title must be a non-empty string of at most 100 characters", error: "title must be a non-empty string of at most 100 characters" }, { status: 400 });
+        }
+
+        if (footer !== undefined && (typeof footer !== "string" || footer.length > 100)) {
+            return NextResponse.json({ status: false, message: "footer must be a string of at most 100 characters", error: "footer must be a string of at most 100 characters" }, { status: 400 });
+        }
+
         if (options.length === 0) {
             return NextResponse.json({ status: false, message: "At least one option is required", error: "At least one option is required" }, { status: 400 });
+        }
+
+        if (options.length > 10) {
+            return NextResponse.json({ status: false, message: "At most 10 options per list", error: "At most 10 options per list" }, { status: 400 });
+        }
+
+        if (!options.every((option: unknown) => typeof option === "string" && option.trim().length > 0 && option.length <= 100)) {
+            return NextResponse.json({ status: false, message: "Each option must be a non-empty string of at most 100 characters", error: "Each option must be a non-empty string of at most 100 characters" }, { status: 400 });
         }
 
         // Check if user can access this session

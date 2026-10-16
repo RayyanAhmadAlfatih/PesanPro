@@ -104,9 +104,14 @@ export async function getAuthenticatedUser(request?: NextRequest) {
         const apiKeyUser = await validateApiKey(request);
         if (apiKeyUser) {
             const requiredScope = getRequiredApiScope(request.method, request.nextUrl.pathname);
-            if (requiredScope && apiKeyUser.apiKeyScopes?.includes(requiredScope)) {
+            // A valid API key that lacks the required scope must fail closed.
+            // Falling through to session auth here would let the key's scope
+            // restriction be silently discarded whenever a session cookie is
+            // also present; the edge normally blocks this first, but the route
+            // layer must not depend on that.
+            if (!requiredScope) return null;
+            if (!apiKeyUser.apiKeyScopes?.includes(requiredScope)) return null;
             return { ...apiKeyUser, authMethod: "apiKey" as const };
-            }
         }
     }
 

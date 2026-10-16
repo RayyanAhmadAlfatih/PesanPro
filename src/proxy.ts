@@ -124,6 +124,17 @@ export async function proxy(request: NextRequest) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
         }
 
+        // Session-authenticated traffic gets the same per-minute ceiling as the
+        // developer API default, so an authenticated tenant cannot hammer
+        // expensive parse/read endpoints through the dashboard cookie alone.
+        const sessionRateLimit = await checkPersistentRateLimit(`session-api:${session.user.id}`, 300, 60_000);
+        if (!sessionRateLimit.success) {
+            return NextResponse.json({ error: "Too many requests", code: "RATE_LIMITED" }, {
+                status: 429,
+                headers: rateLimitHeaders(sessionRateLimit, 300),
+            });
+        }
+
         return NextResponse.next();
     }
 
