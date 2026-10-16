@@ -9,6 +9,9 @@ import { createWebhookOutboxEvent } from "./webhook-outbox";
 
 export const DEFAULT_SCHEDULE_LEASE_MS = 30_000;
 
+/** Retry budget for a single schedule occurrence before it is terminalised. */
+export const MAX_SCHEDULE_ATTEMPTS = 5;
+
 type ScheduleWithRuntime = ScheduledMessage & {
   session: { sessionId: string; user: { id: string; role: "SUPERADMIN" | "USER"; ownerId: string | null } };
   media: { id: string; mediaType: "TEXT" | "IMAGE" | "VIDEO" | "AUDIO" | "DOCUMENT"; status: "ACTIVE" | "DELETED" | "QUARANTINED" } | null;
@@ -232,15 +235,24 @@ export async function executeClaimedSchedule(claim: ClaimedSchedule, now = new D
 export async function failClaimedSchedule(claim: ClaimedSchedule, error: unknown) {
   const known = error instanceof MessageJobError ? error : null;
   const retryable = known?.retryable ?? !(error instanceof Error && ["QuotaExceededError", "EntitlementDeniedError", "SubscriptionInactiveError"].includes(error.name));
-  const code = known?.code ?? (retryable ? "TEMPORARY_SCHEDULER_ERROR" : "SCHEDULE_EXECUTION_DENIED");
-  const message = known?.message ?? (retryable ? "Temporary scheduler failure" : "Schedule execution is not allowed");
+  const attemptsExhausted = claim.execution.attempt >= MAX_SCHEDULE_ATTEMPTS;
+  const terminal = !retryable || attemptsExhausted;
+  const code = known?.code
+    ?? (attemptsExhausted ? "SCHEDULE_ATTEMPTS_EXHAUSTED" : retryable ? "TEMPORARY_SCHEDULER_ERROR" : "SCHEDULE_EXECUTION_DENIED");
+  const message = known?.message
+    ?? (attemptsExhausted ? "Schedule retries were exhausted" : retryable ? "Temporary scheduler failure" : "Schedule execution is not allowed");
   const now = new Date();
-  if (retryable) {
+  if (!terminal) {
+    // Bounded exponential backoff. Clearing the lock previously let the worker
+    // re-claim the same failing occurrence on the next poll (~1s), a tight loop
+    // against WhatsApp and the DB. Holding the lease until `leaseExpiresAt`
+    // defers the retry while keeping the occurrence identity intact.
+    const backoffMs = Math.min(1_000 * 2 ** claim.execution.attempt, 60_000);
     await prisma.$transaction([
       prisma.scheduleExecution.updateMany({ where: { id: claim.execution.id, status: "CLAIMED", claimToken: claim.claimToken }, data: { safeErrorCode: code, safeErrorMessage: message } }),
       prisma.scheduledMessage.updateMany({
         where: { id: claim.schedule.id, status: "ACTIVE", lockedBy: claim.claimToken },
-        data: { lockedBy: null, leaseExpiresAt: null, heartbeatAt: null, safeErrorCode: code, safeErrorMessage: message },
+        data: { leaseExpiresAt: new Date(now.getTime() + backoffMs), heartbeatAt: now, safeErrorCode: code, safeErrorMessage: message },
       }),
     ]);
     return { retrying: true, code };

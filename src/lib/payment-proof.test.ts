@@ -3,6 +3,13 @@ import { rm } from "node:fs/promises";
 import { _resetEnvCache } from "./env";
 import { _resetPrivateMediaStorageForTests, _setPrivateMediaStorageTransportForTests } from "./private-media-storage";
 
+// `storePaymentProof` now reserves MEDIA_STORAGE_BYTES quota. Stub the billing
+// side so this remains a pure object-storage test with no database dependency.
+vi.mock("./storage-quota", () => ({
+  runWithStorageQuota: async (_input: unknown, operation: () => Promise<unknown>) => operation(),
+  releaseStorageQuota: async () => ({ released: BigInt(0) }),
+}));
+
 const fixture = vi.hoisted(() => ({
   root: `/tmp/pesanpro-payment-proof-${process.pid}-${Date.now()}`,
 }));

@@ -211,7 +211,8 @@ function getOwnJid(sessionId: string): string | null {
         if (!jid) return null;
         // Strip device suffix (e.g. :47) — Baileys includes device ID in user.id
         return jid.replace(/:\d+(?=@)/g, '');
-    } catch {
+    } catch (error) {
+        logger.debug("Webhook", `Failed to resolve own JID for session ${sessionId}`, error);
         return null;
     }
 }
@@ -325,7 +326,12 @@ export async function onMessageSent(sessionId: string, message: WAMessage, exist
     if (!fileUrl) {
         try {
             fileUrl = await downloadAndSaveMedia(message, sessionId);
-        } catch { /* ignore */ }
+        } catch (error) {
+            // Media persistence for a sent message is best-effort, but a silent
+            // failure here means the webhook payload loses its fileUrl with no
+            // trace — log it so the loss is observable.
+            logger.error("Webhook", "Failed to persist media for sent message", error);
+        }
     }
 
     // --- Consistent JID Normalization (same as onMessageReceived) ---
@@ -399,8 +405,10 @@ export async function fireSentWebhook(
         webhookMsg.message = messageContent;
 
         await onMessageSent(sessionId, webhookMsg);
-    } catch {
-        // Non-blocking
+    } catch (error) {
+        // Non-blocking: the send itself already succeeded, but a silent failure
+        // would drop the message.sent webhook event without any record.
+        logger.error("Webhook", "Failed to dispatch message.sent webhook", error);
     }
 }
 

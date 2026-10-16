@@ -115,7 +115,7 @@ export async function POST(request: NextRequest) {
     submission = created.record;
     queuedEmailCount = created.notifications;
   } catch (error) {
-    if (storedProof) await deleteStoredPaymentProof(storedProof.storagePath, verificationId);
+    if (storedProof) await deleteStoredPaymentProof(storedProof.storagePath, verificationId, session.user.id, storedProof.sizeBytes);
     if (error instanceof MessageJobError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     }
