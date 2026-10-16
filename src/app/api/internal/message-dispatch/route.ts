@@ -8,9 +8,12 @@ import { dispatchQueuedMessage } from "@/modules/whatsapp/message-adapter";
 const bodySchema = z.object({ jobId: z.string().min(1), claimToken: z.string().min(1) }).strict();
 
 function safeSecretEqual(provided: string, expected: string) {
-  const left = Buffer.from(provided);
-  const right = Buffer.from(expected);
-  return left.length === right.length && crypto.timingSafeEqual(left, right);
+  // Compare SHA-256 digests so both buffers always have the same length.
+  // Comparing the raw values first requires a length check, which leaks the
+  // secret's length through timing; hashing removes that branch entirely.
+  const left = crypto.createHash("sha256").update(provided, "utf8").digest();
+  const right = crypto.createHash("sha256").update(expected, "utf8").digest();
+  return crypto.timingSafeEqual(left, right);
 }
 
 export async function POST(request: NextRequest) {

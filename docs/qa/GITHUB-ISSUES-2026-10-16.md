@@ -297,9 +297,35 @@
 - **Label:** `security`
 - **File:line:** `src/app/api/internal/message-dispatch/route.ts:10-14` —
   `left.length === right.length && timingSafeEqual(...)`: `timingSafeEqual`
-  memang mewajibkan panjang sama, guard fungsional diperlukan. Panjang secret env
-  (≥32 char) bukan rahasia. **Tidak wajib diperbaiki**; disarankan hash kedua sisi
-  jika ingin menghilangkan cabang sepenuhnya.
+  memang mewajibkan panjang sama, guard fungsional diperlukan, dan panjang
+  secret env (≥32 char) bukan rahasia. Diverifikasi tidak ada jalur eksploitasi.
+- **Perbaikan:** kedua sisi di-hash SHA-256 sebelum dibandingkan sehingga
+  cabang panjang hilang sepenuhnya (hash selalu sama panjang).
+  **SUDAH DIPERBAIKI (commit kedua, `workbuddy-qa-fixes-2026-10-16`).**
+- **Verifikasi:** test regresi `src/lib/message-dispatch-auth.test.ts` —
+  tanpa secret → 401, secret salah (39 char vs 40) → 401 tanpa menyentuh DB,
+  secret benar → 409 (auth lolos, claim tidak ditemukan).
+
+---
+
+## Verifikasi tambahan (bukan temuan)
+
+- **Kuota API key untuk sub-user** (`api-key-service.ts:118-124`): sempat
+  dicatat auditor sebagai "undercount". Setelah ditelusuri:
+  `resolveTenantId` mengembalikan **id user itu sendiri** (`billing.ts:83-85`,
+  `getTenant` tidak mengikuti `ownerId`), dan `requireEntitlement`/`Subscription`
+  juga di-key per-`userId` — jadi hitungan `userId: tenantId` sudah tepat
+  menghitung kunci milik user tersebut. **False positive — tidak diubah.**
+- **Sisa advisory npm audit (9: 7 high, 2 moderate)** semuanya **dev-only
+  tooling**: `eslint-config-next`/`@next/eslint-plugin-next`/`fast-glob`,
+  `patch-package`/`find-yarn-workspace-root`/`micromatch`/`braces`,
+  `@tailwindcss/typography`/`postcss-selector-parser`. Jalur perbaikan npm
+  semuanya **semver-major/downgrade** (mis. eslint-config-next → 14.2.35 di
+  proyek Next 16, @tailwindcss/typography → 0.5.4 turun dari 0.5.19,
+  patch-package 8 → 6). Diputuskan **tidak dipaksa** karena berisiko
+  merusak toolchain lint/build yang sedang berjalan baik; tidak masuk
+  bundle/runtime produksi. `source-map-js` sudah diperbaiki via
+  `npm audit fix` (non-breaking).
 
 ---
 
