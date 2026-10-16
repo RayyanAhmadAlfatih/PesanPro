@@ -26,8 +26,11 @@ export async function claimNextMessageJob(workerId: string, leaseMs = DEFAULT_ME
         SELECT id
         FROM MessageJob
         WHERE
-          (status = 'QUEUED' AND availableAt <= ${now})
-          OR (status = 'PROCESSING' AND leaseExpiresAt < ${now})
+          (
+            (status = 'QUEUED' AND availableAt <= ${now})
+            OR (status = 'PROCESSING' AND leaseExpiresAt < ${now})
+          )
+          AND attempts < maxAttempts
         ORDER BY priority DESC, availableAt ASC, createdAt ASC
         LIMIT 1
       ) AS candidate
@@ -40,8 +43,11 @@ export async function claimNextMessageJob(workerId: string, leaseMs = DEFAULT_ME
       job.attempts = job.attempts + 1,
       job.updatedAt = ${now}
     WHERE
-      (job.status = 'QUEUED' AND job.availableAt <= ${now})
-      OR (job.status = 'PROCESSING' AND job.leaseExpiresAt < ${now})
+      (
+        (job.status = 'QUEUED' AND job.availableAt <= ${now})
+        OR (job.status = 'PROCESSING' AND job.leaseExpiresAt < ${now})
+      )
+      AND job.attempts < job.maxAttempts
   `);
 
   if (claimed !== 1) return null;
@@ -149,8 +155,10 @@ export async function failMessageJob(job: ClaimedMessageJob, error: unknown) {
     });
     if (updated.count === 0) return false;
     if (!shouldRetry) {
+      // Only recipients that have not already been delivered are downgraded;
+      // a late failure must not rewrite a SENT snapshot as FAILED.
       await tx.broadcastRecipient.updateMany({
-        where: { messageJobId: job.id, status: { in: ["ENQUEUED", "SENT"] } },
+        where: { messageJobId: job.id, status: "ENQUEUED" },
         data: { status: "FAILED", failedAt: now, safeErrorCode: safeError.code, safeErrorMessage: safeError.message },
       });
     }
@@ -226,6 +234,54 @@ export async function recoverMessageJobsForWorker(workerId: string) {
     });
   });
   return claims.length;
+}
+
+/**
+ * Dead-letter jobs that exhausted their attempts while a worker held an expired
+ * lease (for example after a hard process kill during dispatch). The claim query
+ * refuses to pick these up, so without this sweep they would sit in PROCESSING
+ * forever. Called once per worker start.
+ */
+export async function deadLetterExhaustedMessageJobs(limit = 200) {
+  const now = new Date();
+  const exhausted = await prisma.$queryRaw<Array<{ id: string; attempts: number }>>(Prisma.sql`
+    SELECT id, attempts
+    FROM MessageJob
+    WHERE status = 'PROCESSING'
+      AND leaseExpiresAt < ${now}
+      AND attempts >= maxAttempts
+    LIMIT ${Math.min(1000, Math.max(1, limit))}
+  `);
+  if (exhausted.length === 0) return 0;
+
+  await prisma.$transaction(async (tx) => {
+    for (const job of exhausted) {
+      await tx.messageJobAttempt.updateMany({
+        where: { jobId: job.id, attemptNumber: job.attempts, status: "PROCESSING" },
+        data: {
+          status: "FAILED",
+          safeErrorCode: "ATTEMPTS_EXHAUSTED",
+          safeErrorMessage: "Delivery attempts were exhausted",
+          finishedAt: now,
+        },
+      });
+      await tx.messageJob.updateMany({
+        where: { id: job.id, status: "PROCESSING", leaseExpiresAt: { lt: now } },
+        data: {
+          status: "FAILED",
+          failedAt: now,
+          deadLetteredAt: now,
+          safeErrorCode: "ATTEMPTS_EXHAUSTED",
+          safeErrorMessage: "Delivery attempts were exhausted",
+          lastErrorAt: now,
+          lockedBy: null,
+          leaseExpiresAt: null,
+          heartbeatAt: null,
+        },
+      });
+    }
+  });
+  return exhausted.length;
 }
 
 const deliveryProgress: Record<MessageJobStatus, number> = {

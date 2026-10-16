@@ -8,6 +8,7 @@ import { setupSocket } from "./socket";
 import { waManager } from "../modules/whatsapp/manager";
 import { logger } from "../lib/logger";
 import { validateEnvOrExit } from "../lib/env";
+import { resolveTrustedClientIp, TRUSTED_CLIENT_IP_HEADER } from "../lib/client-ip";
 import pkg from "../../package.json";
 import { RuntimeHeartbeatReporter } from "../lib/runtime-heartbeat";
 import type { RuntimeProcessType } from "@prisma/client";
@@ -43,6 +44,15 @@ app.prepare().then(async () => {
   const server = createServer(async (req, res) => {
     try {
       if (!req.url) return;
+      // Stamp a transport-derived client IP before Next.js sees the request.
+      // Client-supplied `x-forwarded-for` is only honored when the operator
+      // explicitly declares a trusted reverse proxy (TRUST_PROXY=true).
+      req.headers[TRUSTED_CLIENT_IP_HEADER] = resolveTrustedClientIp({
+        socketAddress: req.socket?.remoteAddress,
+        forwardedFor: req.headers["x-forwarded-for"],
+        trustProxy: env.TRUST_PROXY,
+        trustedHops: env.TRUST_PROXY_HOPS,
+      });
       const parsedUrl = parse(req.url, true);
       await handle(req, res, parsedUrl);
     } catch (err) {

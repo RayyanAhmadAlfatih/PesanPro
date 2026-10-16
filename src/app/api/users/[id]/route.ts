@@ -50,7 +50,9 @@ export async function PATCH(
         if (password) {
             updateData.password = await bcrypt.hash(password, 12);
         }
-        if (password || role || status) {
+        // Any change to credentials or login identity must invalidate existing
+        // sessions. An email change previously left the target's JWTs valid.
+        if (password || role || status || email) {
             updateData.sessionVersion = { increment: 1 };
         }
 

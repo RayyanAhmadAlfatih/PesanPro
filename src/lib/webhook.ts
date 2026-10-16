@@ -7,6 +7,7 @@ import { logger } from "./logger";
 import { waManager } from "@/modules/whatsapp/manager";
 import { Prisma } from "@prisma/client";
 import { runWithStorageQuota } from "./storage-quota";
+import { safeFetchBuffer } from "./ssrf";
 import { publishWebhookEvent } from "./webhook-outbox";
 import type { WebhookEventType } from "./webhook-contract";
 
@@ -29,6 +30,40 @@ type QuotedWebhookMessage = {
 
 function isRecord(value: unknown): value is Record<string, unknown> {
     return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+/** Upper bound for inbound media persisted from a message-supplied URL. */
+const MAX_INBOUND_MEDIA_BYTES = 25 * 1024 * 1024;
+
+/**
+ * File extensions we are willing to persist for inbound media. Anything else
+ * (including `.html`, `.svg`, `.js`) falls back to the message-type default so
+ * a hostile mimetype can never choose an executable or markup extension.
+ */
+const ALLOWED_MEDIA_EXTENSIONS = new Set([
+    "jpg", "jpeg", "png", "webp", "gif", "bmp", "heic",
+    "mp4", "3gp", "mkv", "webm", "mov", "avi",
+    "mp3", "ogg", "opus", "m4a", "wav", "aac", "amr",
+    "pdf", "doc", "docx", "xls", "xlsx", "ppt", "pptx",
+    "txt", "csv", "zip", "rar", "7z", "bin",
+]);
+
+/**
+ * Reduce an attacker-controlled path component to a safe filename fragment.
+ * Prevents traversal (`..`, `/`, `\`) and drive/UNC prefixes on every platform.
+ */
+function sanitizePathSegment(value: unknown, fallback: string): string {
+    const cleaned = path.basename(String(value ?? "").trim()).replace(/[^A-Za-z0-9_-]/g, "").slice(0, 96);
+    return cleaned.length > 0 ? cleaned : fallback;
+}
+
+/** Derive a safe extension from the declared mimetype, restricted to the allowlist. */
+function safeMediaExtension(messageType: string, mime: unknown, fallback: string): string {
+    if (typeof mime === "string") {
+        const candidate = mime.split("/")[1]?.split(";")[0]?.trim().toLowerCase() ?? "";
+        if (/^[a-z0-9]{1,8}$/.test(candidate) && ALLOWED_MEDIA_EXTENSIONS.has(candidate)) return candidate;
+    }
+    return ALLOWED_MEDIA_EXTENSIONS.has(fallback) ? fallback : "bin";
 }
 
 function isGroupParticipant(value: Prisma.JsonValue): value is GroupParticipant {
@@ -85,17 +120,12 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
             const downloadUrl = directPath.startsWith("http") ? directPath : `https://mmg.whatsapp.net${directPath}`;
 
             try {
-                const res = await fetch(downloadUrl, {
-                    method: 'GET',
-                    headers: { 'Origin': 'https://web.whatsapp.com' }
-                });
+                // The URL is attacker-influenced, so it must go through the SSRF
+                // guard (protocol/host/port allowlist + public-IP DNS validation
+                // + redirect re-validation + bounded body read).
+                const res = await safeFetchBuffer(downloadUrl, { timeoutMs: 15_000, maxBytes: MAX_INBOUND_MEDIA_BYTES, maxRedirects: 2 });
 
-                if (!res.ok) {
-                    logger.error("Media", `Newsletter media HTTP ${res.status} ${res.statusText} for URL: ${downloadUrl}`);
-                    return null;
-                }
-
-                buffer = Buffer.from(await res.arrayBuffer());
+                buffer = res;
                 logger.success("Media", `Newsletter media downloaded: ${buffer.length} bytes`);
             } catch (e) {
                 logger.error("Media", "Failed to download newsletter media:", e);
@@ -131,17 +161,18 @@ export async function downloadAndSaveMedia(message: WAMessage, sessionId: string
             stickerMessage: 'webp'
         };
 
-        let ext = extMap[messageType] || 'bin';
+        const ext = safeMediaExtension(messageType, mediaObj.mimetype, extMap[messageType] ?? 'bin');
 
-        // Try to get extension from mimetype if available
-        const mime = typeof mediaObj.mimetype === "string" ? mediaObj.mimetype : null;
-        if (mime) {
-            const mimeExt = mime.split('/')[1]?.split(';')[0];
-            if (mimeExt) ext = mimeExt;
+        // `message.key.id`, the mimetype, and the session id are all
+        // attacker-influenced. Sanitize every path component and re-check the
+        // resolved path so media can never be written outside the media root.
+        const filename = `${sanitizePathSegment(sessionId, "session")}-${sanitizePathSegment(message.key?.id, "message")}.${ext}`;
+        const mediaRoot = path.resolve(process.cwd(), "data", "media");
+        const filePath = path.resolve(mediaRoot, filename);
+        if (!filePath.startsWith(`${mediaRoot}${path.sep}`)) {
+            logger.error("Media", "Refusing to write media outside the media directory");
+            return null;
         }
-
-        const filename = `${sessionId}-${message.key.id}.${ext}`;
-        const filePath = path.join(process.cwd(), "data", "media", filename);
 
         // Ensure directory exists (redundant if handled by OS, but safe)
         await mkdir(path.dirname(filePath), { recursive: true });

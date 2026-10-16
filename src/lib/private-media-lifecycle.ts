@@ -1,4 +1,5 @@
 import { Prisma } from "@prisma/client";
+import { logger } from "./logger";
 import { MessageJobError } from "./message-job-errors";
 import { prisma } from "./prisma";
 import { deletePrivateMediaObject } from "./private-media-storage";
@@ -64,7 +65,14 @@ export async function purgeExpiredPrivateMedia(now = new Date(), batchSize = 100
       return changed.count === 1 ? current : null;
     }, { isolationLevel: Prisma.TransactionIsolationLevel.Serializable });
     if (!claimed) continue;
-    await deletePrivateMediaObject({ cacheKey: claimed.id, storagePath: claimed.storagePath });
+    // A storage failure must not abort the whole retention batch nor leak the
+    // released quota: the row is already DELETED, so account for it and record
+    // the orphan for operators instead of throwing out of the loop.
+    try {
+      await deletePrivateMediaObject({ cacheKey: claimed.id, storagePath: claimed.storagePath });
+    } catch (error) {
+      logger.error("Media", `Failed to delete expired private media ${claimed.id}; an orphan object may remain`, error);
+    }
     await releaseStorageQuota({
       userId: claimed.uploaderId,
       bytes: Number(claimed.sizeBytes),

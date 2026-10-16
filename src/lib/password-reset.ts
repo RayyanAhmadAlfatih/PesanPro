@@ -90,8 +90,20 @@ export async function consumePasswordReset(secret: string, newPassword: string):
   }
 
   const tokenHash = hashPasswordResetSecret(secret);
-  const passwordHash = await bcrypt.hash(parsedPassword.data, 12);
   const now = new Date();
+
+  // Validate the token before spending CPU on bcrypt. Hashing first let an
+  // unauthenticated caller force a cost-12 hash per request regardless of
+  // whether the token existed, which is a cheap CPU-exhaustion vector.
+  const candidate = await prisma.passwordResetToken.findUnique({
+    where: { tokenHash },
+    select: { usedAt: true, expiresAt: true },
+  });
+  if (!candidate || candidate.usedAt || candidate.expiresAt <= now) {
+    return { success: false };
+  }
+
+  const passwordHash = await bcrypt.hash(parsedPassword.data, 12);
 
   return prisma.$transaction(async (tx) => {
     const token = await tx.passwordResetToken.findUnique({

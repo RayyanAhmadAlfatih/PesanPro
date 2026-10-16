@@ -67,6 +67,10 @@ export async function PUT(
             return NextResponse.json({ status: false, message: "labelIds (array), and action are required", error: "labelIds (array), and action are required" }, { status: 400 });
         }
 
+        if (!labelIds.every((labelId: unknown) => typeof labelId === "string" && labelId.length > 0)) {
+            return NextResponse.json({ status: false, message: "labelIds must be an array of label IDs", error: "labelIds must be an array of label IDs" }, { status: 400 });
+        }
+
         if (!['add', 'remove'].includes(action)) {
             return NextResponse.json({ status: false, message: "action must be 'add' or 'remove'", error: "action must be 'add' or 'remove'" }, { status: 400 });
         }
@@ -77,18 +81,18 @@ export async function PUT(
             return NextResponse.json({ status: false, message: "Forbidden - Cannot access this session", error: "Forbidden - Cannot access this session" }, { status: 403 });
         }
 
+        // Resolve the requested labels once and keep only those owned by this
+        // session. Both branches must be scoped: without this, `remove` would
+        // let one tenant detach another tenant's labels from a chat.
+        const ownedLabels = await prisma.label.findMany({
+            where: { id: { in: labelIds }, sessionId },
+            select: { id: true },
+        });
+        const ownedLabelIds = ownedLabels.map((label) => label.id);
+
         if (action === 'add') {
             // Add labels to chat
-            for (const labelId of labelIds) {
-                // Verify label belongs to this session
-                const label = await prisma.label.findUnique({
-                    where: { id: labelId }
-                });
-
-                if (!label || label.sessionId !== sessionId) {
-                    continue; // Skip invalid labels
-                }
-
+            for (const labelId of ownedLabelIds) {
                 // Check if already exists
                 const existing = await prisma.chatLabel.findFirst({
                     where: {
@@ -106,11 +110,11 @@ export async function PUT(
                     });
                 }
             }
-        } else {
-            // Remove labels from chat
+        } else if (ownedLabelIds.length > 0) {
+            // Remove labels from chat (only labels owned by this session)
             await prisma.chatLabel.deleteMany({
                 where: {
-                    labelId: { in: labelIds },
+                    labelId: { in: ownedLabelIds },
                     chatJid: decodedJid
                 }
             });
