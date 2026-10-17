@@ -1094,7 +1094,7 @@ model AuthState {
   sessionId String
   key       String // e.g. "creds-me", "pre-key-1"
   value     Json? // legacy plaintext (deprecated, nullable for migration)
-  encValue  String? @db.Text // base64 ciphertext (AES-256-GCM)
+  encValue  String? @db.LongText // base64 ciphertext (AES-256-GCM); LONGTEXT because long-lived sessions accumulate credentials (creds-me grows with processedHistoryMessages) and can exceed the 64KB TEXT limit
   iv        String? // base64 IV (12 bytes)
   authTag   String? // base64 auth tag (16 bytes)
 

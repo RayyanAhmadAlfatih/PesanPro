@@ -329,6 +329,31 @@
 
 ---
 
+## T-18 — Medium: sesi WhatsApp tidak bisa menyimpan auth state saat blob kredensial melewati batas TEXT (64KB)
+
+- **Severity:** Medium (ketersediaan sesi WA; ditemukan saat live test 2026-10-17, bukan audit statis)
+- **Label:** `bug`, `database`
+- **File:line:** `src/modules/whatsapp/auth/usePrismaAuthState.ts:78-82` (upsert encValue);
+  kolom `AuthState.encValue` (`prisma/schema.prisma` — sebelumnya `@db.Text`)
+- **Bukti (live VPS):** log `pm2-error.log` 2026-10-17 09:22:32–51 (5×):
+  `Error writing auth state: ... The provided value for the column is too long
+  for the column's type. Column: encValue`. Kolom live = `text` (64KB).
+  Error muncul saat sesi WA lama reconnect pasca-deploy; sesi lama kemudian
+  di-re-pair (09:28) dan sesi baru (`qa-b-session`) connect bersih 09:35.
+- **Reproduksi:** jalankan sesi WhatsApp berumur panjang (gateway) sampai
+  `creds-me` (memuat `processedHistoryMessages` dan kredensial lain yang
+  terakumulasi) menghasilkan ciphertext+base64 > 64KB → upsert gagal.
+- **Dampak:** kegagalan **di-swallow + di-log saja** (tidak dilempar) → sesi
+  jalan dengan auth state basi; restart berikutnya → sesi butuh scan QR ulang.
+  Untuk gateway multi-tenant yang sesinya berjalan berbulan-bulan, ini pasti
+  terulang.
+- **Perbaikan:** (1) live: `ALTER TABLE AuthState MODIFY COLUMN encValue LONGTEXT;`
+  (2) repo: schema `@db.LongText` + migration
+  `20261017000000_authstate_encvalue_longtext`. **SUDAH DIPERBAIKI (repo);
+  live ALTER diberikan ke user.**
+
+---
+
 ## Catatan non-temuan (diverifikasi aman, tidak jadi issue)
 
 - Route `messages/[sessionId]/download/[messageId]/media` → 410 Gone (retired,
