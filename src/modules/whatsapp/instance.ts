@@ -73,7 +73,13 @@ export class WhatsAppInstance {
             },
             browser: browserIdentity(this.sessionId),
             markOnlineOnConnect: botConfig?.alwaysOnline ?? true,
-            syncFullHistory: true,
+            // Full-history sync stays OFF by product policy, not by tuning:
+            // the public FAQ promises we never pull old conversation history,
+            // and a full-sync request streams the entire chat archive of the
+            // linked number through memory on connect. On 2026-10-17 that
+            // storm pushed ~1.1M messages through the store handlers in one
+            // pass and OOM-looped the launch box three times.
+            syncFullHistory: false,
         });
 
         // Apply Anti-Spam Wrapper to sendMessage

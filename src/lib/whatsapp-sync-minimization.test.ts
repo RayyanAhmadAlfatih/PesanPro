@@ -38,4 +38,16 @@ describe("WhatsApp sync data minimization", () => {
     expect(handler).toContain("prisma.contact.updateMany");
     expect(handler).not.toContain("prisma.contact.upsert");
   });
+
+  it("never asks WhatsApp for a full history sync", () => {
+    // A full-history request streams the entire chat archive of the linked
+    // number through memory on connect. It contradicts the public "no old
+    // chat history" promise and caused the 2026-10-17 OOM loop (~1.1M
+    // messages synced in one storm). Recent messages, chats, and contacts
+    // still arrive normally without it.
+    const instance = readFileSync("src/modules/whatsapp/instance.ts", "utf8");
+
+    expect(instance).toContain("syncFullHistory: false");
+    expect(instance).not.toContain("syncFullHistory: true");
+  });
 });
