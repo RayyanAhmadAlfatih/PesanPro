@@ -71,7 +71,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                     await sock.readMessages([msg.key]);
                 }
 
-                const savedMessage = await processAndSaveMessage(msg, dbSessionId, sessionId, type === 'notify', sock, config, io);
+                const savedMessage = await processAndSaveMessage(msg, dbSessionId, sessionId, type === 'notify', sock, config);
                 if (savedMessage) {
                     processedMessages.push(savedMessage);
                 }
@@ -108,7 +108,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
             logger.info("Store", `Syncing ${messages.length} historical messages...`);
             for (const msg of messages) {
                 try {
-                    await processAndSaveMessage(msg, dbSessionId, sessionId, false, sock, undefined, io);
+                    await processAndSaveMessage(msg, dbSessionId, sessionId, false, sock, undefined);
                 } catch (error) {
                     logger.error("Store", "Error saving historical message", error);
                 }
@@ -271,8 +271,7 @@ async function processAndSaveMessage(
     sessionId: string,
     triggerWebhook: boolean,
     sock?: WASocket,
-    config?: BotConfig | null,
-    io?: Server | null
+    config?: BotConfig | null
 ): Promise<Message | null | false> {
     const keyId = msg.key.id;
     const remoteJid = msg.key.remoteJid;

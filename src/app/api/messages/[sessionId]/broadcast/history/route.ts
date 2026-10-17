@@ -8,7 +8,8 @@ export async function GET(request: NextRequest, { params }: { params: Promise<{ 
     const user = await getAuthenticatedUser(request);
     if (!user) return NextResponse.json({ status: false, message: "Unauthorized" }, { status: 401 });
     const { sessionId } = await params;
-    const limit = Math.min(50, Math.max(1, Number(request.nextUrl.searchParams.get("limit") || 20)));
+    const limitParam = Number(request.nextUrl.searchParams.get("limit") || 20);
+    const limit = Number.isFinite(limitParam) && Number.isInteger(limitParam) ? Math.min(50, Math.max(1, limitParam)) : 20;
     const data = await listBroadcasts(
       { id: user.id, role: user.role, ownerId: user.ownerId, apiKeyId: user.apiKeyId },
       { sessionId, limit },

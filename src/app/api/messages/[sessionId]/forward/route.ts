@@ -23,9 +23,21 @@ export async function POST(
         if (!fromJid || !messageId || !toJids || !Array.isArray(toJids)) {
              return NextResponse.json({ status: false, message: "fromJid, messageId, and toJids (array) are required", error: "fromJid, messageId, and toJids (array) are required" }, { status: 400 });
         }
-        
+
+        if (typeof fromJid !== "string" || typeof messageId !== "string") {
+            return NextResponse.json({ status: false, message: "fromJid and messageId must be strings", error: "fromJid and messageId must be strings" }, { status: 400 });
+        }
+
+        if (!toJids.every((toJid: unknown) => typeof toJid === "string" && toJid.length > 0 && toJid.length <= 100)) {
+            return NextResponse.json({ status: false, message: "Each toJids entry must be a non-empty string of at most 100 characters", error: "Each toJids entry must be a non-empty string of at most 100 characters" }, { status: 400 });
+        }
+
         if (toJids.length === 0) {
             return NextResponse.json({ status: false, message: "At least one recipient is required", error: "At least one recipient is required" }, { status: 400 });
+        }
+
+        if (toJids.length > 100) {
+            return NextResponse.json({ status: false, message: "At most 100 recipients per forward request", error: "At most 100 recipients per forward request" }, { status: 400 });
         }
 
         // Check if user can access this session

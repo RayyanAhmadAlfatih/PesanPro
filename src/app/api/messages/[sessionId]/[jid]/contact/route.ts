@@ -28,10 +28,17 @@ export async function POST(
             return NextResponse.json({ status: false, message: "At least one contact is required", error: "At least one contact is required" }, { status: 400 });
         }
 
+        if (contacts.length > 10) {
+            return NextResponse.json({ status: false, message: "At most 10 contacts per message", error: "At most 10 contacts per message" }, { status: 400 });
+        }
+
         // Validate contacts structure
         for (const contact of contacts) {
             if (!contact.displayName || !contact.vcard) {
                 return NextResponse.json({ status: false, message: "Each contact must have displayName and vcard", error: "Each contact must have displayName and vcard" }, { status: 400 });
+            }
+            if (typeof contact.displayName !== "string" || contact.displayName.length > 100 || typeof contact.vcard !== "string" || contact.vcard.length > 2048) {
+                return NextResponse.json({ status: false, message: "displayName max 100 chars and vcard max 2048 chars", error: "displayName max 100 chars and vcard max 2048 chars" }, { status: 400 });
             }
         }
 

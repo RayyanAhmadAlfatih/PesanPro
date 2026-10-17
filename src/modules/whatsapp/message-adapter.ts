@@ -4,7 +4,7 @@ import type { ClaimedMessageJob } from "@/lib/message-queue";
 import { MessageJobError } from "@/lib/message-job-errors";
 import { loadPrivateMediaObject } from "@/lib/private-media-storage";
 import { checkPersistentRateLimit } from "@/lib/rate-limit";
-import { buildRemoteMediaContent, remoteMediaFromRequestPayload } from "@/lib/remote-media";
+import { buildRemoteMediaContent, remoteMediaFromRequestPayload, validateRemoteMediaUrl } from "@/lib/remote-media";
 import { onMessageSent } from "@/lib/webhook";
 import { buildQuotedMessage } from "@/lib/whatsapp-message";
 import { waManager } from "./manager";
@@ -20,7 +20,13 @@ async function buildMessageContent(job: ClaimedMessageJob): Promise<AnyMessageCo
     return { text: job.text ?? "", ...(mentions.length > 0 ? { mentions } : {}) };
   }
   const remote = remoteMediaFromRequestPayload(job.requestPayload);
-  if (remote) return buildRemoteMediaContent(job.type, remote, job.caption);
+  if (remote) {
+    // The URL was validated when the job was enqueued, but DNS can change
+    // while the job sits in the queue (DNS rebinding). Re-validate immediately
+    // before handing it to Baileys so the fetch cannot land on an internal host.
+    await validateRemoteMediaUrl(remote.mediaUrl);
+    return buildRemoteMediaContent(job.type, remote, job.caption);
+  }
   if (!job.media || job.media.status !== "ACTIVE") {
     throw new MessageJobError("MEDIA_UNAVAILABLE", "Media is unavailable or invalid", 422, false);
   }

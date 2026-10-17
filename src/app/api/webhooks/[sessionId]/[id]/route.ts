@@ -33,7 +33,13 @@ export async function PUT(request: NextRequest, context: Context) {
   try {
     const user = await getAuthenticatedUser(request);
     if (!user) return NextResponse.json({ status: false, error: "Unauthorized" }, { status: 401 });
-    const input = updateSchema.parse(await request.json());
+    let payload: unknown;
+    try {
+      payload = await request.json();
+    } catch {
+      return NextResponse.json({ status: false, error: "VALIDATION_ERROR", details: [{ message: "Request body must be valid JSON" }] }, { status: 422 });
+    }
+    const input = updateSchema.parse(payload);
     const { sessionId, id } = await context.params;
     const data = await updateWebhookEndpoint(actor(user), sessionId, id, input, request.headers);
     return NextResponse.json({ status: true, data }, { headers: { "cache-control": "no-store" } });

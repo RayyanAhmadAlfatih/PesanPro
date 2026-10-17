@@ -42,6 +42,11 @@ export async function PATCH(
             return NextResponse.json({ status: false, message: "Cannot remove your own superadmin access" }, { status: 400 });
         }
 
+        const existingUser = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+        if (!existingUser) {
+            return NextResponse.json({ status: false, message: "User not found" }, { status: 404 });
+        }
+
         const updateData: Prisma.UserUpdateInput = {};
         if (name) updateData.name = name;
         if (email) updateData.email = email;
@@ -109,6 +114,11 @@ export async function DELETE(
 
     if (id === user.id) {
         return NextResponse.json({ status: false, message: "Cannot delete yourself", error: "Cannot delete yourself" }, { status: 400 });
+    }
+
+    const existingUser = await prisma.user.findUnique({ where: { id }, select: { id: true } });
+    if (!existingUser) {
+        return NextResponse.json({ status: false, message: "User not found", error: "User not found" }, { status: 404 });
     }
 
     try {

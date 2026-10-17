@@ -17,11 +17,11 @@ export async function POST(
 
         const { sessionId, jid } = await params;
         const formData = await request.formData();
-        const file = formData.get("file") as File;
+        const file = formData.get("file");
         const type = formData.get("type") as string; // image, video, audio, document
         const caption = formData.get("caption") as string || "";
-        
-        if (!file) {
+
+        if (!(file instanceof File)) {
              return NextResponse.json({ status: false, message: "file is required", error: "file is required" }, { status: 400 });
         }
 

@@ -26,6 +26,14 @@ export async function POST(
             return NextResponse.json({ status: false, message: "question and options (array) are required", error: "question and options (array) are required" }, { status: 400 });
         }
 
+        if (typeof question !== "string" || question.trim().length === 0 || question.length > 300) {
+            return NextResponse.json({ status: false, message: "question must be a non-empty string of at most 300 characters", error: "question must be a non-empty string of at most 300 characters" }, { status: 400 });
+        }
+
+        if (!options.every((option: unknown) => typeof option === "string" && option.trim().length > 0 && option.length <= 100)) {
+            return NextResponse.json({ status: false, message: "Each option must be a non-empty string of at most 100 characters", error: "Each option must be a non-empty string of at most 100 characters" }, { status: 400 });
+        }
+
         if (options.length < 2 || options.length > 12) {
             return NextResponse.json({ status: false, message: "Poll must have between 2 and 12 options", error: "Poll must have between 2 and 12 options" }, { status: 400 });
         }

@@ -36,7 +36,7 @@ export async function POST(req: NextRequest) {
             return NextResponse.json({ status: false, message: "Forbidden", error: "Forbidden" }, { status: 403 });
         }
 
-        const parsed = systemSettingsSchema.safeParse(await req.json());
+        const parsed = systemSettingsSchema.safeParse(await req.json().catch(() => null));
         if (!parsed.success) {
             return NextResponse.json({ status: false, message: "Invalid system settings", error: parsed.error.flatten() }, { status: 400 });
         }

@@ -37,14 +37,16 @@ export async function POST(req: NextRequest) {
             );
         }
 
-        // Check if user already exists
+        // Check if user already exists.
+        // Return the same generic rejection as any other validation failure so
+        // the endpoint cannot be used to enumerate registered emails.
         const existingUser = await prisma.user.findUnique({
             where: { email },
         });
 
         if (existingUser) {
             return NextResponse.json(
-                { error: "User with this email already exists" },
+                { error: "Invalid registration data provided" },
                 { status: 400 }
             );
         }
