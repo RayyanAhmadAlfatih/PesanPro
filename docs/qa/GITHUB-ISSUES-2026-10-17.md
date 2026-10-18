@@ -24,6 +24,12 @@ signIn ditampilkan sebagai "Invalid email or password").
   15 menit tanpa penjelasan.
 - Tidak ada indikasi kapan bisa mencoba lagi; pesan "Invalid email or password"
   menyesatkan saat penyebab sebenarnya adalah rate limit.
+- **Terkonfirmasi live 2026-10-18 (B1-08):** user yang di-suspend juga melihat
+  "Invalid email or password" padahal penyebabnya status SUSPENDED — user
+  menyangka lupa password. Lebih parah: user suspend yang meminta reset
+  password dapat balasan "reset instructions have been sent" tapi email tidak
+  pernah dikirim (`requestPasswordReset` diam untuk user non-ACTIVE), sehingga
+  terjebak menunggu email yang mustahil datang.
 
 **Saran fix:**
 1. Saat rate-limited, tampilkan pesan khusus ("Terlalu banyak percobaan. Coba
@@ -31,6 +37,9 @@ signIn ditampilkan sebagai "Invalid email or password").
    code spesifik di `src/lib/auth.ts:16-22` bisa direplikasi.
 2. Reset counter saat login sukses, atau pindahkan pemanggilan limiter ke jalan
    gagal saja (setelah `bcrypt.compare` gagal).
+3. Untuk status SUSPENDED: jangan bebaskan informasi di form login (risiko
+   enumerasi akun). Tampilkan "akun ditangguhkan, hubungi support" hanya
+   setelah user membuktikan kepemilikan email (mis. lewat alur OTP).
 
 ---
 
@@ -72,4 +81,4 @@ contoh Sumupod).
 | B1-05 Reset password | PASS fungsional — email masuk (bukan spam), password lama mati, password baru jalan, sesi lama tertendang. Temuan styling → issue P3 di atas |
 | B1-06 Session cap | PASS — cookie expiry 2026-10-18T13:18:57Z (~24 jam dari login) |
 | B1-07 Rate limit | PASS fungsional — attempt ke-6 diblokir termasuk dengan password benar (sesuai desain 5/15 menit). Temuan UX → issue P2 di atas. Recovery perlu diverifikasi: coba lagi setelah melewati batas window 15 menit |
-| B1-08 Suspend B | Menunggu eksekusi user |
+| B1-08 Suspend B | SEBAGIAN — login B ditolak saat suspend dan bisa login kembali setelah reactivate (inti PASS); pesan "Invalid email or password" jadi bukti live P2. Tes API (TOKEN_B → 401) BELUM jalan: curl gagal dieksekusi karena quote header belum ditutup (shell menunggu input) — perlu diulang |
