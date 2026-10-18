@@ -2,6 +2,18 @@
 
 # MASTER LIVE TEST PESANPRO
 
+> **Status live QA (update 2026-10-18):**
+> - BATCH 1 (L0 + L1 auth) — **TUNTAS**: B1-04..B1-08 PASS, recovery B1-07
+>   terverifikasi (login normal tepat setelah window 15 menit). B1-01 lewat
+>   restart berulang; B1-02 N/A (worker embedded); B1-03 N/A (registrasi live
+>   dimatikan sengaja).
+> - Fix `syncFullHistory=false` sudah live di VPS (2026-10-17) → sync storm
+>   riwayat chat tidak akan terulang; penarikan riwayat penuh = 0.
+> - Berikutnya: BATCH 2 (L2 tenant isolation, P0) & BATCH 3 (L3/L4 messaging) —
+>   panduan siap pakai: `docs/qa/MANUAL-LIVE-BATCH-2-3-2026-10-18.md`.
+> - Issue terbuka: P2 (login UX pesan menyesatkan) & P3 (branding email reset)
+>   di `docs/qa/GITHUB-ISSUES-2026-10-17.md` — perlu dibuat manual di GitHub.
+
 Saya pecah menjadi **19 phase (L0–L18)**. Jangan langsung mengerjakan semuanya sekaligus. Kerjakan per phase dan kirim hasilnya kepada saya.
 
 ## Phase L0 — Production/Deployment Sanity
