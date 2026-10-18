@@ -9,8 +9,19 @@
 >   dimatikan sengaja).
 > - Fix `syncFullHistory=false` sudah live di VPS (2026-10-17) → sync storm
 >   riwayat chat tidak akan terulang; penarikan riwayat penuh = 0.
-> - Berikutnya: BATCH 2 (L2 tenant isolation, P0) & BATCH 3 (L3/L4 messaging) —
->   panduan siap pakai: `docs/qa/MANUAL-LIVE-BATCH-2-3-2026-10-18.md`.
+> - BATCH 2 (L2 tenant isolation, P0) — **PASS**: B2-01 (sesi B via API → 404
+>   SESSION_FORBIDDEN), B2-02 (job asli milik B → 404 MESSAGE_JOB_NOT_FOUND,
+>   kontrol positif job milik A sendiri → 200), B2-05 (UI: `?session=qa-b-session`
+>   diabaikan tanpa kebocoran; detail sesi B → "Session not found"). B2-03/04
+>   menunggu resource asli B setelah BATCH 3.
+> - BATCH 3 (L3/L4 messaging) — **sebagian PASS**: B3-04 (text `62…` → DELIVERED ~2 dtk),
+>   B3-06 (idempotency 200/409), B3-08 (upload + IMAGE → DELIVERED), B3-09 (MIME spoof 422).
+>   B3-05 awalnya FAIL (format `08…` → SENT tanpa delivered) lalu **FIXED + deploy**
+>   (commit `c2594d1`), retest → DELIVERED. Media: driver dipindah ke local (B2 gagal,
+>   akar masalah belum teridentifikasi karena jalur media tidak mencatat error).
+> - Sisa: B3-07 (key read-only → 403), B3-01/02/11/12 (lifecycle session di dashboard),
+>   B2-03/04 (resource B sekarang ada). Migrasi `authstate_encvalue_longtext`
+>   BELUM diterapkan di produksi — lihat `docs/qa/GITHUB-ISSUES-2026-10-18.md`.
 > - Issue terbuka: P2 (login UX pesan menyesatkan) & P3 (branding email reset)
 >   di `docs/qa/GITHUB-ISSUES-2026-10-17.md` — perlu dibuat manual di GitHub.
 

@@ -24,6 +24,13 @@ BASE=https://wagateway.kingofcoding.my.id
 PHONE=628XXXXXXXXX        # ganti nomor QA Anda
 ```
 
+**Kontrak API pesan (WAJIB, diverifikasi di source 2026-10-18):**
+- Semua POST pesan (`/api/v1/messages/text`, `/api/v1/messages/media`) butuh header
+  `Idempotency-Key` (8-128 karakter URL-safe) — tanpa itu = 422 INVALID_IDEMPOTENCY_KEY.
+- Field penerima bernama **`recipient`** (BUKAN `to`); schema `.strict()` → field asing = 422.
+- Route memvalidasi SEBELUM cek kepemilikan sesi → payload salah = 422, bukan bukti isolasi.
+- Body sukses: `{"requestId":..., "data": {job}, "meta": {"idempotent": false}}`; replay = 200 + `idempotent: true`.
+
 **Peta sesi (untuk semua tes):**
 
 | SessionId | Pemilik | Status |
@@ -43,12 +50,13 @@ Pakai TOKEN_A menyerang resource milik Tenant B. **Semua harus 403/404.**
 Satu saja yang balas 200/202 dengan data = **P0 blocker** → stop semua batch.
 
 ```bash
-# B2-01: tenant A coba kirim pesan lewat sesi milik B → 403/404 (BUKAN 202)
+# B2-01: tenant A coba kirim pesan lewat sesi milik B → 404 SESSION_FORBIDDEN (BUKAN 202)
 #        (aman: kalau ditolak, tidak ada job/pesan yang dibuat; nomor sengaja palsu)
-curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE/api/v1/messages/text" \
-  -H "x-api-key: $TOKEN_A" -H "content-type: application/json" \
-  -d '{"sessionId":"qa-b-session","to":"628000000000","text":"probe isolation"}'
-# Expected: HTTP 403 atau 404
+# WAJIB: field "recipient" (BUKAN "to") + header "Idempotency-Key" (8-128 karakter URL-safe).
+# Route memvalidasi SEBELUM cek kepemilikan sesi → payload salah bentuk = 422 (validasi),
+# itu BUKAN bukti isolasi. Payload benar + sesi milik B = 404.
+curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE/api/v1/messages/text" -H "x-api-key: $TOKEN_A" -H "content-type: application/json" -H "Idempotency-Key: qa-b2-01-probe-01" -d '{"sessionId":"qa-b-session","recipient":"628000000000","text":"probe isolation"}'
+# Expected: HTTP 404 + body error code SESSION_FORBIDDEN ("Device was not found or is not accessible")
 
 # B2-02: tenant A tebak ID job milik B → 404
 #        Ambil jobId asli B dulu: login tenant B → /dashboard/message-queue → salin satu job ID
@@ -109,25 +117,23 @@ laporan ke saya. Itu bukan gagal tes — itu sistem pengaman bekerja.
 
 ```bash
 # B3-04: kirim text → 202 + jobId; lalu cek /dashboard/message-queue (tenant B)
-curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE/api/v1/messages/text" \
-  -H "x-api-key: $TOKEN_B" -H "content-type: application/json" \
-  -d '{"sessionId":"qa-b-session","to":"'$PHONE'","text":"Tes PesanPro QA 1"}'
-# Expected: 202, body berisi jobId; di HP penerima pesan MASUK;
-#           status di queue: QUEUED→PROCESSING→SENT→DELIVERED
+# Kontrak API pesan: field "recipient" + header "Idempotency-Key" (unik per tes —
+# key sama + payload beda = 409 IDEMPOTENCY_CONFLICT; key sama + payload sama = replay 200).
+curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE/api/v1/messages/text" -H "x-api-key: $TOKEN_B" -H "content-type: application/json" -H "Idempotency-Key: qa-b3-04-01" -d '{"sessionId":"qa-b-session","recipient":"'$PHONE'","text":"Tes PesanPro QA 1"}'
+# Expected: 202, body {"requestId":...,"data":{job: id,status:QUEUED,...},"meta":{"idempotent":false}};
+#           di HP penerima pesan MASUK; status di queue: QUEUED→PROCESSING→SENT→DELIVERED
 
 # B3-05: normalisasi nomor — kirim ke format 08xxx
-curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE/api/v1/messages/text" \
-  -H "x-api-key: $TOKEN_B" -H "content-type: application/json" \
-  -d '{"sessionId":"qa-b-session","to":"08'"${PHONE#62}"'","text":"Tes normalisasi"}'
+# CATATAN: normalizer server HANYA strip spasi + tanda "+" lalu tambah "@s.whatsapp.net";
+# JID lengkap lolos apa adanya. "08xxx" TIDAK diubah jadi "628xxx" di sisi server —
+# tes ini memverifikasi perilaku live (masuk ke HP yang sama, tidak dobel 6208...).
+curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE/api/v1/messages/text" -H "x-api-key: $TOKEN_B" -H "content-type: application/json" -H "Idempotency-Key: qa-b3-05-01" -d '{"sessionId":"qa-b-session","recipient":"08'"${PHONE#62}"'","text":"Tes normalisasi"}'
 # Expected: 202 dan pesan tetap masuk ke nomor yang sama (tidak dobel 6208...)
 
 # B3-06: idempotency — dua request, header sama, payload sama
-curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE/api/v1/messages/text" \
-  -H "x-api-key: $TOKEN_B" -H "content-type: application/json" \
-  -H "Idempotency-Key: qa-test-001" \
-  -d '{"sessionId":"qa-b-session","to":"'$PHONE'","text":"Tes idempotency"}'
-# ulangi PERSIS → Expected: jobId yang SAMA (bukan job baru)
-# lalu kirim ulang dengan Idempotency-Key sama tapi text berbeda → Expected: 409
+curl -s -w "\n→ HTTP %{http_code}\n" -X POST "$BASE/api/v1/messages/text" -H "x-api-key: $TOKEN_B" -H "content-type: application/json" -H "Idempotency-Key: qa-b3-06-01" -d '{"sessionId":"qa-b-session","recipient":"'$PHONE'","text":"Tes idempotency"}'
+# ulangi PERSIS → Expected: HTTP 200, meta.idempotent=true, jobId SAMA (bukan job baru)
+# lalu kirim ulang Idempotency-Key qa-b3-06-01 dengan text berbeda → Expected: 409 IDEMPOTENCY_CONFLICT
 
 # B3-07 (opsional): key read-only → kirim harus 403
 #   Buat key baru dengan scope message:read saja (dashboard tenant B → Developer)
