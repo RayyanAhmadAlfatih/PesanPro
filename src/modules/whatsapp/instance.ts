@@ -1,3 +1,4 @@
+import { randomUUID } from "node:crypto";
 import makeWASocket, {
     DisconnectReason,
     fetchLatestBaileysVersion,
@@ -21,6 +22,15 @@ import { logger } from "@/lib/logger";
 import { Prisma, type DeviceStatus } from "@prisma/client";
 
 const MAX_RECONNECT_ATTEMPTS = 3;
+// Baileys only reports a dead socket when its own keep-alive notices missing
+// traffic. On 2026-10-21 the session stayed CONNECTED for hours while inbound
+// messages stopped arriving, so the app needs its own check that does not trust
+// the stored status.
+const HEALTH_CHECK_INTERVAL_MS = 60_000;
+const HEALTH_PROBE_TIMEOUT_MS = 20_000;
+const MAX_HEALTH_PROBE_FAILURES = 2;
+
+export type HealthCheckResult = "ok" | "degraded" | "restarted" | "skipped";
 
 export class WhatsAppInstance {
     socket: WASocket | null = null;
@@ -36,6 +46,10 @@ export class WhatsAppInstance {
 
     isStopped: boolean = false;
     private reconnectCount: number = 0;
+    private healthTimer: ReturnType<typeof setInterval> | null = null;
+    private healthProbeFailures: number = 0;
+    private isRestarting: boolean = false;
+    private lastInboundAt: number | null = null;
     /** Called when instance auto-stops or logs out — lets manager remove it from Map */
     onRemovedFromManager: (() => void) | null = null;
 
@@ -63,7 +77,7 @@ export class WhatsAppInstance {
         const { state, saveCreds } = await createPrismaAuthState(this.sessionId);
         const { version } = await fetchLatestBaileysVersion();
 
-        this.socket = makeWASocket({
+        const socket = makeWASocket({
             version,
             logger: pino({ level: process.env.BAILEYS_LOG_LEVEL || "error" }),
             printQRInTerminal: false,
@@ -81,25 +95,34 @@ export class WhatsAppInstance {
             // pass and OOM-looped the launch box three times.
             syncFullHistory: false,
         });
+        this.socket = socket;
 
         // Apply Anti-Spam Wrapper to sendMessage
-        const originalSendMessage = this.socket.sendMessage.bind(this.socket);
+        const originalSendMessage = socket.sendMessage.bind(socket);
         const sessionId = this.sessionId;
         const sendMessage = async (jid: string, content: AnyMessageContent, options?: MiscMessageGenerationOptions) => {
             await antispam.enqueue(sessionId, jid, content);
             return originalSendMessage(jid, content, options);
         };
-        this.socket.sendMessage = sendMessage;
+        socket.sendMessage = sendMessage;
 
         // Bind Store for DB Sync
-        bindSessionStore(this.socket, this.sessionId, this.io);
+        bindSessionStore(socket, this.sessionId, this.io);
 
         // Bind Contact Sync
-        bindContactSync(this.socket, this.sessionId);
+        bindContactSync(socket, this.sessionId);
 
-        this.socket.ev.on("creds.update", saveCreds);
+        socket.ev.on("creds.update", saveCreds);
 
-        this.socket.ev.on("connection.update", async (update) => {
+        // Any frame arriving from WhatsApp proves the socket is still live. The
+        // health check reports this age when it has to reconnect a silent session.
+        const markInboundActivity = () => { this.lastInboundAt = Date.now(); };
+        socket.ev.on("messages.upsert", markInboundActivity);
+        socket.ev.on("messages.update", markInboundActivity);
+
+        socket.ev.on("connection.update", async (update) => {
+            // A socket replaced by a newer init() must not overwrite current state.
+            if (socket !== this.socket) return;
             await this.handleConnectionUpdate(update);
         });
     }
@@ -124,6 +147,7 @@ export class WhatsAppInstance {
             }
 
             if (connection === "close") {
+                this.stopHealthMonitor();
                 const disconnectError = lastDisconnect?.error as Error & { output?: { statusCode?: number } };
                 const code = disconnectError?.output?.statusCode;
                 const isLoggedOut = code === DisconnectReason.loggedOut;
@@ -235,6 +259,8 @@ export class WhatsAppInstance {
                 });
 
                 logger.success("Instance", `Session ${this.sessionId} connected and synced successfully`);
+
+                this.startHealthMonitor();
             }
         } catch (error: unknown) {
             if (error instanceof Prisma.PrismaClientKnownRequestError && error.code === "P2025") {
@@ -244,6 +270,104 @@ export class WhatsAppInstance {
             } else {
                 logger.error("Instance", "Error in handleConnectionUpdate:", error);
             }
+        }
+    }
+
+    private startHealthMonitor() {
+        this.stopHealthMonitor();
+        this.healthProbeFailures = 0;
+        const timer = setInterval(() => {
+            void this.checkHealth();
+        }, HEALTH_CHECK_INTERVAL_MS);
+        timer.unref?.();
+        this.healthTimer = timer;
+    }
+
+    private stopHealthMonitor() {
+        if (this.healthTimer) clearInterval(this.healthTimer);
+        this.healthTimer = null;
+    }
+
+    /**
+     * Verify that the WhatsApp socket is still usable, not just that the DB row
+     * says CONNECTED. A closed transport is restarted immediately; a socket that
+     * stops answering protocol pings is restarted after two consecutive misses.
+     */
+    async checkHealth(): Promise<HealthCheckResult> {
+        if (this.isStopped || this.isRestarting || this.status !== "CONNECTED") return "skipped";
+
+        const socket = this.socket;
+        if (!socket || !socket.ws?.isOpen) {
+            await this.recoverSilentConnection("socket is not open");
+            return "restarted";
+        }
+
+        try {
+            await socket.query({
+                tag: "iq",
+                attrs: {
+                    id: `health-${randomUUID()}`,
+                    to: "@s.whatsapp.net",
+                    type: "get",
+                    xmlns: "w:p",
+                },
+                content: [{ tag: "ping", attrs: {} }],
+            }, HEALTH_PROBE_TIMEOUT_MS);
+            this.healthProbeFailures = 0;
+            return "ok";
+        } catch (error) {
+            this.healthProbeFailures += 1;
+            logger.warn("Instance",
+                `Session ${this.sessionId} health probe failed (${this.healthProbeFailures}/${MAX_HEALTH_PROBE_FAILURES})`,
+                error
+            );
+            if (this.healthProbeFailures >= MAX_HEALTH_PROBE_FAILURES) {
+                await this.recoverSilentConnection("health probe did not answer");
+                return "restarted";
+            }
+            return "degraded";
+        }
+    }
+
+    private async recoverSilentConnection(reason: string) {
+        if (this.isRestarting) return;
+        this.isRestarting = true;
+        this.stopHealthMonitor();
+
+        const idleMinutes = this.lastInboundAt === null
+            ? null
+            : Math.round((Date.now() - this.lastInboundAt) / 60_000);
+        logger.error("Instance",
+            `Session ${this.sessionId} connection unhealthy (${reason}${idleMinutes === null ? "" : `, last inbound ${idleMinutes} min ago`}). Reconnecting.`
+        );
+
+        const staleSocket = this.socket;
+        this.socket = null;
+        this.healthProbeFailures = 0;
+        this.status = "RECONNECTING";
+        this.io?.to(this.sessionId).emit("connection.update", { status: "RECONNECTING", qr: null });
+        await prisma.session.update({
+            where: { sessionId: this.sessionId },
+            data: { status: "RECONNECTING", qr: null },
+        }).catch(() => {});
+
+        try {
+            staleSocket?.end(undefined);
+        } catch {
+            // The transport may already be closed; reconnecting is still correct.
+        }
+
+        try {
+            await this.init();
+        } catch (error) {
+            logger.error("Instance", `Session ${this.sessionId} reconnect after health check failed`, error);
+            this.status = "FAILED";
+            await prisma.session.update({
+                where: { sessionId: this.sessionId },
+                data: { status: "FAILED", qr: null },
+            }).catch(() => {});
+        } finally {
+            this.isRestarting = false;
         }
     }
 
@@ -281,6 +405,7 @@ export class WhatsAppInstance {
     /** Clean shutdown without triggering reconnect */
     async shutdown() {
         this.isStopped = true;
+        this.stopHealthMonitor();
         this.socket?.end(undefined);
         this.socket = null;
         this.reconnectCount = 0;
