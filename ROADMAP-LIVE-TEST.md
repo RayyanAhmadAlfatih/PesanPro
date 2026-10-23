@@ -14,7 +14,10 @@
 > - **P3 unggahan 51 MB** → masih `413 text/html` dari nginx (direproduksi 23 Okt);
 >   butuh `client_max_body_size` + `error_page 413` JSON. **MENUNGGU-PEMILIK.**
 >
-> Semua perbaikan kode berstatus **menunggu deploy** agar berlaku di server live.
+> **Deploy 23 Okt 19:26 WIB (commit `2e79bab`):** berhasil; health `200`, PM2 online,
+> route `forward` hilang dari manifest build. Build pertama OOM (script memaku heap
+> 2048), build ulang dengan heap 3072 sukses. Perilaku #1/#2/#3/#5 belum diuji live
+> karena sesi WA `STOPPED` dan login browser berakhir; nginx 413 masih menunggu pemilik.
 > Detail + paket pemilik: `docs/qa/GITHUB-ISSUES-2026-10-23.md`.
 >
 > **L14 (lanjutan) — 23 Okt:** tidak ada tes baru yang bisa dijalankan.

@@ -252,3 +252,31 @@ plan"). Perlu konfirmasi pemilik: perilaku mana yang final. Belum diubah.
 kode rate limit. Kontrak ini sudah dipakai di seluruh produk; kalau dokumentasi API
 ditulis, sebutkan bahwa `429` bisa berarti kuota bulanan habis, bukan hanya terlalu
 banyak permintaan.
+
+---
+
+# Deploy Fase 0 — 23 Oktober 2026, 19:26 WIB
+
+**Commit:** `2e79bab` (branch `workbuddy-fase0-qa-2026-10-23`).
+
+**Hasil:**
+- `npm run build` pertama **gagal** karena kehabisan memori (script memaku heap 2048).
+  Build ulang dengan `node --max-old-space-size=3072 node_modules/next/dist/bin/next build --webpack`
+  berhasil dalam 2,2 menit; TypeScript dan 64 halaman statis selesai.
+- `pm2 restart pesanpro` → status `online`. Sempat `502` ±30 detik saat proses mulai,
+  lalu normal.
+- `GET /api/health/live` → `200 {"status":"ok"}`; `GET /api/health/ready` → `200 ok:true`
+  (diverifikasi dari VPS dan dari mesin QA).
+- Halaman `/`, `/auth/login`, `/terms`, `/privacy` → `200`.
+- Route `/api/messages/[sessionId]/forward` **tidak ada lagi** di manifest build server
+  (bukti pensiunnya endpoint). Tanpa login, jalur itu tetap dibalas `401` oleh
+  middleware, jadi `404` hanya terlihat oleh pemanggil terautentikasi.
+
+**Yang belum bisa dibuktikan setelah deploy:**
+- Perilaku watchdog koneksi (#1), reaksi `fromMe` (#2), notifikasi `LOGGED_OUT` (#3),
+  dan format balas string (#5) belum dijalankan live karena sesi WhatsApp Tenant A
+  berstatus `STOPPED` dan sesi login browser sudah berakhir (dashboard meminta login).
+- Perbaikan nginx 413 masih menunggu pemilik.
+
+**Tindakan lanjutan:** login ulang dashboard (atau buat API key uji) lalu start sesi
+WhatsApp; setelah itu #2, #3, #5 bisa diuji dan #1 bisa diamati stabilitasnya.
