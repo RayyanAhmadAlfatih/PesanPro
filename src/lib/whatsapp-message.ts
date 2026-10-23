@@ -6,13 +6,25 @@ function isRecord(value: unknown): value is Record<string, unknown> {
 }
 
 export function parseOutgoingMessage(value: unknown, mentions?: unknown): AnyMessageContent | null {
+    const validMentions: string[] | undefined = Array.isArray(mentions) && mentions.every((mention) => typeof mention === "string")
+        ? mentions as string[]
+        : undefined;
+
+    // The legacy reply routes are called with { message: "text" } by API users
+    // and with { message: { text } } by internal callers. Both mean the same
+    // thing, and the v1 API documents `text`, so accept the plain string too.
+    if (typeof value === "string") {
+        if (!value.trim()) return null;
+        return validMentions ? { text: value, mentions: validMentions } : { text: value };
+    }
+
     if (!isRecord(value) || Object.keys(value).length === 0) {
         return null;
     }
 
     const message = { ...value };
-    if (typeof message.text === "string" && Array.isArray(mentions) && mentions.every((mention) => typeof mention === "string")) {
-        message.mentions = mentions;
+    if (typeof message.text === "string" && validMentions) {
+        message.mentions = validMentions;
     }
 
     return message as AnyMessageContent;
