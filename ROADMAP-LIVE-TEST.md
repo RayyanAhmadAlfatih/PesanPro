@@ -2,6 +2,21 @@
 
 # MASTER LIVE TEST PESANPRO
 
+> **Fase 0 (update 2026-10-23):** lima error lama diverifikasi ulang. Empat diperbaiki
+> di kode dan lolos gates lokal, satu tetap menunggu konfigurasi server.
+> - **P1 koneksi WA mati diam-diam** → watchdog 60 detik + ping protokol + reconnect
+>   paksa (`src/modules/whatsapp/instance.ts`); 4 tes baru lolos.
+> - **P2 reaksi ke pesan sendiri** → `fromMe` diterima dari body, default `false`.
+> - **P2 `LOGGED_OUT` tanpa pemberitahuan** → notifikasi lonceng + realtime ke pemilik
+>   sesi (`src/lib/session-alerts.ts`); logout sengaja tidak memicu alarm.
+> - **P3 format balas** → `{"message":"teks"}` diterima, hasil sama dengan bentuk objek.
+> - **Forward** → endpoint dihapus; L5-06 tetap N/A.
+> - **P3 unggahan 51 MB** → masih `413 text/html` dari nginx (direproduksi 23 Okt);
+>   butuh `client_max_body_size` + `error_page 413` JSON. **MENUNGGU-PEMILIK.**
+>
+> Semua perbaikan kode berstatus **menunggu deploy** agar berlaku di server live.
+> Detail + paket pemilik: `docs/qa/GITHUB-ISSUES-2026-10-23.md`.
+
 > **Status live QA (update 2026-10-18):**
 > - BATCH 1 (L0 + L1 auth) — **TUNTAS**: B1-04..B1-08 PASS, recovery B1-07
 >   terverifikasi (login normal tepat setelah window 15 menit). B1-01 lewat
@@ -14,16 +29,65 @@
 >   kontrol positif job milik A sendiri → 200), B2-05 (UI: `?session=qa-b-session`
 >   diabaikan tanpa kebocoran; detail sesi B → "Session not found"). B2-03/04
 >   menunggu resource asli B setelah BATCH 3.
-> - BATCH 3 (L3/L4 messaging) — **sebagian PASS**: B3-04 (text `62…` → DELIVERED ~2 dtk),
->   B3-06 (idempotency 200/409), B3-08 (upload + IMAGE → DELIVERED), B3-09 (MIME spoof 422).
->   B3-05 awalnya FAIL (format `08…` → SENT tanpa delivered) lalu **FIXED + deploy**
->   (commit `c2594d1`), retest → DELIVERED. Media: driver dipindah ke local (B2 gagal,
->   akar masalah belum teridentifikasi karena jalur media tidak mencatat error).
-> - Sisa: B3-07 (key read-only → 403), B3-01/02/11/12 (lifecycle session di dashboard),
->   B2-03/04 (resource B sekarang ada). Migrasi `authstate_encvalue_longtext`
->   BELUM diterapkan di produksi — lihat `docs/qa/GITHUB-ISSUES-2026-10-18.md`.
+> - BATCH 3 (L3/L4 messaging) — **TUNTAS**: B3-04 text `62…` → DELIVERED, B3-05 `08…`
+>   (FAIL → fixed `c2594d1` → deploy → DELIVERED), B3-06 idempotency 200/409,
+>   B3-07 key read-only → 403, B3-08 media upload + IMAGE → DELIVERED, B3-09 MIME
+>   spoof → 422, B3-01 validasi ID session, B3-02 detail realtime, B3-11 stop →
+>   job retry `SESSION_NOT_READY`, B3-12 start → reconnect tanpa QR + job terkirim.
+>   B3-03 (pairing code) sengaja ditunda — butuh sesi WA kedua.
+> - BATCH 2 (L2) **TUNTAS**: B2-03 media B → 404 MEDIA_NOT_FOUND, B2-04 broadcast
+>   B → 404, schedule B → 404 SESSION_FORBIDDEN. Autoreply tidak punya GET (405);
+>   operasinya dibatasi sessionId + tenant di kode.
+> - Migrasi `authstate_encvalue_longtext` **SUDAH DITERAPKAN** di produksi
+>   (2026-10-19 08:57 WIB, backup 234 MB dibuat lebih dulu, `migrate status` = up to date).
+> - L8 (private media) — **selesai 2026-10-20 kecuali L8-15**: N/A L8-01/02 (media masuk
+>   tidak disimpan) dan L8-03..07 (Media Manager dipensiunkan). PASS L8-08 (hapus →
+>   metadata `404`), L8-12 (tanpa kunci `401`, tebak path `404`, dengan kunci `200`),
+>   L8-13 (mediaId terhapus → `404`), L8-09/10/11/14 (dari L4). L8-15 (media tetap
+>   terpakai setelah restart) menunggu izin restart.
+> - L5 (retained WhatsApp operations) — **selesai 2026-10-19**: PASS L5-04/05 (bintang),
+>   L5-07 (kontak), L5-08 (lokasi), L5-09 (polling), L5-11 (balas kutipan → READ),
+>   L5-12 (hapus untuk semua). **FAIL L5-06** (teruskan selalu 500 — kode mengirim isi
+>   pesan kosong). L5-02/03 reaksi ke pesan masuk PASS; reaksi ke pesan sendiri tidak
+>   bisa (fromMe dipaku false). L5-01 & L5-10 N/A (pensiun). Detail:
+>   `docs/qa/GITHUB-ISSUES-2026-10-19.md`.
+> - L4 (outbound messaging API) — **TUNTAS kecuali L4-17**: L4-11 video 201, L4-12 audio
+>   201, L4-13 dokumen 201, L4-15 tipe tak didukung 415, L4-16 51MB → 413 (dari nginx,
+>   balasan HTML bukan JSON), L4-18 metadata 200, L4-20 kirim VIDEO/AUDIO/DOCUMENT 202,
+>   L4-21 mediaId tipe salah 404, L4-22 media tenant lain 404. L4-17 (429 saat unggahan
+>   paralel) tidak terpicu pada 12 unggahan paralel — butuh nilai `MAX_CONCURRENT_MEDIA_UPLOADS`.
+> - L6 (durable message queue) — **TUNTAS**: L6-01..05 alur status, L6-06/07 stop→job
+>   bertahan→start→lanjut, L6-08 restart aplikasi saat 12 job antre → 12 job utuh, 0
+>   duplikat, retry → DELIVERED, L6-09/10 disconnect/reconnect, L6-11 cancel QUEUED →
+>   CANCELLED, L6-12 cancel DELIVERED → 409, L6-13 FAILED setelah 5 attempt dengan error
+>   `SESSION_NOT_READY` tercatat, L6-14 retry → QUEUED (maxAttempts 5→10) → DELIVERED,
+>   L6-15 status dari DB setelah reload, L6-16 double submit (2 request identik paralel)
+>   → 1 job (`202` + `200` idempotent), L6-17 10 paralel → 10 job unik, L6-18 restart
+>   di tengah 10 kiriman paralel → tidak ada loss/duplikat.
+> - Media: driver dipindah ke local (B2 gagal, akar masalah belum teridentifikasi
+>   karena jalur media tidak mencatat error).
 > - Issue terbuka: P2 (login UX pesan menyesatkan) & P3 (branding email reset)
 >   di `docs/qa/GITHUB-ISSUES-2026-10-17.md` — perlu dibuat manual di GitHub.
+> - L14 (Developer API & API key) — **25 PASS, 1 FAIL, 1 N/A, 3 belum** (2026-10-22):
+>   PASS L14-01/02 (secret tampil sekali, hilang setelah reload), 03/04 (tanpa key &
+>   key ngawur → 401), 05, 06 (`message:read` → send 403), 07 (send 202 → READ),
+>   08 (media read 200 / write 403 untuk read-only, write 201 untuk key penuh),
+>   09 (schedule read 200, write 403), 10 (broadcast read 200, write 403),
+>   12 (autoreply read 200, write 403), 13 (webhook GET 200, POST 403),
+>   15 (revoke → 401 langsung), 16/17 (rotate: secret lama 401, baru 200),
+>   19 (IP salah → 401), 21/22/23 (idempotency: 202 → 200 `idempotent:true` id sama;
+>   payload beda → 409 `IDEMPOTENCY_CONFLICT`; hanya 1 job/1 WA id), 27 (5 request
+>   paralel → pemakaian +5 tepat), 28 (limit 30/menit → request ke-31 `429`),
+>   29 (`lastUsedAt` terisi; key yang ditolak tidak mengisi).
+>   **FAIL L14-18**: IP allowlist tidak berfungsi — semua request terbaca dari
+>   `127.0.0.1`, key dengan IP publik yang benar tetap `401` (issue P2
+>   `docs/qa/GITHUB-ISSUES-2026-10-22.md`; akar: `TRUST_PROXY` mati di belakang nginx).
+>   N/A L14-11 (endpoint campaign sudah dipensiunkan). **PASS L14-24/25/26** dengan
+>   key tenant A: sesi B → `404 SESSION_FORBIDDEN`, media B → `404 MEDIA_NOT_FOUND`,
+>   job B → `404 MESSAGE_JOB_NOT_FOUND`; kontrol key A sendiri → `200`.
+>   Belum: L14-14 (kuota API key plan Starter penuh 2/2 — perlu satu slot kosong
+>   atau ubah `expiresAt` di DB), L14-20 (mesin QA tidak punya jalur IPv6),
+>   L14-30 (audit butuh akses superadmin).
 
 Saya pecah menjadi **19 phase (L0–L18)**. Jangan langsung mengerjakan semuanya sekaligus. Kerjakan per phase dan kirim hasilnya kepada saya.
 
@@ -248,16 +312,16 @@ mute, pin, presence, dan Chat UI tidak lagi menjadi klaim produk aktif.
 
 | ID    | Test                                      | Expected                           |
 | ----- | ----------------------------------------- | ---------------------------------- |
-| L5-01 | Search message                            | Hasil tepat dan session-scoped     |
+| L5-01 | Search message                            | **N/A** — tidak ada endpoint pencarian; ikut pensiun bersama Chat UI (diverifikasi 2026-10-19) |
 | L5-02 | React message                             | Reaction diterima                  |
 | L5-03 | Remove atau ubah reaction                 | State benar                        |
 | L5-04 | Star message                              | Berhasil                           |
 | L5-05 | Unstar message                            | Berhasil                           |
-| L5-06 | Forward message                           | Konten diterima                    |
+| L5-06 | Forward message                           | **N/A (dipensiunkan, keputusan 2026-10-20)** — server tidak menyimpan isi pesan; penerusan lewat aplikasi WhatsApp |
 | L5-07 | Send contact card                         | Kontak valid                       |
 | L5-08 | Send location                             | Lokasi valid                       |
 | L5-09 | Send poll                                 | Poll WhatsApp valid                |
-| L5-10 | Download media berdasarkan messageId      | Tenant-safe dan file valid         |
+| L5-10 | Download media berdasarkan messageId      | **N/A (retired)** — `410 MEDIA_DOWNLOAD_RETIRED`; media pesan tidak disimpan (diverifikasi 2026-10-19) |
 | L5-11 | Reply melalui endpoint session-scoped     | Quote benar                        |
 | L5-12 | Delete message sesuai kemampuan WhatsApp  | State konsisten                    |
 
@@ -293,6 +357,10 @@ Status yang tersedia di source: `QUEUED`, `PROCESSING`, `SENT`, `DELIVERED`, `RE
 ---
 
 # Phase L7 — Labels & Contacts
+
+> **STATUS 2026-10-19: N/A — fitur Label dipensiunkan.** Diverifikasi: tidak ada
+> halaman label di `/dashboard` dan tidak ada endpoint label di `/api`. Kedua belas
+> tes di bawah dipertahankan hanya sebagai catatan sejarah; jangan dijalankan.
 
 | ID                              | Test                            | Expected                        |
 | ------------------------------- | ------------------------------- | ------------------------------- |
@@ -335,6 +403,13 @@ Status yang tersedia di source: `QUEUED`, `PROCESSING`, `SENT`, `DELIVERED`, `RE
 
 # Phase L9 — Broadcast
 
+> **STATUS 2026-10-20: TUNTAS 32/32.** L9-28 (`STOP`) dan L9-29 (`BERHENTI`) masuk
+> suppression `UNSUBSCRIBE` dengan `sourceMessageId` benar. L9-32 cross-tenant:
+> broadcast tenant B → `404 BROADCAST_NOT_FOUND`, pause → `403`. L9-24 restart worker
+> di tengah broadcast (jeda 60–120 dtk) → lanjut otomatis, 2/2 DELIVERED, 0 duplikat.
+> Catatan: create broadcast **wajib** `Idempotency-Key`; paket menolak delay < 5 detik
+> (`BROADCAST_DELAY_TOO_SHORT`).
+
 Implementasi terbaru repository mendukung CSV, variables, Spintax, durable queue, suppression dan pause/resume.
 
 | ID                                                    | Test                                                  | Expected                                              |
@@ -376,6 +451,11 @@ Implementasi terbaru repository mendukung CSV, variables, Spintax, durable queue
 
 # Phase L10 — Segment & Campaign
 
+> **STATUS 2026-10-20: N/A — dipensiunkan di permukaan.** Diverifikasi: tidak ada halaman
+> campaign/segment di `/dashboard` dan tidak ada route `/api/**/campaign*`. Mesin
+> campaign masih ada di worker, tetapi tidak ada jalur pengguna untuk membuatnya.
+> Jangan jalankan tes di bawah; hapus hanya jika mesinnya ikut dipensiunkan.
+
 | ID                             | Test                           | Expected                       |
 | ------------------------------ | ------------------------------ | ------------------------------ |
 | L10-01                         | Segment berdasarkan source     | Preview benar                  |
@@ -410,6 +490,15 @@ Implementasi terbaru repository mendukung CSV, variables, Spintax, durable queue
 
 # Phase L11 — Scheduler
 
+> **STATUS 2026-10-20: TUNTAS 18/18.** Bukti utama: ONE_TIME 14:06 WIB → job `READ`;
+> media `DELIVERED` (IMAGE); New York 05:42 → `09:42Z` (konversi benar); recurring
+> `*/3` jalan 16:54/16:57/17:00 lalu cancel menghentikan run 17:03; edit menggeser
+> `nextRunAt`; restart aplikasi sebelum jatuh tempo tetap terkirim; `SKIP` → dilewati,
+> `CANCEL` → schedule `CANCELLED`, `SEND_LATE` → tetap dikirim; sesi WA mati → job
+> `FAILED SESSION_NOT_READY` (terkontrol, bisa retry). API menolak jadwal masa lalu
+> (`422 SCHEDULE_IN_PAST`) — jadi kebijakan terlewat hanya terpicu bila worker sempat
+> mati. L11-18 memakai bukti B2-04b (schedule tenant B → `404 SESSION_FORBIDDEN`).
+
 Scheduler mendukung `ONE_TIME`, recurring cron, timezone, media dan missed-run policy.
 
 | ID                                         | Test                                       | Expected                                   |
@@ -436,6 +525,15 @@ Scheduler mendukung `ONE_TIME`, recurring cron, timezone, media dan missed-run p
 ---
 
 # Phase L12 — Auto Reply
+
+> **STATUS 2026-10-21: 25/27.** PASS lewat uji nyata & API: L12-01, 02 (tidak
+> case-sensitive), 03, 04 (STARTS_WITH), 05 (REGEX), 06, 07, 08, 09/10, 11 (ALL jalan
+> di grup `@g.us`), 12/13, 14/15, 16/17, 18 (rentang malam 22:00–06:00 lewat preview
+> `at`), 19, 20 (2 balasan lalu `CONTACT_RATE_LIMITED`), 22 (media IMAGE → `READ`),
+> 23, 24, 25, 26 (cooldown 10 menit **selamat melewati restart aplikasi**),
+> 27 (log tenant B → `404`, milik sendiri → `200`).
+> **BELUM:** L12-21 (max chain depth — butuh dua bot saling membalas, tidak bisa diuji
+> dengan satu sesi). Semua aturan & key uji sudah dihapus/di-revoke.
 
 Terdapat `EXACT`, `CONTAINS`, `STARTS_WITH`, safe `REGEX`, `FALLBACK`; audience PRIVATE/GROUP/ALL; active schedule; priority; cooldown; rate limit; chain depth.
 
