@@ -210,6 +210,8 @@ export class WhatsAppManager {
     async logoutSession(sessionId: string) {
         const instance = this.sessions.get(sessionId);
         if (instance?.socket) {
+            // Owner-initiated logout is not an incident; skip the LOGGED_OUT alert.
+            instance.isLoggingOut = true;
             await instance.socket.logout();
         } else {
             await prisma.$transaction([

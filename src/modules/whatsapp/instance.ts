@@ -19,6 +19,7 @@ import { bindContactSync } from "./store/contacts";
 import { bindPpGuard } from "./store/ppguard";
 import { antispam } from "./antispam";
 import { logger } from "@/lib/logger";
+import { notifySessionOwner } from "@/lib/session-alerts";
 import { Prisma, type DeviceStatus } from "@prisma/client";
 
 const MAX_RECONNECT_ATTEMPTS = 3;
@@ -45,6 +46,8 @@ export class WhatsAppInstance {
     pairingCode: string | null = null;
 
     isStopped: boolean = false;
+    /** Set by the manager when the owner logs out on purpose, so no alert is raised. */
+    isLoggingOut: boolean = false;
     private reconnectCount: number = 0;
     private healthTimer: ReturnType<typeof setInterval> | null = null;
     private healthProbeFailures: number = 0;
@@ -173,6 +176,14 @@ export class WhatsAppInstance {
                     } catch { /* ignore */ }
                     logger.success("Instance", `Session ${this.sessionId} credentials deleted.`);
 
+                    if (!this.isLoggingOut) {
+                        await notifySessionOwner({
+                            userId: this.userId,
+                            sessionId: this.sessionId,
+                            kind: "LOGGED_OUT",
+                        });
+                    }
+
                     // Remove from memory manager
                     this.onRemovedFromManager?.();
                     return;
@@ -229,6 +240,12 @@ export class WhatsAppInstance {
                     logger.error("Instance",
                         `Session ${this.sessionId} max reconnects (${MAX_RECONNECT_ATTEMPTS}) reached. Auto-stopped.`
                     );
+
+                    await notifySessionOwner({
+                        userId: this.userId,
+                        sessionId: this.sessionId,
+                        kind: "STOPPED",
+                    });
 
                     // Remove from memory manager
                     this.onRemovedFromManager?.();
@@ -366,6 +383,11 @@ export class WhatsAppInstance {
                 where: { sessionId: this.sessionId },
                 data: { status: "FAILED", qr: null },
             }).catch(() => {});
+            await notifySessionOwner({
+                userId: this.userId,
+                sessionId: this.sessionId,
+                kind: "RECONNECT_FAILED",
+            });
         } finally {
             this.isRestarting = false;
         }
