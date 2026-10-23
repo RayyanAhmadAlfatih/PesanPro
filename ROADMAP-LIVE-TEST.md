@@ -20,7 +20,7 @@
 > #1 watchdog **terpasang** (belum ada kejadian untuk dibuktikan),
 > #2 reaksi **lolos-sebagian** (200; visual di HP perlu pemilik),
 > #3 notifikasi **terpasang** (belum dipicu, sengaja tidak dipaksa),
-> #4 nginx 413 **menunggu pemilik**,
+> #4 nginx 413 **LOLOS-SETELAH-FIX** (51 MB → `413 MEDIA_TOO_LARGE` JSON; 61 MB → `413 PAYLOAD_TOO_LARGE` JSON),
 > #5 format balas **LOLOS-SETELAH-FIX** (202 → READ, dashboard cocok),
 > #6 forward **terverifikasi** (route hilang dari manifest build).
 > Detail: `docs/qa/GITHUB-ISSUES-2026-10-23.md`.

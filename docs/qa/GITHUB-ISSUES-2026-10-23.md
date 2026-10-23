@@ -314,3 +314,24 @@ membuat sesi harus scan QR ulang. Bukti saat ini: unit test jalur notifikasi.
 
 **#4 nginx 413 — masih MENUNGGU-PEMILIK.** Panduan rule sudah diberikan; begitu
 diterapkan, uji ulang dengan berkas 51 MB.
+
+---
+
+# #4 Unggahan melebihi batas — LOLOS-SETELAH-FIX (23 Oktober 2026, 21:07 WIB)
+
+Rule nginx sudah aktif di vhost `wagateway.kingofcoding.my.id`
+(`client_max_body_size 60m` + `error_page 413` JSON). Hasil uji:
+
+| Uji | Hasil | Arti |
+| --- | --- | --- |
+| 51 MB, tanpa login | `401 application/json` | nginx **tidak lagi** memotong di 51 MB; aplikasi yang menjawab |
+| 51 MB, login Tenant B | `413 application/json` `{"code":"MEDIA_TOO_LARGE","message":"Media exceeds the 50 MB limit"}` | Batas aplikasi 50 MB bekerja dan pesannya JSON, bukan HTML |
+| 61 MB (di atas batas nginx) | `413 application/json` `{"status":false,"error":"PAYLOAD_TOO_LARGE",...}` | `error_page 413` nginx bekerja |
+
+Sebelumnya 51 MB menghasilkan `413 text/html` 176 byte dari nginx. Sekarang seluruh
+jalur menghasilkan JSON.
+
+**Catatan operasional:** rule dipasang di config website (vhost utama), bukan di
+`/www/server/panel/vhost/nginx/extension/...`. Kalau aaPanel menyimpan ulang vhost,
+rule ini bisa hilang. Disarankan memindahkannya ke file extension
+`payload-limit.conf` saat ada kesempatan.
