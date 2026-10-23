@@ -16,6 +16,17 @@
 >
 > Semua perbaikan kode berstatus **menunggu deploy** agar berlaku di server live.
 > Detail + paket pemilik: `docs/qa/GITHUB-ISSUES-2026-10-23.md`.
+>
+> **L14 (lanjutan) — 23 Okt:** tidak ada tes baru yang bisa dijalankan.
+> L14-14 butuh satu slot key kosong (tenant A 2/2: `WorkBuddy-QA`, `qa-tenant-a`),
+> L14-18 menunggu `TRUST_PROXY`, L14-20 butuh jalur IPv6 (mesin QA tidak punya),
+> L14-30 butuh akun SUPERADMIN. Semua **BLOCKED-PEMILIK**.
+>
+> **L16 Billing — 23 Okt:** 7 PASS (01, 02, 03, 04, 06, 08, 10), 1 N/A (05 — tidak ada
+> plan unlimited), 15 BLOCKED-PEMILIK (07 grace period, 09 pengajuan bukti bayar, dan
+> 11–23 yang semuanya butuh SUPERADMIN). Catatan desain L16-15: kode mengaktifkan plan
+> otomatis saat pembayaran disetujui — perlu konfirmasi pemilik. Detail:
+> `docs/qa/GITHUB-ISSUES-2026-10-23.md`.
 
 > **Status live QA (update 2026-10-18):**
 > - BATCH 1 (L0 + L1 auth) — **TUNTAS**: B1-04..B1-08 PASS, recovery B1-07

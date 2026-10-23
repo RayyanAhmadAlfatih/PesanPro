@@ -218,3 +218,37 @@ Masih menunggu keputusan pemilik: tambah `TRUST_PROXY="true"` dan `TRUST_PROXY_H
 ke `.env` produksi lalu restart. Panduan lengkap sudah ada di
 `docs/qa/PANDUAN-TRUST-PROXY-2026-10-22.md`. Dampak: allowlist IP API key berfungsi,
 limit per IP tidak lagi global, audit log mencatat IP asli.
+
+---
+
+# L16 — Billing, Plans & Commercial (live, 23 Oktober 2026)
+
+Akun: **Tenant A** (`testingusera@gmail.com`, sesi `27092015`). Status sesi WhatsApp
+saat pengujian: **STOPPED** (sudah begitu sebelum sesi ini; tidak diubah karena L16
+tidak membutuhkan pengiriman). Sumber kedua: `GET /api/billing/summary`, `GET /api/plans`,
+`GET /api/webhooks/27092015`.
+
+| ID | Hasil | Bukti ringkas |
+| --- | --- | --- |
+| L16-01 | **PASS** | Plan aktif `TRIAL` (plan code `TRIAL`), tampil di dashboard dan `/api/billing/summary`. |
+| L16-02 | **PASS** | Hak akses dari `PLAN`: API_KEYS 2, DEVICES 1, MESSAGES 500, API_REQUESTS 1000, SCHEDULED 10, BROADCASTS 2, WEBHOOKS 1, RPM 15, media 100 MB — sama di dashboard dan API, dan sesuai definisi `plan_trial` di migrasi. |
+| L16-03 | **PASS** | Pemakaian `MESSAGES_MONTHLY` 1/500 dan `API_REQUESTS_MONTHLY` 28/1000; angka dashboard = angka API. |
+| L16-04 | **PASS** | Batas `WEBHOOKS` 1: webhook pertama `201`, webhook kedua `429 QUOTA_EXCEEDED`. Webhook uji dihapus; daftar akhir kosong. |
+| L16-05 | **N/A** | Tidak ada plan dengan kuota pesan tak terbatas. `API_ACCESS` memang tak terbatas dan sudah aktif di trial, tetapi bukan "unlimited plan". |
+| L16-06 | **PASS** | Trial 7 hari tepat: mulai 17/10/2026 09:07 WIB, berakhir 24/10/2026 09:07 WIB (dashboard + API). |
+| L16-07 | **BLOCKED-PEMILIK** | Butuh langganan kedaluwarsa terkontrol (ubah tanggal di DB) untuk melihat grace period. |
+| L16-08 | **PASS** | Tiga plan aktif: Starter 75.000/750.000, Bisnis 149.000/1.490.000, Pro 299.000/2.990.000. Plan trial (harga 0) tidak ditawarkan. |
+| L16-09 | **BLOCKED-PEMILIK** | Pengajuan bukti bayar akan meninggalkan baris `PENDING` yang tidak bisa dihapus tenant; butuh admin untuk menolak/membersihkan. |
+| L16-10 | **PASS** | `planId` tidak valid → `404 Active plan not found`; daftar pengajuan tetap 0 (tidak ada baris baru). |
+| L16-11 s/d L16-23 | **BLOCKED-PEMILIK** | Semua langkah ini butuh akun `SUPERADMIN` (lihat, setujui, tolak, assign subscription, ubah plan, override, set default, nonaktifkan plan). Browser yang tersedia hanya login tenant. |
+
+**Catatan desain L16-15:** kode saat ini **mengaktifkan plan otomatis saat pembayaran
+disetujui** (`reviewPaymentVerificationInTransaction` membuat/memperbarui subscription).
+Ini sesuai brief harga 12 Oktober ("pembayaran tahunan yang disetujui memberi masa aktif
+12 bulan"), tetapi berbeda dari kalimat lama di roadmap ("approval tidak auto-assign
+plan"). Perlu konfirmasi pemilik: perilaku mana yang final. Belum diubah.
+
+**Catatan kecil (bukan bug):** kuota habis dibalas `429 QUOTA_EXCEEDED`, sama dengan
+kode rate limit. Kontrak ini sudah dipakai di seluruh produk; kalau dokumentasi API
+ditulis, sebutkan bahwa `429` bisa berarti kuota bulanan habis, bukan hanya terlalu
+banyak permintaan.
