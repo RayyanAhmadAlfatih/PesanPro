@@ -14,12 +14,20 @@ export async function POST(
         }
 
         const { sessionId, jid, messageId } = await params;
-        const body = await request.json();
-        const { emoji } = body;
+        const body: unknown = await request.json();
+        const rawEmoji = typeof body === "object" && body !== null && "emoji" in body ? body.emoji : undefined;
+        const emoji = typeof rawEmoji === "string" ? rawEmoji : undefined;
+        // Reactions to our own outgoing messages need fromMe: true on the key,
+        // exactly like the star route. Defaults to false for existing callers.
+        const fromMe = typeof body === "object" && body !== null && "fromMe" in body ? body.fromMe : false;
 
         // Emoji empty string is valid (removes reaction)
         if (emoji === undefined) {
             return NextResponse.json({ status: false, message: "emoji is required", error: "emoji is required" }, { status: 400 });
+        }
+
+        if (typeof fromMe !== "boolean") {
+            return NextResponse.json({ status: false, message: "fromMe must be a boolean", error: "fromMe must be a boolean" }, { status: 400 });
         }
 
         // Check if user can access this session
@@ -36,13 +44,12 @@ export async function POST(
         const decodedJid = decodeURIComponent(jid);
 
         // Send reaction (empty string removes reaction)
-        // Note: fromMe is hardcoded to false as per previous implementation
         await instance.socket.sendMessage(decodedJid, {
             react: {
                 text: emoji,
                 key: {
                     remoteJid: decodedJid,
-                    fromMe: false,
+                    fromMe,
                     id: messageId
                 }
             }
