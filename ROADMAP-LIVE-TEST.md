@@ -2,6 +2,12 @@
 
 # MASTER LIVE TEST PESANPRO
 
+> **Audit cakupan (23 Okt 2026):** jumlah tes sebenarnya **490**, bukan 427 —
+> selisih 63 tes: 37 tes L1 tambahan (umur sesi/OTP/harga), 12 tes CF7 di L15,
+> dan 14 tes What's New di L17. Prosedur lanjutan + daftar celah per ID ada di
+> `docs/qa/PROSEDUR-QA-LANJUTAN-2026-10-23.md`. **Belum ada tes baru yang dijalankan**
+> untuk bab berikutnya.
+
 > **Fase 0 (update 2026-10-23):** lima error lama diverifikasi ulang. Empat diperbaiki
 > di kode dan lolos gates lokal, satu tetap menunggu konfigurasi server.
 > - **P1 koneksi WA mati diam-diam** → watchdog 60 detik + ping protokol + reconnect
