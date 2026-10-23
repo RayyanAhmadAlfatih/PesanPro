@@ -14,11 +14,16 @@
 > - **P3 unggahan 51 MB** → masih `413 text/html` dari nginx (direproduksi 23 Okt);
 >   butuh `client_max_body_size` + `error_page 413` JSON. **MENUNGGU-PEMILIK.**
 >
-> **Deploy 23 Okt 19:26 WIB (commit `2e79bab`):** berhasil; health `200`, PM2 online,
-> route `forward` hilang dari manifest build. Build pertama OOM (script memaku heap
-> 2048), build ulang dengan heap 3072 sukses. Perilaku #1/#2/#3/#5 belum diuji live
-> karena sesi WA `STOPPED` dan login browser berakhir; nginx 413 masih menunggu pemilik.
-> Detail + paket pemilik: `docs/qa/GITHUB-ISSUES-2026-10-23.md`.
+> **Deploy 23 Okt 19:26 WIB (commit `2e79bab`):** berhasil; health `200`, PM2 online.
+> Build pertama OOM (script memaku heap 2048), build ulang dengan heap 3072 sukses.
+> Status Fase 0 setelah deploy:
+> #1 watchdog **terpasang** (belum ada kejadian untuk dibuktikan),
+> #2 reaksi **lolos-sebagian** (200; visual di HP perlu pemilik),
+> #3 notifikasi **terpasang** (belum dipicu, sengaja tidak dipaksa),
+> #4 nginx 413 **menunggu pemilik**,
+> #5 format balas **LOLOS-SETELAH-FIX** (202 → READ, dashboard cocok),
+> #6 forward **terverifikasi** (route hilang dari manifest build).
+> Detail: `docs/qa/GITHUB-ISSUES-2026-10-23.md`.
 >
 > **L14 (lanjutan) — 23 Okt:** tidak ada tes baru yang bisa dijalankan.
 > L14-14 butuh satu slot key kosong (tenant A 2/2: `WorkBuddy-QA`, `qa-tenant-a`),

@@ -280,3 +280,37 @@ banyak permintaan.
 
 **Tindakan lanjutan:** login ulang dashboard (atau buat API key uji) lalu start sesi
 WhatsApp; setelah itu #2, #3, #5 bisa diuji dan #1 bisa diamati stabilitasnya.
+
+---
+
+# Verifikasi live setelah deploy — 23 Oktober 2026, 21:01 WIB
+
+Akun: **Tenant B** (`testinguserb@gmail.com`, sesi `qa-b-session`, status `CONNECTED`).
+
+**#5 Format balas — LOLOS-SETELAH-FIX.**
+`POST /api/messages/qa-b-session/6283877315731@s.whatsapp.net/PPCA9B176EC7581A324DBC69F8DBB930/reply`
+dengan body `{"message":"uji-format-L16-20261023-2107"}` (string biasa) →
+`202 Reply queued successfully`, job `cmvl1ge2b03em3dziwelpc4ri`.
+Sumber kedua: job menjadi `READ`, `whatsappMessageId PPBB43DF906836B86DCDEF5F939CA45A`,
+attempt 1/5, tanpa error — dan baris yang sama tampil `READ` di Antrian Pesan dashboard.
+Hanya satu pesan dikirim, ke nomor uji `6283877315731`.
+
+**#2 Reaksi ke pesan sendiri — LOLOS-SETELAH-FIX (sebagian).**
+`POST .../PPBB43DF906836B86DCDEF5F939CA45A/react` dengan `{"emoji":"👍","fromMe":true}`
+→ `200 Reaction sent`. Reaksi uji kemudian dihapus (`emoji:""`, `fromMe:true` → 200).
+Yang terbukti: parameter `fromMe:true` diterima dan diteruskan tanpa error. Tampilan
+reaksi di HP tidak dapat saya lihat dari sini; pemilik bisa memastikan visualnya.
+
+**#1 Watchdog — terpasang, belum ada kejadian untuk dibuktikan.**
+Sesi `qa-b-session` tetap `CONNECTED` dan pengiriman berjalan normal. Watchdog hanya
+bekerja saat socket benar-benar berhenti; tidak ada cara aman memicunya tanpa merusak
+sesi produksi.
+
+**#3 Notifikasi `LOGGED_OUT` — terpasang, belum dipicu live.**
+Dipicu hanya oleh logout/berhenti yang nyata. Sengaja tidak dipaksa karena berisiko
+membuat sesi harus scan QR ulang. Bukti saat ini: unit test jalur notifikasi.
+
+**#6 Forward — TERVERIFIKASI.** Route tidak ada di manifest build server.
+
+**#4 nginx 413 — masih MENUNGGU-PEMILIK.** Panduan rule sudah diberikan; begitu
+diterapkan, uji ulang dengan berkas 51 MB.
