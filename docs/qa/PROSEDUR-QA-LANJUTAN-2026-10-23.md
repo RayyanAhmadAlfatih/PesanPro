@@ -151,8 +151,13 @@ sebelum release**. Kalau pemilik ingin lebih aman, backfill L2 bisa dinaikkan ke
 ### 5.1 Prasyarat
 
 - Login **Tenant B** (`testinguserb@gmail.com`), sesi `qa-b-session` `CONNECTED`.
-- Cek `/api/billing/summary`: kalau `WEBHOOKS` = 1 (paket trial), semua tes dijalankan
-  **berurutan dengan satu endpoint**, bukan membuat banyak endpoint sekaligus.
+- **Cek masa aktif langganan lebih dulu.** Per 24 Okt 08:59 WIB:
+  Tenant A (trial) berakhir **24 Okt 09:07 WIB**; Tenant B (Starter) berakhir
+  **24 Okt 11:00 WIB**. Kalau sudah lewat, operasi webhook akan ditolak
+  (`ENTITLEMENT_DENIED`/`EXPIRED`). Perpanjang dulu lewat superadmin atau SQL uji.
+- Cek `/api/billing/summary`: Tenant B paket **Starter** dengan `WEBHOOKS = 1`, jadi
+  semua tes dijalankan **berurutan dengan satu endpoint**, bukan membuat banyak
+  endpoint sekaligus.
 - Siapkan penerima uji:
   - **Receiver A** untuk payload/signature: `https://webhook.site/<token>` (atau URL
     milik pemilik kalau disediakan).
