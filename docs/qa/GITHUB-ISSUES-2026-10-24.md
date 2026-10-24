@@ -56,3 +56,44 @@ Catatan: endpoint ini menaikkan `sessionVersion`, jadi sesi lama perlu login ula
   dikonfigurasi saat L15.
 - Catatan DNS: domain sempat `NXDOMAIN` di resolver mesin QA; setelah diperbaiki,
   akses normal `200`.
+
+---
+
+## [P1] Pesan gagal terkirim: `SESSION_NOT_READY` padahal sesi `CONNECTED`
+
+**Ditemukan:** 24 Oktober 2026, 09:30–09:33 WIB, saat L13-25/26.
+**Dampak:** pesan pelanggan tidak terkirim. API menerima job (`202`), lalu job
+`FAILED` setelah 5 percobaan. Event `message.sent` tidak pernah keluar, sehingga
+webhook pelanggan juga tidak menerima apa pun.
+
+**Reproduksi:**
+1. Sesi `qa-b-session` di dashboard berstatus `CONNECTED`.
+2. `POST /api/v1/messages/text` ke `6283877315731` dengan `sessionId=qa-b-session`.
+3. Respons `202`, job dibuat.
+4. Dalam ±35 detik job menjadi `FAILED`, `attempts=5`,
+   `error.code=SESSION_NOT_READY`, `error.message="WhatsApp device is not ready"`,
+   `sentAt=null`, `deliveredAt=null`.
+
+**Bukti:**
+- Job `cmvls81bp0ooq3dzil9dulk3k` → `FAILED` (5 attempt).
+- Job `cmvlsabo30or33dzias0u7jht` → `FAILED` (5 attempt).
+- `GET /api/sessions/qa-b-session` → `status: "CONNECTED"`, `updatedAt`
+  `2026-10-23T20:03:26Z`.
+- `/api/health/live` → `uptimeSeconds` ±51.400 (proses tidak restart setelah sesi
+  dihidupkan).
+- Jalur kode: `dispatchQueuedMessage` menolak jika
+  `waManager.getInstance(sessionId)` tidak ada, `socket` null, atau
+  `instance.status !== "CONNECTED"`.
+- Tidak ada delivery webhook `message.sent`; yang ada hanya event `test`.
+
+**Dugaan penyebab (belum dikonfirmasi):** status di database dan instance di memori
+berbeda. Manager bisa kehilangan instance tanpa status DB ikut berubah — misalnya
+saat `stopAfterLeaseFailure` menghapus instance lalu update DB gagal (ditulis dengan
+`.catch(() => undefined)`), atau saat `loadSessions` melewati sesi karena lease masih
+dipegang worker lain. Untuk memastikan perlu log pm2.
+
+**Status:** **OPEN — menunggu pemilik.** Belum ada perubahan kode.
+
+**Dampak ke L13:** L13-25 tidak valid (pesannya tidak pernah terkirim, jadi
+"tidak ada event" tidak membuktikan disable bekerja). L13-26 terblokir. Tes L13
+yang membutuhkan pengiriman (07–19) ditahan sampai masalah ini selesai.
