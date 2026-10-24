@@ -97,3 +97,63 @@ dipegang worker lain. Untuk memastikan perlu log pm2.
 **Dampak ke L13:** L13-25 tidak valid (pesannya tidak pernah terkirim, jadi
 "tidak ada event" tidak membuktikan disable bekerja). L13-26 terblokir. Tes L13
 yang membutuhkan pengiriman (07–19) ditahan sampai masalah ini selesai.
+
+---
+
+## [P1] Update — root cause terkonfirmasi dari log pm2
+
+**Bukti utama (waktu WIB):**
+
+```
+05:01:58  EmailWorker/Heartbeat/Manager/... : Can't reach database server at localhost:3306
+05:01:58  Manager: Failed to renew runtime lease for session qa-b-session
+05:01:58  Manager: Failed to renew runtime lease for session 27092015
+...
+10:30:57  MessageWorker: Job cmvls81... will retry: SESSION_NOT_READY
+10:31:30  MessageWorker: Job cmvls81... failed: SESSION_NOT_READY
+```
+
+Sebelumnya sesi juga berulang kali putus dan reconnect:
+
+```
+02:10:23  Session qa-b-session disconnected. Reconnecting (1/3)...
+03:14:50  Session qa-b-session disconnected. Reconnecting (1/3)...
+04:03:16  Session qa-b-session disconnected. Reconnecting (1/3)...
+05:01:58  Session qa-b-session disconnected. Reconnecting (1/3)...
+```
+
+**Urutan kejadian:**
+
+1. Database MySQL di `localhost:3306` mati sesaat (05:01:58, dan lagi 09:16:53).
+2. Lease runtime sesi gagal diperpanjang karena DB tidak bisa dihubungi.
+3. `stopAfterLeaseFailure` menjalankan `shutdown()` dan menghapus instance dari
+   `waManager` — ini benar agar tidak terjadi dua pengirim.
+4. Status database ingin diubah ke `FAILED`, tetapi **DB sedang mati**, dan update
+   itu ditulis dengan `.catch(() => undefined)` sehingga kegagalannya ditelan.
+5. DB pulih, tetapi status tetap `CONNECTED` dan instance tidak pernah dibuat ulang.
+   `loadSessions` hanya berjalan saat aplikasi start; tidak ada rekonsiliasi berkala.
+6. Akibatnya API/dashboard bilang `CONNECTED`, tetapi setiap pengiriman gagal
+   `SESSION_NOT_READY` sampai aplikasi di-restart.
+
+**Kesimpulan:** ini bug ketahanan (resilience), bukan salah konfigurasi sesi.
+DB yang sempat mati adalah pemicu; yang membuatnya permanen adalah tidak adanya
+rekonsiliasi antara status DB dan instance di memori.
+
+**Perbaikan yang diusulkan (belum dikerjakan, menunggu persetujuan):**
+
+1. `stopAfterLeaseFailure`: jangan telan kegagalan update status. Coba ulang
+   beberapa kali; kalau tetap gagal, simpan penanda di memori dan ulangi saat DB
+   sudah bisa dihubungi.
+2. Tambah rekonsiliasi berkala (mis. tiap 60 detik): sesi `CONNECTED` di DB yang
+   tidak punya instance dan tidak dipegang worker lain → init ulang; kalau gagal →
+   `FAILED` + notifikasi ke pemilik.
+3. `dispatchQueuedMessage`: kalau instance hilang tetapi DB bilang `CONNECTED`,
+   coba rehidrasi sekali (dengan lease) sebelum menyerah, agar satu job tidak
+   langsung gagal 5 kali.
+
+**Pemulihan sementara:** restart `pesanpro` agar `loadSessions` membuat ulang
+instance. Namun bug akan terulang pada gangguan DB berikutnya kalau kode belum
+diperbaiki.
+
+**Catatan infrastruktur:** MySQL mati dua kali dalam 4 jam. Perlu dicek penyebabnya
+(OOM, disk, restart service) — di luar akses QA.
