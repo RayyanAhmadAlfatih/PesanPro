@@ -22,6 +22,8 @@ export class WhatsAppManager {
     private sessions: Map<string, WhatsAppInstance> = new Map();
     private sessionDbIds: Map<string, string> = new Map();
     private leaseTimers: Map<string, ReturnType<typeof setInterval>> = new Map();
+    private reconcileTimer: ReturnType<typeof setInterval> | null = null;
+    private reconciling = false;
     private readonly workerId = createWorkerId();
     public io: Server | null = null;
 
@@ -36,6 +38,7 @@ export class WhatsAppManager {
 
     setup(io: Server) {
         this.io = io;
+        this.startReconciliation();
     }
 
     async loadSessions() {
@@ -85,6 +88,63 @@ export class WhatsAppManager {
             }
         }
         logger.success("Manager", `Loaded ${started} sessions (${sessions.length - started} idle skipped).`);
+    }
+
+    /**
+     * The database status can outlive the in-memory instance when the database
+     * is unavailable exactly while the runtime lease is lost. Without this
+     * loop the session stays CONNECTED forever while every send fails with
+     * SESSION_NOT_READY. A missing instance is re-initialised here; a lease
+     * held by another worker is left alone.
+     */
+    async reconcileSessions() {
+        if (this.reconciling || !this.io) return;
+        this.reconciling = true;
+        try {
+            const sessions = await prisma.session.findMany({
+                where: { status: "CONNECTED" },
+                select: { id: true, sessionId: true },
+            });
+            for (const session of sessions) {
+                if (this.sessions.has(session.sessionId)) continue;
+                const authCount = await prisma.authState.count({ where: { sessionId: session.sessionId } });
+                if (authCount === 0) continue;
+                try {
+                    await this.startSession(session.sessionId);
+                    logger.warn("Manager", `Reconciled missing session ${session.sessionId}`);
+                } catch (error) {
+                    const message = error instanceof Error ? error.message : "";
+                    if (message.includes("already active on another worker")) continue;
+                    logger.error("Manager", `Failed to reconcile session ${session.sessionId}`, error);
+                }
+            }
+        } catch (error) {
+            logger.error("Manager", "Session reconciliation failed", error);
+        } finally {
+            this.reconciling = false;
+        }
+    }
+
+    private startReconciliation(intervalMs = 60_000) {
+        if (this.reconcileTimer) return;
+        this.reconcileTimer = setInterval(() => {
+            void this.reconcileSessions();
+        }, intervalMs);
+        this.reconcileTimer.unref?.();
+    }
+
+    /** Retry the status write so a transient database outage cannot leave a stale CONNECTED row. */
+    private async persistSessionStatus(sessionId: string, status: "FAILED" | "STOPPED", attempts = 3) {
+        for (let attempt = 1; attempt <= attempts; attempt++) {
+            try {
+                await prisma.session.update({ where: { sessionId }, data: { status, qr: null } });
+                return true;
+            } catch (error) {
+                logger.error("Manager", `Failed to persist ${status} for session ${sessionId} (attempt ${attempt}/${attempts})`, error);
+                if (attempt < attempts) await new Promise((resolve) => setTimeout(resolve, attempt * 1_000));
+            }
+        }
+        return false;
     }
 
     async createSession(userId: string, role: Role, name: string, customSessionId?: string) {
@@ -272,10 +332,7 @@ export class WhatsAppManager {
         this.sessions.delete(sessionId);
         this.clearLeaseTimer(sessionId);
         this.sessionDbIds.delete(sessionId);
-        await prisma.session.update({
-            where: { sessionId },
-            data: { status: "FAILED", qr: null },
-        }).catch(() => undefined);
+        await this.persistSessionStatus(sessionId, "FAILED");
     }
 
     private async releaseLease(sessionId: string) {

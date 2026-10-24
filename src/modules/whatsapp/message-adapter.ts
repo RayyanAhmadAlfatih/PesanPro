@@ -4,6 +4,7 @@ import type { ClaimedMessageJob } from "@/lib/message-queue";
 import { MessageJobError } from "@/lib/message-job-errors";
 import { loadPrivateMediaObject } from "@/lib/private-media-storage";
 import { checkPersistentRateLimit } from "@/lib/rate-limit";
+import { logger } from "@/lib/logger";
 import { buildRemoteMediaContent, remoteMediaFromRequestPayload, validateRemoteMediaUrl } from "@/lib/remote-media";
 import { onMessageSent } from "@/lib/webhook";
 import { buildQuotedMessage } from "@/lib/whatsapp-message";
@@ -45,8 +46,34 @@ async function buildMessageContent(job: ClaimedMessageJob): Promise<AnyMessageCo
   return { document: buffer, fileName: job.media.originalName, ...common };
 }
 
+const recoveryAttempts = new Map<string, number>();
+const RECOVERY_COOLDOWN_MS = 30_000;
+
+/**
+ * A session can stay CONNECTED in the database after its in-memory instance
+ * was dropped (for example when the runtime lease could not be renewed during
+ * a database outage). Re-create it once before failing the job; the lease in
+ * startSession prevents a second worker from taking over.
+ */
+async function tryRehydrateSession(sessionId: string) {
+  const now = Date.now();
+  const last = recoveryAttempts.get(sessionId) ?? 0;
+  if (now - last < RECOVERY_COOLDOWN_MS) return;
+  recoveryAttempts.set(sessionId, now);
+  try {
+    await waManager.startSession(sessionId);
+    logger.warn("MessageAdapter", `Rehydrated session ${sessionId} before dispatch`);
+  } catch (error) {
+    logger.error("MessageAdapter", `Session ${sessionId} could not be rehydrated`, error);
+  }
+}
+
 export async function dispatchQueuedMessage(job: ClaimedMessageJob) {
-  const instance = waManager.getInstance(job.session.sessionId);
+  let instance = waManager.getInstance(job.session.sessionId);
+  if (!instance?.socket || instance.status !== "CONNECTED") {
+    await tryRehydrateSession(job.session.sessionId);
+    instance = waManager.getInstance(job.session.sessionId);
+  }
   if (!instance?.socket || instance.status !== "CONNECTED") {
     throw new MessageJobError("SESSION_NOT_READY", "WhatsApp device is not ready", 503, true);
   }
@@ -76,6 +103,9 @@ export async function dispatchQueuedMessage(job: ClaimedMessageJob) {
     message: result?.message,
     messageTimestamp: Math.floor(Date.now() / 1000),
   };
-  void onMessageSent(job.session.sessionId, webhookMessage).catch(() => undefined);
+  // Persist the single message.sent event before returning. The queue used to
+  // create a second event with a different payload; the event key is now the
+  // WhatsApp message id so both paths deduplicate in the outbox.
+  await onMessageSent(job.session.sessionId, webhookMessage, { jobId: job.id }).catch(() => undefined);
   return { whatsappMessageId: messageId };
 }
