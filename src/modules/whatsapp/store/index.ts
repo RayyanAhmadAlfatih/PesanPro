@@ -187,12 +187,17 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                     });
                 }
 
-                // Dispatch webhook for message status update
+                // One event per (message, status). The queue path owns queued
+                // messages; this key makes the store copy deduplicate instead
+                // of delivering a second payload shape.
+                const statusEventKey = keyId ? `message.status:${keyId}:${status}` : undefined;
                 dispatchWebhook(sessionId, "message.status", {
+                    messageId: keyId,
+                    recipient: update.key?.remoteJid ?? null,
                     keyId,
-                    remoteJid: update.key?.remoteJid,
+                    remoteJid: update.key?.remoteJid ?? null,
                     status
-                });
+                }, statusEventKey);
             } catch (e) {
                 logger.error("Store", "Error updating message status", e);
             }

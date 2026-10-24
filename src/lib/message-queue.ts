@@ -297,6 +297,12 @@ export async function recordMessageDeliveryStatus(
   if (type === "SENT" && (job?.status === "QUEUED" || job?.status === "PROCESSING")) return false;
   if (!job || deliveryProgress[job.status] < 0 || deliveryProgress[type] <= deliveryProgress[job.status]) return false;
   const now = new Date();
+  // One event per (message, status). The store also dispatches message.status
+  // for messages sent outside the queue; both paths use this key so the outbox
+  // collapses the duplicate payloads.
+  const remoteJid = payload && typeof payload === "object" && !Array.isArray(payload) && typeof (payload as Record<string, unknown>).remoteJid === "string"
+    ? (payload as Record<string, unknown>).remoteJid as string
+    : null;
   await prisma.$transaction(async (tx) => {
     const updated = await tx.messageJob.updateMany({
       where: {
@@ -328,8 +334,8 @@ export async function recordMessageDeliveryStatus(
       sessionDbId: job.sessionId,
       sessionPublicId: job.session.sessionId,
       eventType: "message.status",
-      eventKey: `message-job:${job.id}:${type}`,
-      data: { jobId: job.id, messageId: whatsappMessageId, recipient: job.recipient, status: type, payload: payload ?? null },
+      eventKey: `message.status:${whatsappMessageId}:${type}`,
+      data: { jobId: job.id, messageId: whatsappMessageId, recipient: job.recipient, remoteJid, status: type, payload: payload ?? null },
       now,
     });
   });
