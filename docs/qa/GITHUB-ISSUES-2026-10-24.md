@@ -194,3 +194,57 @@ memproses `message.sent` bisa mengirim balasan/CRM update dua kali.
 
 Pilihan 3 paling aman untuk kompatibilitas, tetapi butuh keputusan bentuk payload
 mana yang final.
+
+---
+
+## L13-25/26 setelah restart — PASS (dengan satu temuan P2)
+
+| ID | Hasil | Bukti |
+| --- | --- | --- |
+| L13-25 | **PASS** | Webhook dinonaktifkan → pesan `cmvltm9qs01fvy7f51j65ja4z` `READ` (1 attempt); receiver tidak menerima event baru (tetap 2) |
+| L13-26 | **PASS** | Webhook diaktifkan → pesan `cmvltoz1t01jey7f5ybl2b63b` `READ`; receiver menerima `message.sent` |
+
+Saat L13-26, receiver menerima **dua** event untuk pesan yang sama — dicatat sebagai
+P2 di atas.
+
+---
+
+## Perbaikan P1 — rekonsiliasi sesi (DIPERBAIKI, menunggu deploy)
+
+**File diubah:**
+- `src/modules/whatsapp/manager.ts` — rekonsiliasi tiap 60 detik untuk sesi
+  `CONNECTED` yang tidak punya instance; `persistSessionStatus` mencoba ulang update
+  status 3× dengan jeda, tidak lagi menelan kegagalan.
+- `src/modules/whatsapp/message-adapter.ts` — sebelum job gagal, coba rehidrasi sesi
+  sekali (cooldown 30 detik) agar job pertama setelah DB pulih tidak langsung gagal.
+- `src/modules/whatsapp/manager-reconcile.test.ts` (baru) — 3 tes: sesi tanpa
+  instance dibuat ulang, sesi tanpa kredensial dilewati, lease milik worker lain
+  tidak diperebutkan.
+
+**Yang tidak berubah:** lease tetap mencegah dua worker mengirim untuk sesi yang sama;
+tidak ada perubahan skema atau API.
+
+**Verifikasi:** 3/3 tes baru lolos; total suite 385 tes lolos; `tsc` 0 error;
+`eslint` bersih. **Belum terbukti live** sampai deploy.
+
+---
+
+## Perbaikan P2 — satu event `message.sent` (opsi 3, DIPERBAIKI, menunggu deploy)
+
+**File diubah:**
+- `src/lib/message-queue.ts` — berhenti membuat event `message.sent` sendiri.
+- `src/lib/webhook.ts` — `onMessageSent` menerima `{ jobId }`, menambahkan `jobId`
+  ke payload, dan memakai WhatsApp message ID sebagai eventKey eksplisit;
+  `dispatchWebhook` meneruskan eventKey ke outbox.
+- `src/modules/whatsapp/message-adapter.ts` — menunggu (`await`) penyimpanan event
+  sebelum job selesai, dengan `jobId`.
+- `src/lib/webhook-dispatch.test.ts` (baru) — 2 tes: eventKey diteruskan, pemanggil
+  lama tanpa key tetap kompatibel.
+
+**Hasil yang diharapkan:** satu pesan = satu event `message.sent`, payload lengkap
+(`key/from/receiver/type/content/quoted`) + `jobId`. Jalur store yang juga memanggil
+`onMessageSent` memakai message ID yang sama sehingga otomatis ter-dedupe.
+
+**Verifikasi:** 2/2 tes baru lolos; total suite 385 tes lolos; `tsc` 0 error;
+`eslint` bersih. **Perlu uji live setelah deploy:** kirim satu pesan, pastikan
+receiver hanya menerima satu event.
