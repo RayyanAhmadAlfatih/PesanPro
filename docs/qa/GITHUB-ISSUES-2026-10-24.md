@@ -248,3 +248,45 @@ tidak ada perubahan skema atau API.
 **Verifikasi:** 2/2 tes baru lolos; total suite 385 tes lolos; `tsc` 0 error;
 `eslint` bersih. **Perlu uji live setelah deploy:** kirim satu pesan, pastikan
 receiver hanya menerima satu event.
+
+---
+
+## [P2] `message.status` ganda dan tidak konsisten (L13-09 GAGAL)
+
+**Ditemukan:** 24 Oktober 2026, 16:55 WIB, setelah deploy P2 `message.sent`.
+**Dampak:** satu pesan menghasilkan **6 event** `message.status` (3 DELIVERED,
+2 READ, plus duplikat), dengan dua bentuk payload berbeda. Integrasi bisa
+menghitung status berkali-kali atau memproses format yang tidak dikenal.
+
+**Bukti:** pesan `PP2BBEB2AA2BA910C9C25A8D83545A62`, job
+`cmvm83fig032it86mj5sb2iui`. Enam event dalam 2 detik:
+
+| Bentuk payload | Jumlah | Contoh |
+| --- | --- | --- |
+| `{keyId, remoteJid, status}` | 4 | `{"keyId":"PP2BB...","remoteJid":"154077874929843@lid","status":"DELIVERED"}` |
+| `{jobId, messageId, recipient, status, payload}` | 2 | `{"jobId":"cmvm83...","messageId":"PP2BB...","status":"READ","payload":{...}}` |
+
+RemoteJid juga berbeda-beda (`@lid`, `:37@lid`), sehingga dedupe berdasarkan
+status saja belum cukup.
+
+**Jalur kode:**
+- `src/modules/whatsapp/store/index.ts` — `messages.update` memanggil
+  `dispatchWebhook("message.status", { keyId, remoteJid, status })`. Baileys
+  memancarkan beberapa update untuk satu status, jadi muncul beberapa event.
+- `src/lib/message-queue.ts` — saat job mencapai SENT/DELIVERED/READ, membuat
+  outbox event `message.status` dengan payload `{jobId, messageId, recipient,
+  status, payload}` dan eventKey berbeda.
+
+**Status:** **OPEN — menunggu keputusan pemilik.** Belum ada perubahan kode.
+
+**Pilihan perbaikan:**
+1. **Satu event per (messageId, status)** dengan payload gabungan
+   `{jobId, messageId, recipient, remoteJid, status}`, eventKey
+   `message.status:{messageId}:{status}`. Jalur antrean menjadi kanonik; jalur
+   store hanya untuk pesan yang tidak lewat antrean.
+2. **Payload store kanonik** `{keyId, remoteJid, status}` — paling sederhana,
+   tetapi kehilangan `jobId` dan `recipient`.
+3. **Gabungan dengan lookup jobId** — store mencari job berdasarkan messageId;
+   payload paling lengkap, tetapi menambah satu query per status.
+
+Rekomendasi: **opsi 1**, konsisten dengan perbaikan `message.sent`.
