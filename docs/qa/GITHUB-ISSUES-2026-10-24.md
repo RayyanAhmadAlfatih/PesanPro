@@ -157,3 +157,40 @@ diperbaiki.
 
 **Catatan infrastruktur:** MySQL mati dua kali dalam 4 jam. Perlu dicek penyebabnya
 (OOM, disk, restart service) — di luar akses QA.
+
+---
+
+## [P2] Satu pesan menghasilkan dua event `message.sent` dengan payload berbeda
+
+**Ditemukan:** 24 Oktober 2026, 10:12 WIB, saat L13-26 (setelah webhook diaktifkan).
+**Dampak:** pelanggan menerima notifikasi ganda untuk satu pesan. Integrasi yang
+memproses `message.sent` bisa mengirim balasan/CRM update dua kali.
+
+**Bukti:** satu pesan (`jobId cmvltoz1t01jey7f5ybl2b63b`, WA message ID
+`PP674206DF2A6EDD7812902BB89093E6`) menghasilkan dua event dalam detik yang sama:
+
+| Event ID | Payload |
+| --- | --- |
+| `wh_evt_6cdcea01-a209-4ce7-98e3-dd95cf636abf` | `{jobId, messageId, recipient, status:"SENT"}` |
+| `wh_evt_88f736b9-8f9f-4b09-a899-c93e47648798` | `{key:{id,remoteJid,fromMe}, from, receiver, sender:"ME", type, content, quoted, timestamp}` |
+
+**Jalur kode:**
+- `src/lib/message-queue.ts:118` — outbox event `message.sent` dengan eventKey
+  `message-job:{jobId}:SENT` (payload ringkas).
+- `src/modules/whatsapp/message-adapter.ts:79` — `onMessageSent()` →
+  `publishWebhookEvent()` (payload lama yang lebih lengkap).
+- `src/modules/whatsapp/store/index.ts:539` juga memanggil `onMessageSent()` pada
+  `messages.upsert`; pada pengiriman lewat antrean, jalur ini bisa menambah event
+  ketiga bila Baileys memancarkan upsert.
+
+**Status:** **OPEN — menunggu keputusan pemilik.** Belum ada perubahan kode.
+
+**Pilihan perbaikan:**
+1. Hentikan pemanggilan `onMessageSent` dari `message-adapter.ts` untuk pengiriman
+   lewat antrean (satu event, payload ringkas + jobId).
+2. Pertahankan payload lengkap dan hapus event dari `message-queue.ts`.
+3. Pakai eventKey yang sama (mis. `message.sent:{whatsappMessageId}`) agar outbox
+   men-dedupe, lalu tentukan satu bentuk payload kanonik.
+
+Pilihan 3 paling aman untuk kompatibilitas, tetapi butuh keputusan bentuk payload
+mana yang final.
