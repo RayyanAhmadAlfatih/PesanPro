@@ -7,6 +7,11 @@
 > dan 14 tes What's New di L17. Prosedur lanjutan + daftar celah per ID ada di
 > `docs/qa/PROSEDUR-QA-LANJUTAN-2026-10-23.md`. **Belum ada tes baru yang dijalankan**
 > untuk bab berikutnya.
+>
+> **L1-55 PASS (24 Okt):** setelah trial berakhir, login/dashboard/baca tetap bisa;
+> operasi komersial ditolak `403 ENTITLEMENT_DENIED` dengan status `EXPIRED`.
+> Tenant A & B diperpanjang 7 hari (31 Okt 09:14 WIB) lewat superadmin.
+> Detail: `docs/qa/GITHUB-ISSUES-2026-10-24.md`.
 
 > **Fase 0 (update 2026-10-23):** lima error lama diverifikasi ulang. Empat diperbaiki
 > di kode dan lolos gates lokal, satu tetap menunggu konfigurasi server.
