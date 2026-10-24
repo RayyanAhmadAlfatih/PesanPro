@@ -13,12 +13,13 @@
 > Tenant A & B diperpanjang 7 hari (31 Okt 09:14 WIB) lewat superadmin.
 > Detail: `docs/qa/GITHUB-ISSUES-2026-10-24.md`.
 >
-> **L13 (24 Okt):** 13 PASS (01–06, 08, 22, 25–29). Tiga bug ditemukan dan sudah
-> **DIPERBAIKI** di branch: P1 sesi `CONNECTED` basi setelah DB mati (`ffdd57c`),
-> P2 dua event `message.sent` per pesan (`795926d`, **terverifikasi live**),
-> P2 enam event `message.status` per pesan (`6f8e1a7`, menunggu deploy).
-> L13-09 GAGAL sampai perbaikan status terpasang. Build lokal gagal karena batas
-> memori lingkungan; build diverifikasi di VPS dengan heap 3072.
+> **L13 (24 Okt):** **20 PASS, 1 N/A, 11 belum.** Tiga bug ditemukan dan sudah
+> **DIPERBAIKI + TERVERIFIKASI LIVE**: P1 sesi `CONNECTED` basi setelah DB mati
+> (`ffdd57c`), P2 dua event `message.sent` per pesan (`795926d`), P2 enam event
+> `message.status` per pesan (`6f8e1a7`). Sisa: 07, 10–18, 31 (aksi HP/restart).
+> Build lokal gagal karena batas memori lingkungan; build diverifikasi di VPS
+> dengan heap 3072. Catatan deploy: jangan pindahkan `.next` sebelum build terbukti
+> `Compiled successfully`.
 
 > **Fase 0 (update 2026-10-23):** lima error lama diverifikasi ulang. Empat diperbaiki
 > di kode dan lolos gates lokal, satu tetap menunggu konfigurasi server.

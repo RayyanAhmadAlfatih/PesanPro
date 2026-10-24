@@ -316,3 +316,98 @@ mendapat `P2002` dan memakai baris yang sudah ada.
 **Verifikasi:** 2/2 tes baru lolos; `tsc` 0 error; `eslint` bersih. **Perlu uji live
 setelah deploy:** satu pesan harus menghasilkan satu DELIVERED dan satu READ,
 tanpa duplikat.
+
+---
+
+## [P1] Situs 502 setelah deploy status fix (24 Oktober 2026, 18:58 WIB)
+
+**Gejala:** `https://wagateway.kingofcoding.my.id/` dan `/api/health/live` → `502`
+dari nginx. PM2 melaporkan `pesanpro` online (↺12), tetapi aplikasi tidak melayani
+port 3000.
+
+**Dugaan:** build yang dijalankan sebelum restart tidak selesai (output tidak
+menampilkan "Compiled successfully"), sementara `.next` lama sudah dipindahkan.
+Aplikasi lalu gagal start karena tidak ada build valid.
+
+**Pemulihan:** kembalikan `.next.bak-*` terakhir (build `ac92267` yang terbukti
+sehat), lalu restart. Perbaikan status (`6f8e1a7`) dibangun ulang setelah situs
+pulih.
+
+**Status:** **OPEN — menunggu pemilik menjalankan pemulihan.**
+
+---
+
+## Situs pulih — 24 Oktober 2026, 19:28 WIB
+
+- `.next` dipulihkan dari `.next.bak-1792841723` (build `ac92267`).
+- `BUILD_ID` terisi, PM2 online, `/api/health/ready` → `ok`, sesi `qa-b-session`
+  dan `27092015` `CONNECTED`.
+- Endpoint webhook uji masih aktif (`qa-l13-04`, events `message.sent` +
+  `message.status`).
+- Perbaikan status `6f8e1a7` **belum terpasang**; build ulang harus diawasi sampai
+  `Compiled successfully` sebelum restart.
+
+**Pelajaran deploy:** jangan pindahkan `.next` sebelum build terbukti selesai.
+Prosedur aman: `cp -a .next .next.prev` → build dengan log → cek
+`Compiled successfully` → baru restart; kalau gagal, pulihkan `.next.prev`.
+
+---
+
+## [P2] Gagal menyimpan baris pesan: `Message_messageJobId_key`
+
+**Ditemukan:** log pm2, 24 Oktober 2026 pukul 11:10, 11:12, 17:54, 17:55 WIB.
+**Dampak:** pesan terkirim (job `READ`), tetapi baris `Message` gagal dibuat karena
+`messageJobId` sudah dipakai. Riwayat/antrean bisa kehilangan baris pesan.
+
+**Bukti:**
+```
+Error saving message: Unique constraint failed on the constraint: `Message_messageJobId_key`
+```
+
+**Dugaan:** dua jalur menyimpan pesan untuk job yang sama (store `messages.upsert`
+dan jalur antrean), dan yang kedua memakai `create` alih-alih upsert/idempotent.
+Belum diperbaiki.
+
+---
+
+## Bukti watchdog Fase 0 #1 bekerja
+
+Log 24 Oktober 16:09:22–16:09:23:
+
+```
+Session 27092015 connection unhealthy (socket is not open, last inbound 8 min ago). Reconnecting.
+Session qa-b-session connection unhealthy (socket is not open, last inbound 8 min ago). Reconnecting.
+```
+
+Kedua sesi terdeteksi tidak sehat dan disambung ulang otomatis — perilaku yang
+diharapkan dari watchdog 60 detik. Ini bukti live pertama untuk perbaikan #1.
+
+---
+
+## Deploy perbaikan `message.status` — 24 Oktober 2026, 20:05 WIB
+
+- Build `6f8e1a7` sukses: `✓ Compiled successfully in 4.2min`, `EXIT:0`.
+- PM2 restart (↺17 lalu ↺18; restart kedua tidak berbahaya, build sama).
+- `/api/health/ready` → `ok`; sesi `qa-b-session` `CONNECTED`.
+- Menunggu jeda 5 menit sebelum uji kirim. Hasil L13-09 akan dicatat setelahnya.
+
+---
+
+## L13 — hasil setelah perbaikan status (24 Oktober 2026, 20:10 WIB)
+
+| ID | Hasil | Bukti |
+| --- | --- | --- |
+| L13-09 | **PASS** | Satu pesan `PP8F1CA5...` → tepat 1 `message.sent`, 1 `message.status DELIVERED`, 1 `message.status READ`; job `cmvmf15mx...` `READ` |
+| L13-20 | **PASS** | Endpoint `httpbin/status/500`, `maxAttempts=2` → delivery `DEAD_LETTER`, 2 attempt `FAILED HTTP_500` |
+| L13-21 | **PASS** | `httpbin/delay/15`, `timeoutMs=1000` → 2 attempt `FAILED TIMEOUT`, `DEAD_LETTER` |
+| L13-23 | **PASS** | Replay delivery gagal → delivery baru `cmvmf33hj...` (`replayOfId` benar); original tetap `DEAD_LETTER` 2 attempt |
+| L13-24 | **PASS** | Replay delivery sukses → delivery baru `cmvmf34jb...`; original tetap `SUCCEEDED` 1 attempt |
+| L13-30 | **PASS** | `DELETE` → 200 `deleted:true`; daftar tidak memuat endpoint; `/test` → 404 `WEBHOOK_NOT_FOUND` |
+| L13-32 | **PASS** | Tenant A: `GET`/`PUT`/`POST test` ke endpoint Tenant B → 404 `SESSION_FORBIDDEN`; endpoint B tidak berubah |
+
+**Status L13:** 20 PASS, 1 N/A (19 — Campaign dipensiunkan), 11 belum:
+07, 10–18, 31. Sebagian besar butuh aksi HP atau restart worker.
+
+Endpoint uji `qa-l13-04` sudah dihapus. Tersisa endpoint lama
+`QA-L2-17-Tenant-Isolation` (inactive, 5.532 delivery) dari QA sebelumnya —
+bukan milik sesi ini, tidak dihapus.
