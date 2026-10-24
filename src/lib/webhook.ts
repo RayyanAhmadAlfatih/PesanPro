@@ -34,10 +34,11 @@ function isGroupParticipant(value: Prisma.JsonValue): value is GroupParticipant 
 export async function dispatchWebhook(
     sessionId: string,
     event: WebhookEventType,
-    data: unknown
+    data: unknown,
+    eventKey?: string
 ) {
     try {
-        await publishWebhookEvent(sessionId, event, data);
+        await publishWebhookEvent(sessionId, event, data, eventKey);
     } catch (error) {
         logger.error("Webhook", "Failed to persist webhook event:", error);
     }
@@ -145,7 +146,11 @@ export async function onMessageReceived(sessionId: string, message: WAMessage) {
 /**
  * Helper to dispatch message sent event
  */
-export async function onMessageSent(sessionId: string, message: WAMessage) {
+export async function onMessageSent(
+    sessionId: string,
+    message: WAMessage,
+    context?: { jobId?: string }
+) {
     const normalized = extractMessageContent(message);
     const quoted = await extractQuotedMessageAsync(message);
     const remoteJid = message.key?.remoteJid || "";
@@ -160,7 +165,8 @@ export async function onMessageSent(sessionId: string, message: WAMessage) {
     const rawSender = message.key?.participant || (message.key?.fromMe ? "ME" : remoteJid);
     const sender = rawSender === "ME" ? "ME" : await resolveToPhoneJid(rawSender, sessionId);
 
-    dispatchWebhook(sessionId, "message.sent", {
+    await dispatchWebhook(sessionId, "message.sent", {
+        ...(context?.jobId ? { jobId: context.jobId } : {}),
         key: {
             id: message.key?.id,
             remoteJid: normalizedFrom,
@@ -181,7 +187,7 @@ export async function onMessageSent(sessionId: string, message: WAMessage) {
         quoted: quoted,
 
         timestamp: Date.now()
-    });
+    }, message.key?.id ?? undefined);
 }
 
 /**

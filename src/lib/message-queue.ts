@@ -111,15 +111,9 @@ export async function completeMessageJob(job: ClaimedMessageJob, whatsappMessage
       create: { jobId: job.id, type: "SENT", whatsappMessageId, occurredAt: now },
       update: {},
     });
-    await createWebhookOutboxEvent(tx, {
-      tenantId: job.tenantId,
-      sessionDbId: job.sessionId,
-      sessionPublicId: job.session.sessionId,
-      eventType: "message.sent",
-      eventKey: `message-job:${job.id}:SENT`,
-      data: { jobId: job.id, messageId: whatsappMessageId, recipient: job.recipient, status: "SENT" },
-      now,
-    });
+    // message.sent is emitted once by the WhatsApp adapter/store path, keyed by
+    // the WhatsApp message id. Creating a second event here produced duplicate
+    // deliveries with a different payload for every queued message.
     return true;
   });
   return result;
