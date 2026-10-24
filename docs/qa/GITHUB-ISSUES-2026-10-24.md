@@ -290,3 +290,29 @@ status saja belum cukup.
    payload paling lengkap, tetapi menambah satu query per status.
 
 Rekomendasi: **opsi 1**, konsisten dengan perbaikan `message.sent`.
+
+---
+
+## Perbaikan P2 `message.status` — opsi 1 (DIPERBAIKI, menunggu deploy)
+
+**Keputusan pemilik:** satu event per `(messageId, status)`; payload gabungan
+`{jobId, messageId, recipient, remoteJid, status}`; jalur antrean kanonik.
+
+**File diubah:**
+- `src/lib/message-queue.ts` — eventKey menjadi
+  `message.status:{whatsappMessageId}:{type}`; payload menambahkan `remoteJid`.
+- `src/modules/whatsapp/store/index.ts` — payload store menambahkan `messageId`
+  dan `recipient`, memakai eventKey yang sama sehingga salinan store ter-dedupe
+  oleh unique constraint outbox. Pesan yang dikirim di luar antrean tetap
+  mendapat event dari jalur store.
+- `src/lib/webhook-event-key.test.ts` (baru) — 2 tes: payload store dan antrean
+  untuk status yang sama menghasilkan key identik; status berbeda tetap terpisah.
+
+**Mengapa ini bekerja:** store memanggil `recordMessageDeliveryStatus()` lebih dulu
+(menunggu transaksi antrean), baru kemudian `dispatchWebhook()`. Jadi event antrean
+dengan payload lengkap sudah tersimpan sebelum salinan store dicoba; salinan store
+mendapat `P2002` dan memakai baris yang sudah ada.
+
+**Verifikasi:** 2/2 tes baru lolos; `tsc` 0 error; `eslint` bersih. **Perlu uji live
+setelah deploy:** satu pesan harus menghasilkan satu DELIVERED dan satu READ,
+tanpa duplikat.
