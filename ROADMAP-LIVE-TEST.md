@@ -38,9 +38,9 @@
 >
 > **L16 Billing — 23 Okt:** 7 PASS (01, 02, 03, 04, 06, 08, 10), 1 N/A (05 — tidak ada
 > plan unlimited), 15 BLOCKED-PEMILIK (07 grace period, 09 pengajuan bukti bayar, dan
-> 11–23 yang semuanya butuh SUPERADMIN). Catatan desain L16-15: kode mengaktifkan plan
-> otomatis saat pembayaran disetujui — perlu konfirmasi pemilik. Detail:
-> `docs/qa/GITHUB-ISSUES-2026-10-23.md`.
+> 11–23 yang semuanya butuh SUPERADMIN). **L16-15 dikonfirmasi pemilik 24 Okt:**
+> approval otomatis mengaktifkan plan dan mengirim email — kode saat ini sudah sesuai.
+> Detail: `docs/qa/GITHUB-ISSUES-2026-10-23.md`.
 
 > **Status live QA (update 2026-10-18):**
 > - BATCH 1 (L0 + L1 auth) — **TUNTAS**: B1-04..B1-08 PASS, recovery B1-07
@@ -682,6 +682,11 @@ Endpoint v1 yang harus tersentuh minimal mencakup `messages`, `media`, `schedule
 
 # Phase L15 — Google Forms, CF7, WordPress/WooCommerce Integrations
 
+> **STATUS 24 Okt 2026:** masuk lingkup QA — **24 tes** (12 Google Forms + 12 CF7).
+> Pemilik memutuskan integrasi akan diperluas nanti (banyak connector, mudah
+> dikonfigurasi dari dashboard), tetapi untuk QA sekarang hanya dua ini.
+> Butuh situs WordPress + plugin CF7 dan akun/form Google uji.
+
 Repository memang sudah memiliki connector Google Forms dan plugin Contact Form 7.
 
 ### Google Forms
@@ -740,7 +745,7 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L16-12                                | Approve tanpa note jika note required | Ditolak                               |
 | L16-13                                | Approve + note                        | APPROVED                              |
 | L16-14                                | Reject                                | REJECTED                              |
-| L16-15                                | Approval tidak auto-assign plan       | Sesuai desain                         |
+| L16-15                                | Approval otomatis mengaktifkan plan   | **Dikonfirmasi 24 Okt:** setelah approve, paket aktif + email terkirim |
 | L16-16                                | SUPERADMIN assign subscription        | Aktif                                 |
 | L16-17                                | Change plan                           | Entitlement berubah                   |
 | L16-18                                | Entitlement override enable           | Efektif                               |

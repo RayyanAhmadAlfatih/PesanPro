@@ -288,18 +288,114 @@ diam-diam dilewati. Kalau ya, perlu site WordPress/CF7 uji dan script Google For
 
 ---
 
-## 7. Yang dibutuhkan dari pemilik sebelum eksekusi
+## 7. Yang dibutuhkan dari pemilik — dan cara memberikannya
 
-| # | Kebutuhan | Untuk tes | Dampak kalau tidak ada |
-| --- | --- | --- | --- |
-| 1 | Akun **SUPERADMIN** (login browser) | L16-11…23, L17-01…08, L14-30, L1-23…26 | 30+ tes terblokir |
-| 2 | Izin pakai penerima webhook eksternal (webhook.site/httpbin) **atau** URL penerima milik pemilik | L13 | L13 tidak bisa jalan |
-| 3 | Izin restart worker/aplikasi pada jendela tertentu | L13-31, L18 | Tes durability terblokir |
-| 4 | Data langganan kedaluwarsa terkontrol (ubah tanggal di DB) | L16-07, L1-55 | Grace period tidak teruji |
-| 5 | Cara membersihkan pengajuan bukti bayar uji | L16-09, L1-56…61 | Tidak bisa diuji tanpa residu |
-| 6 | Keputusan: Google Forms/CF7 dipasarkan? | L15 | 24 tes menggantung |
-| 7 | Keputusan desain L16-15 (approval otomatis mengaktifkan plan?) | L16-15 | Perilaku final tidak jelas |
-| 8 | Konfirmasi apakah backfill L0–L3 didahulukan sebelum L13 | Semua | Risiko klaim "tuntas" tanpa bukti |
+Prinsip: **beri akses sesempit mungkin, hanya untuk akun/objek uji.** Jangan pernah
+mengirim password akun pribadi/pemilik. Semua akses di bawah bisa dicabut setelah QA.
+
+### 7.1 Akun SUPERADMIN untuk pengujian
+
+**Yang saya butuhkan:** satu akun khusus QA ber-role SUPERADMIN.
+
+**Cara paling aman (disarankan):**
+
+1. Login sebagai superadmin Anda → menu **Users**.
+2. Buat user baru, misalnya `qa-admin@kingofcoding.my.id`, role **SUPERADMIN**.
+   Jangan pakai akun pribadi Anda.
+3. Kirim ke saya: email + password akun QA itu (boleh lewat chat; akun ini khusus uji).
+4. Setelah QA selesai, **turunkan role** akun itu menjadi USER atau hapus.
+
+**Alternatif tanpa mengirim password:** login-kan akun QA itu di profil Brave
+"Workbuddy only", lalu beri tahu saya. Saya memakai sesi browser, bukan password.
+Konsekuensinya: sesi tenant yang sedang login akan tergantikan.
+
+**Dipakai untuk:** L16-11…23, L17-01…08, L14-30, L1-23…26.
+
+### 7.2 Akun tenant A dan tenant B
+
+**Yang saya butuhkan:** cara masuk sebagai `testingusera@gmail.com` dan
+`testinguserb@gmail.com` saat tes membutuhkannya.
+
+**Pilihan:**
+
+- **A (disarankan):** kirim password kedua akun uji itu saja. Keduanya akun QA,
+  bukan akun pelanggan.
+- **B:** Anda login-kan salah satu di profil Brave, lalu beri tahu saya tenant mana
+  yang aktif. Saya tidak logout; saya hanya memakai sesi yang ada.
+
+**Jangan kirim password akun pemilik/pelanggan sungguhan.**
+
+### 7.3 Penerima webhook untuk L13
+
+**Yang saya butuhkan:** satu URL penerima yang bisa saya baca isinya.
+
+**Pilihan:**
+
+- **A (paling cepat):** izinkan saya memakai `https://webhook.site` (payload uji saja)
+  dan `https://httpbin.org` untuk kasus 500/timeout. Saya membuat token sendiri,
+  memakainya, lalu menghapusnya.
+- **B:** Anda buat request bin (webhook.site / Pipedream / layanan lain) dan kirim
+  URL-nya. Saya tidak perlu akunnya.
+- **C:** URL penerima milik Anda sendiri. Kalau mau, saya siapkan file PHP kecil
+  untuk mencatat request, tapi ini menambah endpoint di server — perlu keputusan Anda.
+
+**Data yang dikirim:** hanya metadata pesan uji (nomor uji, ID pesan, status). Tidak
+ada pesan pelanggan.
+
+### 7.4 Restart worker/aplikasi (L13-31, L18)
+
+**Tidak perlu memberi akses.** Saya beri perintah persis + waktu yang saya butuhkan;
+Anda yang menjalankan. Setelah restart, saya tunggu ±5 menit dan verifikasi status
+sebelum melanjutkan.
+
+### 7.5 Perubahan data uji di database (L14-14, L16-07, L1-55)
+
+**Tidak perlu memberi akses DB.** Saya kirim SQL yang persis, hanya menyentuh akun uji:
+
+- L14-14: mengosongkan satu slot API key uji **atau** mengisi `expiresAt` lampau pada
+  key `qa-*`.
+- L16-07 / L1-55: menggeser `trialEndsAt`/`endsAt` tenant uji ke masa lalu.
+
+Anda menjalankan, lalu menempel hasil `SELECT`-nya. Saya tidak pernah memegang
+kredensial database.
+
+### 7.6 WordPress/Contact Form 7 dan Google Forms (L15)
+
+**Yang saya butuhkan:**
+
+- **CF7:** URL situs WordPress uji + akun admin (atau application password), dan
+  plugin `pesanpro-contact-form-7` terpasang. Tanpa ini, 12 tes CF7 **BLOCKED**.
+- **Google Forms:** akun Google uji + form uji, atau Anda deploy Apps Script
+  `integrations/google-forms` dan kirim URL Web App-nya. Tanpa ini, tes "submit form"
+  tidak bisa dijalankan; yang bisa hanya menguji endpoint connector secara langsung.
+
+### 7.7 Aksi di HP untuk event webhook (L13-10…16)
+
+**Tidak perlu akses.** Saya akan meminta Anda melakukan satu aksi spesifik pada
+waktu yang saya tentukan: edit pesan, hapus untuk semua, posting status, ubah nama
+kontak, atau ubah anggota grup. Satu aksi per permintaan, tidak beruntun.
+
+### 7.8 Ringkasan akses minimum
+
+| Akses | Sifat | Untuk |
+| --- | --- | --- |
+| Akun QA SUPERADMIN | Wajib | L16 admin, L17 admin, L14-30, L1-23…26 |
+| Password 2 akun tenant uji | Wajib (atau login-kan browser) | L2/L3/L13/L17 |
+| Izin webhook.site + httpbin, atau URL penerima | Wajib | L13 |
+| Situs WordPress + plugin CF7 | Wajib untuk L15-C | L15 |
+| Akun/form Google uji | Wajib untuk L15-G | L15 |
+| Jendela restart | Koordinasi, bukan akses | L13-31, L18 |
+| SQL uji | Anda jalankan, saya tidak pegang DB | L14-14, L16-07, L1-55 |
+
+---
+
+## 7A. Keputusan pemilik yang sudah final (24 Oktober 2026)
+
+1. **L15 masuk lingkup uji sekarang:** Google Forms + Contact Form 7 (24 tes).
+   Integrasi lain menyusul di fase produk berikutnya, belum masuk QA ini.
+2. **L16-15 sesuai desain:** setelah SUPERADMIN menyetujui pembayaran, pengguna
+   otomatis menerima email dan paket langsung aktif. Perilaku kode saat ini sudah
+   benar; yang tersisa hanya pembuktian live setelah akses admin tersedia.
 
 ---
 
