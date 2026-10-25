@@ -73,6 +73,34 @@ describe("payment email notifications", () => {
     expect(email.textBody).toContain("Buka dashboard: https://pesanpro.example.com/dashboard");
   });
 
+  it("renders the PesanPro brand header and a status badge", () => {
+    const submitted = buildPaymentSubmittedEmail({
+      verificationId: "payment-1",
+      payerName: "Nadia",
+      payerEmail: "nadia@example.com",
+      planName: "Pro",
+      amount: "100000",
+      currency: "IDR",
+      reference: "BANK-001",
+      submittedAt: new Date("2026-09-27T00:00:00.000Z"),
+    });
+    expect(submitted.htmlBody).toContain("https://pesanpro.example.com/brand/pesanpro-icon.png");
+    expect(submitted.htmlBody).toContain("Perlu diperiksa");
+
+    const approved = buildPaymentApprovedEmail({
+      verificationId: "payment-1",
+      userName: "Raka",
+      planName: "Pro",
+      amount: "100000",
+      currency: "IDR",
+      reference: "BANK-001",
+      approvedAt: new Date("2026-09-27T00:00:00.000Z"),
+      activeUntil: new Date("2026-10-27T00:00:00.000Z"),
+    });
+    expect(approved.htmlBody).toContain("Aktif");
+    expect(approved.htmlBody).toContain("#1A3300");
+  });
+
   it("queues one idempotent notification for every active superadmin", async () => {
     const createMany = vi.fn().mockResolvedValue({ count: 2 });
     const client = {
