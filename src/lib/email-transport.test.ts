@@ -21,7 +21,7 @@ vi.mock("emailjs", () => ({
 }));
 
 import { _resetEnvCache } from "./env";
-import { sendSmtpEmail } from "./email-transport";
+import { sendSmtpEmail, SMTP_SEND_TIMEOUT_MS } from "./email-transport";
 
 const email = {
   messageId: "<message@example.com>",
@@ -50,6 +50,7 @@ describe("SMTP email transport", () => {
   });
 
   afterEach(() => {
+    vi.useRealTimers();
     vi.unstubAllEnvs();
     _resetEnvCache();
   });
@@ -82,6 +83,20 @@ describe("SMTP email transport", () => {
       code: "SMTP_DELIVERY_FAILED",
       message: "SMTP delivery failed",
     });
+    expect(smtp.close).toHaveBeenCalledOnce();
+  });
+
+  it("times out a stalled SMTP send and closes the connection", async () => {
+    vi.useFakeTimers();
+    smtp.sendAsync.mockImplementation(() => new Promise(() => undefined));
+
+    const result = expect(sendSmtpEmail(email)).rejects.toMatchObject({
+      code: "SMTP_DELIVERY_FAILED",
+      message: "SMTP delivery failed",
+    });
+    await vi.advanceTimersByTimeAsync(SMTP_SEND_TIMEOUT_MS);
+
+    await result;
     expect(smtp.close).toHaveBeenCalledOnce();
   });
 });
