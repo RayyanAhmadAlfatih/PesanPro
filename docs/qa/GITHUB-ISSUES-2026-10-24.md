@@ -411,3 +411,95 @@ diharapkan dari watchdog 60 detik. Ini bukti live pertama untuk perbaikan #1.
 Endpoint uji `qa-l13-04` sudah dihapus. Tersisa endpoint lama
 `QA-L2-17-Tenant-Isolation` (inactive, 5.532 delivery) dari QA sebelumnya —
 bukan milik sesi ini, tidak dihapus.
+
+---
+
+## L13 sisa — hasil bertahap (24 Oktober 2026, 21:03 WIB)
+
+| ID | Hasil | Bukti |
+| --- | --- | --- |
+| L13-07 | **PASS** | `message.received` diterima 21:02:55 WIB, isi `uji-l13-07-masuk-20261024`, satu event |
+
+---
+
+## [P2] `connection.update` tidak pernah dikirim (L13-10 GAGAL)
+
+**Ditemukan:** 24 Oktober 2026, 21:05 WIB. Pemilik melakukan Stop → Start pada
+`qa-b-session`; sesi kembali `CONNECTED` (updated 21:05:27), tetapi receiver tidak
+menerima satu pun event `connection.update`.
+
+**Root cause (terkonfirmasi dari kode):**
+- `src/lib/webhook.ts:253` mendefinisikan `onConnectionUpdate()`, tetapi fungsi itu
+  **tidak dipanggil di mana pun** (`grep` hanya menemukan definisinya).
+- `src/modules/whatsapp/instance.ts` hanya mengirim `connection.update` ke Socket.IO
+  untuk UI, tidak ke webhook.
+- Akibatnya event terdaftar di kontrak dan bisa dipilih pelanggan, tetapi tidak pernah
+  keluar.
+
+**Dampak:** pelanggan yang berlangganan `connection.update` tidak pernah diberi tahu
+saat perangkat putus, logout, atau tersambung kembali.
+
+**Status:** **OPEN — menunggu keputusan pemilik.** Belum ada perubahan kode.
+
+**Usulan fix (kecil):** panggil `onConnectionUpdate(sessionId, status, qr)` di handler
+`connection.update` pada `instance.ts`, hanya ketika status berubah (bukan setiap QR
+diperbarui). Tambah tes regresi untuk memastikan satu event per transisi status.
+
+---
+
+## Perbaikan `connection.update` (DIPERBAIKI, menunggu deploy)
+
+**File diubah:**
+- `src/modules/whatsapp/instance.ts` — semua transisi status melewati
+  `emitConnectionUpdate()`: emit ke Socket.IO + panggil `onConnectionUpdate()`.
+  Event webhook hanya dikirim saat status berubah; refresh QR berulang tidak
+  menghasilkan event ganda.
+- `src/lib/webhook-dispatch.test.ts` — tes payload `connection.update`.
+
+**Verifikasi:** `tsc` 0 error, `eslint` bersih. Tes unit lokal tidak bisa dijalankan
+karena aturan keamanan lingkungan memblokir pembacaan dependensi Baileys; verifikasi
+utama dilakukan live setelah deploy (satu event per transisi).
+
+**Commit:** `ef78b8b`, sudah di origin.
+
+---
+
+## L13-10 — PASS (setelah deploy `ef78b8b`)
+
+- Event `connection.update` terbentuk dengan payload
+  `{"status":"CONNECTED","qr":null}`.
+- Delivery `cmvn5k16k...` ke `https://httpbin.org/post` → **SUCCEEDED 200**,
+  attempt 1.
+- Delivery lama ke webhook.site gagal `HTTP_429` (rate limit receiver), bukan
+  kegagalan aplikasi; karena itu verifikasi 200 dilakukan lewat httpbin.
+
+**Catatan gap (P3):** transisi `STOPPED` dari tombol Stop di dashboard belum
+dipublikasikan — `manager.stopSession()` mengirim Socket.IO langsung tanpa melewati
+helper webhook. Transisi `CONNECTED` sudah benar. Dicatat untuk perbaikan berikutnya,
+tidak menghalangi L13-10.
+
+**Receiver baru:** webhook.site token `b35f4bab-...`; subscription dikurangi ke
+event yang tersisa (connection/group/contact/status/edited/deleted/schedule/broadcast)
+agar tidak terkena rate limit dari event `status@broadcast`.
+
+---
+
+## `contact.update` dipensiunkan (keputusan pemilik, 25 Oktober 2026)
+
+**Alasan:** Chat inbox sudah pensiun, sehingga tidak ada layar yang memakai nama
+kontak. Event ini hanya tersisa sebagai janji di dashboard Webhooks.
+
+**Perubahan:**
+- `src/lib/webhook-contract.ts` — `contact.update` dihapus dari daftar event.
+- `src/app/dashboard/webhooks/page.tsx` — pilihan "Contact Update" dihapus.
+- `src/modules/whatsapp/store/index.ts` — dispatch `contact.update` dihentikan;
+  sinkronisasi kontak ke database tetap berjalan.
+- `src/lib/webhook-contract.test.ts` — tes memastikan event pensiun tidak muncul lagi.
+
+**Dampak:** endpoint lama yang masih berlangganan `contact.update` tidak akan menerima
+event lagi (subscription-nya menjadi inert). Tidak ada perubahan data pelanggan.
+
+**Verifikasi:** `tsc` 0 error, `eslint` bersih, 6/6 tes kontrak lolos.
+**Status:** kode selesai, menunggu deploy bersama perubahan berikutnya.
+
+**L13-13:** N/A (dipensiunkan), bukan gagal.

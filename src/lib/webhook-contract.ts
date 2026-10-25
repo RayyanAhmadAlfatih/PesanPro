@@ -9,7 +9,6 @@ export const WEBHOOK_EVENT_TYPES = [
   "message.status",
   "connection.update",
   "group.update",
-  "contact.update",
   "status.update",
   "group.participant",
   "message.deleted",

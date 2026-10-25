@@ -137,7 +137,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
             try {
                 if (!c.id) continue;
                 const syncedContact = c as typeof c & { lid?: string; verifiedName?: string };
-                const updated = await prisma.contact.updateMany({
+                await prisma.contact.updateMany({
                     where: { sessionId: dbSessionId, jid: c.id },
                     data: {
                         lid: syncedContact.lid || undefined,
@@ -147,9 +147,8 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                     },
                 });
 
-                if (updated.count > 0) {
-                    dispatchWebhook(sessionId, "contact.update", { jid: c.id, name: c.name, notify: c.notify });
-                }
+                // contact.update is retired: the Chat inbox that consumed contact
+                // names is gone, so the event is no longer published.
             } catch (e) {
                 logger.error("Store", "Error saving contact", e);
             }

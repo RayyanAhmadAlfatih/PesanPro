@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { signWebhookBody, verifyWebhookRequest } from "./webhook-contract";
+import { signWebhookBody, verifyWebhookRequest, WEBHOOK_EVENT_TYPES } from "./webhook-contract";
 
 describe("webhook signature contract", () => {
   const secret = "whsec_abcdefghijklmnopqrstuvwxyz_1234567890";
@@ -33,6 +33,12 @@ describe("webhook signature contract", () => {
 
   it("rejects a repeated event ID after signature verification", () => {
     expect(verifyWebhookRequest({ body, secret, headers: headers(), nowMs: 1_788_048_000_000, isReplay: (id) => id === eventId })).toEqual({ valid: false, code: "REPLAY_DETECTED" });
+  });
+});
+
+describe("webhook event catalog", () => {
+  it("does not offer the retired contact.update event", () => {
+    expect(WEBHOOK_EVENT_TYPES).not.toContain("contact.update");
   });
 });
 
