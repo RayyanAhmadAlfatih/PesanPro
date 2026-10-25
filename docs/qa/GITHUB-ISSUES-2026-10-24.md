@@ -526,3 +526,29 @@ perubahan data pelanggan.
 **Status:** kode selesai, menunggu deploy bersama `contact.update` dan gap `STOPPED`.
 
 **L13-14 dan L13-19:** N/A (dipensiunkan), bukan gagal.
+
+---
+
+## [P2] `message.edited` tidak terkirim — DIPERBAIKI (menunggu deploy)
+
+**Bukti:** pesan `uji-l13-15-edit-20261024` benar-benar berlabel "Diedit 09.37"
+di HP, tetapi tidak ada event `message.edited` di delivery log.
+
+**Root cause:** handler edit hanya ada di jalur `messages.upsert`. WhatsApp
+mengirim edit/revoke lewat `messages.update`, dan handler itu hanya memproses
+perubahan status — protocol message jatuh ke status map dan berubah menjadi
+`PENDING`.
+
+**Perbaikan (`src/modules/whatsapp/store/index.ts`):**
+- `messages.update` sekarang memeriksa `protocolMessage` lebih dulu:
+  - tipe 14 (edit) → `message.edited` dengan `keyId`, `newContent`, `remoteJid`,
+    `fromMe`.
+  - tipe 0 / `messageStubType === 1` (revoke) → status pesan `FAILED` +
+    `message.deleted`.
+- Event key `message.edited:{editMessageId}` dan
+  `message.deleted:{targetMessageId}` mencegah duplikat bila jalur upsert juga
+  memancarkan event yang sama.
+- Setelah cabang protocol, `continue` mencegah edit/revoke dianggap status PENDING.
+
+**Verifikasi:** `tsc` 0 error, `eslint` bersih. Perlu uji live setelah deploy:
+edit satu pesan → satu `message.edited`; hapus satu pesan → satu `message.deleted`.

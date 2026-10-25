@@ -164,6 +164,45 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                 const keyId = update.key?.id;
                 if (!keyId) continue;
 
+                // Edits and revokes arrive as protocol messages on the update
+                // stream. Without this branch they fell through to the status
+                // map and were silently turned into PENDING.
+                const protocol = update.update?.message?.protocolMessage;
+                const isEdit = protocol?.type === 14;
+                const isRevoke = protocol?.type === 0 || update.update?.messageStubType === 1;
+
+                if (isEdit || isRevoke) {
+                    const targetKeyId = protocol?.key?.id ?? keyId;
+                    const remoteJid = update.key?.remoteJid ?? null;
+                    const fromMe = update.key?.fromMe ?? false;
+
+                    if (isEdit) {
+                        const normalizedEdit = protocol?.editedMessage
+                            ? normalizeMessageContent(protocol.editedMessage)
+                            : null;
+                        const newText = normalizedEdit?.conversation
+                            ?? normalizedEdit?.extendedTextMessage?.text
+                            ?? "";
+                        dispatchWebhook(sessionId, "message.edited", {
+                            keyId: targetKeyId,
+                            newContent: newText,
+                            remoteJid,
+                            fromMe,
+                        }, `message.edited:${keyId}`);
+                    } else {
+                        await prisma.message.updateMany({
+                            where: { sessionId: dbSessionId, keyId: targetKeyId },
+                            data: { status: "FAILED" },
+                        });
+                        dispatchWebhook(sessionId, "message.deleted", {
+                            keyId: targetKeyId,
+                            remoteJid,
+                            fromMe,
+                        }, `message.deleted:${targetKeyId}`);
+                    }
+                    continue;
+                }
+
                 const statusMap: Record<number, MessageStatus> = {
                     0: 'PENDING',
                     1: 'SENT',
@@ -317,7 +356,7 @@ async function processAndSaveMessage(
                         newContent: newText,
                         remoteJid,
                         fromMe
-                    });
+                    }, `message.edited:${keyId}`);
                 }
             }
             return null; // Stop processing as new message
@@ -339,7 +378,7 @@ async function processAndSaveMessage(
                     keyId: targetKeyId,
                     remoteJid,
                     fromMe
-                });
+                }, `message.deleted:${targetKeyId}`);
             }
             return null;
         }
