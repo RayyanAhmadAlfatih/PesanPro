@@ -1,5 +1,5 @@
 import { prisma } from "@/lib/prisma";
-import type { WASocket, WAMessage } from "@whiskeysockets/baileys";
+import type { WASocket, WAMessage, WAMessageContent } from "@whiskeysockets/baileys";
 import { normalizeMessageContent } from "@whiskeysockets/baileys";
 import { onMessageReceived, onMessageSent, dispatchWebhook } from "@/lib/webhook";
 import { resolveToPhoneJid, isLidJid, normalizeJid } from "@/lib/jid-utils";
@@ -164,21 +164,34 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                 const keyId = update.key?.id;
                 if (!keyId) continue;
 
-                // Edits and revokes arrive as protocol messages on the update
-                // stream. Without this branch they fell through to the status
-                // map and were silently turned into PENDING.
-                const protocol = update.update?.message?.protocolMessage;
-                const isEdit = protocol?.type === 14;
+                // Edits and revokes arrive on the update stream. Baileys wraps
+                // an edit as update.message.editedMessage.message (key.id is
+                // already the target message); revokes use messageStubType.
+                const updateMessage = update.update?.message as
+                    | (WAMessageContent & {
+                        editedMessage?: { message?: WAMessageContent | null } | null;
+                        protocolMessage?: {
+                            type?: number | null;
+                            key?: { id?: string | null } | null;
+                            editedMessage?: WAMessageContent | null;
+                        } | null;
+                    })
+                    | null
+                    | undefined;
+                const editEnvelope = updateMessage?.editedMessage;
+                const protocol = updateMessage?.protocolMessage;
+                const isEdit = Boolean(editEnvelope?.message) || protocol?.type === 14;
                 const isRevoke = protocol?.type === 0 || update.update?.messageStubType === 1;
 
                 if (isEdit || isRevoke) {
-                    const targetKeyId = protocol?.key?.id ?? keyId;
+                    const targetKeyId = editEnvelope?.message ? keyId : (protocol?.key?.id ?? keyId);
                     const remoteJid = update.key?.remoteJid ?? null;
                     const fromMe = update.key?.fromMe ?? false;
 
                     if (isEdit) {
-                        const normalizedEdit = protocol?.editedMessage
-                            ? normalizeMessageContent(protocol.editedMessage)
+                        const editContent = editEnvelope?.message ?? protocol?.editedMessage ?? null;
+                        const normalizedEdit = editContent
+                            ? normalizeMessageContent(editContent)
                             : null;
                         const newText = normalizedEdit?.conversation
                             ?? normalizedEdit?.extendedTextMessage?.text

@@ -552,3 +552,41 @@ perubahan status — protocol message jatuh ke status map dan berubah menjadi
 
 **Verifikasi:** `tsc` 0 error, `eslint` bersih. Perlu uji live setelah deploy:
 edit satu pesan → satu `message.edited`; hapus satu pesan → satu `message.deleted`.
+
+---
+
+## L13-16 — PASS (25 Oktober 2026, 13:08 WIB)
+
+- Event `message.deleted` diterima: `keyId 3EB0D47CAD7017605450D1`,
+  `remoteJid 154077874929843@lid`, `fromMe true`; delivery `SUCCEEDED 200`.
+
+**Temuan sampingan (P3):** `message.deleted` juga dikirim untuk
+`status@broadcast` — puluhan event status yang dihapus/kedaluwarsa membanjiri
+endpoint. Event pesan seharusnya tidak mempublikasikan status broadcast.
+Subscription `message.deleted` sementara dilepas dari endpoint uji; perbaikan
+filter dicatat untuk batch berikutnya.
+
+---
+
+## Koreksi fix `message.edited` — bentuk payload Baileys
+
+Percobaan pertama memeriksa `update.message.protocolMessage`, tetapi Baileys
+mengirim edit sebagai:
+
+```js
+{
+  key: { ...message.key, id: protocolMsg.key.id },
+  update: {
+    message: {
+      editedMessage: {
+        message: protocolMsg.editedMessage
+      }
+    }
+  }
+}
+```
+
+Jadi handler sekarang membaca `update.message.editedMessage.message`, dengan
+`key.id` sudah menunjuk pesan target. Revoke tetap terdeteksi lewat
+`messageStubType === 1` / `protocolMessage.type === 0`.
+`tsc` 0 error, `eslint` bersih. Menunggu deploy ulang untuk uji live.
