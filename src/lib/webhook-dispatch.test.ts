@@ -10,7 +10,7 @@ vi.mock("@/lib/webhook-outbox", () => ({ publishWebhookEvent: mocks.publish }));
 // needs getOwnJid, which returns null in this unit test.
 vi.mock("@/modules/whatsapp/manager", () => ({ waManager: { getInstance: () => null } }));
 
-import { dispatchWebhook } from "./webhook";
+import { dispatchWebhook, onConnectionUpdate } from "./webhook";
 
 describe("dispatchWebhook event key", () => {
   it("forwards the explicit message id to the outbox", async () => {
@@ -27,5 +27,17 @@ describe("dispatchWebhook event key", () => {
     await dispatchWebhook("qa-b-session", "connection.update", payload);
 
     expect(mocks.publish).toHaveBeenCalledWith("qa-b-session", "connection.update", payload, undefined);
+  });
+
+  it("publishes a connection.update event for subscribers", async () => {
+    onConnectionUpdate("qa-b-session", "CONNECTED");
+    await Promise.resolve();
+
+    expect(mocks.publish).toHaveBeenCalledWith(
+      "qa-b-session",
+      "connection.update",
+      { status: "CONNECTED", qr: null },
+      undefined,
+    );
   });
 });
