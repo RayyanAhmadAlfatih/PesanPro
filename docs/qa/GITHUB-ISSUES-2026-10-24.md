@@ -503,3 +503,26 @@ event lagi (subscription-nya menjadi inert). Tidak ada perubahan data pelanggan.
 **Status:** kode selesai, menunggu deploy bersama perubahan berikutnya.
 
 **L13-13:** N/A (dipensiunkan), bukan gagal.
+
+---
+
+## `status.update` dan `campaign.status` dipensiunkan (25 Oktober 2026)
+
+**Alasan:** `status.update` tidak punya pengirim sama sekali (hanya dipajang di UI),
+dan `campaign.status` milik fitur Campaign yang sudah pensiun.
+
+**Perubahan:**
+- `src/lib/webhook-contract.ts` — kedua event dihapus dari daftar.
+- `src/app/dashboard/webhooks/page.tsx` — pilihan "Status/Story" dan
+  "Campaign Status" dihapus.
+- `src/lib/campaign-queue.ts` — dispatch `campaign.status` dan import outbox dihapus.
+- `src/lib/webhook-contract.test.ts` — tes memastikan ketiga event pensiun
+  (`contact.update`, `status.update`, `campaign.status`) tidak muncul lagi.
+
+**Dampak:** endpoint lama yang berlangganan event ini menjadi inert. Tidak ada
+perubahan data pelanggan.
+
+**Verifikasi:** `tsc` 0 error, `eslint` bersih, 6/6 tes kontrak lolos.
+**Status:** kode selesai, menunggu deploy bersama `contact.update` dan gap `STOPPED`.
+
+**L13-14 dan L13-19:** N/A (dipensiunkan), bukan gagal.

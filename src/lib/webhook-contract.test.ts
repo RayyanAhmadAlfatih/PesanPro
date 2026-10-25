@@ -37,8 +37,10 @@ describe("webhook signature contract", () => {
 });
 
 describe("webhook event catalog", () => {
-  it("does not offer the retired contact.update event", () => {
-    expect(WEBHOOK_EVENT_TYPES).not.toContain("contact.update");
+  it("does not offer retired events", () => {
+    for (const event of ["contact.update", "status.update", "campaign.status"]) {
+      expect(WEBHOOK_EVENT_TYPES).not.toContain(event);
+    }
   });
 });
 

@@ -98,12 +98,10 @@ const AVAILABLE_EVENTS = [
     { id: "connection.update", label: "Connection Update", description: "When session connects/disconnects" },
     { id: "group.update", label: "Group Update", description: "When group info changes" },
     { id: "group.participant", label: "Group Member", description: "When participants join, leave, or change roles" },
-    { id: "status.update", label: "Status/Story", description: "When a status is posted or viewed" },
     { id: "message.edited", label: "Message Edited", description: "When a message is edited" },
     { id: "message.deleted", label: "Message Deleted", description: "When a message is revoked/deleted" },
     { id: "schedule.status", label: "Schedule Status", description: "When a durable schedule reaches a new state" },
     { id: "broadcast.status", label: "Broadcast Status", description: "When a broadcast completes or fails" },
-    { id: "campaign.status", label: "Campaign Status", description: "When a campaign reaches a new state" },
 ];
 
 import { useSession } from "@/components/dashboard/session-provider";

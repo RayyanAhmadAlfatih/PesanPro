@@ -13,11 +13,12 @@
 > Tenant A & B diperpanjang 7 hari (31 Okt 09:14 WIB) lewat superadmin.
 > Detail: `docs/qa/GITHUB-ISSUES-2026-10-24.md`.
 >
-> **L13 (25 Okt):** **22 PASS, 2 N/A, 8 belum.** Bug yang sudah diperbaiki:
+> **L13 (25 Okt):** **22 PASS, 3 N/A, 7 belum.** Bug yang sudah diperbaiki:
 > P1 sesi `CONNECTED` basi setelah DB mati (`ffdd57c`), P2 dua event `message.sent`
 > (`795926d`), P2 enam event `message.status` (`6f8e1a7`), `connection.update`
-> tidak pernah dikirim (`ef78b8b`). **L13-13 dipensiunkan** (contact.update dihapus
-> dari UI + kontrak). Sisa: 11, 12, 14–18, 31 (aksi HP/restart).
+> tidak pernah dikirim (`ef78b8b`). **Dipensiunkan:** `contact.update`,
+> `status.update`, dan `campaign.status` — dihapus dari UI + kontrak.
+> Sisa: 11, 12, 15–18, 31 (aksi HP/restart).
 > Build lokal gagal karena batas memori lingkungan; build diverifikasi di VPS
 > dengan heap 3072. Catatan deploy: jangan pindahkan `.next` sebelum build terbukti
 > `Compiled successfully`.
@@ -629,12 +630,12 @@ Event yang tersedia di source:
 | L13-11                                       | group.update                                 | Benar                                        |
 | L13-12                                       | group.participant                            | Benar                                        |
 | L13-13                                       | contact.update                               | **N/A (dipensiunkan 25 Okt 2026)** — inbox chat sudah pensiun; event dihapus dari UI + kontrak |
-| L13-14                                       | status.update                                | Benar                                        |
+| L13-14                                       | status.update                                | **N/A (dipensiunkan 25 Okt 2026)** — tidak ada pengirim; dihapus dari UI + kontrak |
 | L13-15                                       | message.edited                               | Benar                                        |
 | L13-16                                       | message.deleted                              | Benar                                        |
 | L13-17                                       | schedule.status                              | Benar                                        |
 | L13-18                                       | broadcast.status                             | Benar                                        |
-| L13-19                                       | campaign.status                              | Benar                                        |
+| L13-19                                       | campaign.status                              | **N/A (dipensiunkan 25 Okt 2026)** — Campaign pensiun; event dihapus dari UI, kontrak, dan worker |
 | L13-20                                       | Endpoint HTTP 500                            | Delivery FAILED/retry                        |
 | L13-21                                       | Endpoint timeout                             | Retry aman                                   |
 | L13-22                                       | Logs                                         | Payload, response, headers, latency terlihat |

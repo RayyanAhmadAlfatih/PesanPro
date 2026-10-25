@@ -4,7 +4,6 @@ import { EntitlementDeniedError, requireEntitlement, SubscriptionInactiveError }
 import { calculateCampaignProgress, selectCampaignDevice } from "./campaign-progress";
 import { MessageJobError } from "./message-job-errors";
 import { prisma } from "./prisma";
-import { createWebhookOutboxEvent } from "./webhook-outbox";
 
 export const DEFAULT_CAMPAIGN_LEASE_MS = 30_000;
 export const MAX_CAMPAIGN_MATERIALIZE_ATTEMPTS = 8;
@@ -224,16 +223,6 @@ export async function reconcileCampaign(campaignId: string) {
         cancelledAt: targetStatus === "CANCELLED" ? broadcast.cancelledAt ?? new Date() : null,
       },
     });
-    if (campaign.status !== targetStatus) {
-      await createWebhookOutboxEvent(tx, {
-        tenantId: campaign.tenantId,
-        sessionDbId: broadcast.sessionDbId,
-        sessionPublicId: broadcast.session?.sessionId ?? null,
-        eventType: "campaign.status",
-        eventKey: `campaign:${campaign.id}:${targetStatus}`,
-        data: { campaignId: campaign.id, broadcastId: broadcast.id, status: targetStatus, ...progress },
-      });
-    }
   });
   return { status: targetStatus, ...progress };
 }

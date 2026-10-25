@@ -9,13 +9,11 @@ export const WEBHOOK_EVENT_TYPES = [
   "message.status",
   "connection.update",
   "group.update",
-  "status.update",
   "group.participant",
   "message.deleted",
   "message.edited",
   "schedule.status",
   "broadcast.status",
-  "campaign.status",
   "test",
 ] as const;
 
