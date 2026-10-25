@@ -42,9 +42,12 @@ export async function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Allow known static asset extensions in root path only (e.g. /vercel.svg)
+    // Allow known root static assets plus the public PesanPro brand directory.
+    // Other nested paths remain protected by default.
     const staticExtensions = [".svg", ".ico", ".png", ".jpg", ".jpeg", ".webp", ".woff", ".woff2", ".ttf"];
-    if (pathname.lastIndexOf("/") === 0 && staticExtensions.some(ext => pathname.endsWith(ext))) {
+    const isKnownStaticAsset = staticExtensions.some(ext => pathname.endsWith(ext))
+        && (pathname.lastIndexOf("/") === 0 || pathname.startsWith("/brand/"));
+    if (isKnownStaticAsset) {
         return NextResponse.next();
     }
 

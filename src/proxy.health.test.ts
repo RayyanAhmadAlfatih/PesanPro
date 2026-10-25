@@ -31,4 +31,10 @@ describe("health probe authentication boundary", () => {
   it("does not exempt writes to probe paths", async () => {
     expect((await proxy(new NextRequest("http://localhost/api/health/live", { method: "POST" }))).status).toBe(401);
   });
+
+  it.each(["/brand/pesanpro-logo.webp", "/brand/pesanpro-icon.webp"])("serves public brand asset %s without authentication", async (path) => {
+    const response = await proxy(new NextRequest(`http://localhost${path}`));
+    expect(response.headers.get("x-middleware-next")).toBe("1");
+    expect(mocks.auth).not.toHaveBeenCalled();
+  });
 });

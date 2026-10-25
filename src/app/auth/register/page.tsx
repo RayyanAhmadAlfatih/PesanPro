@@ -15,9 +15,10 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Bot, ArrowRight, Loader2 } from "lucide-react";
+import { ArrowRight, Loader2 } from "lucide-react";
 import Link from 'next/link';
 import { getErrorMessage } from '@/lib/error-utils';
+import { PesanProIcon } from "@/components/brand";
 
 const formSchema = z.object({
     name: z.string().min(2, "Name must be at least 2 characters"),
@@ -88,9 +89,7 @@ export default function RegisterPage() {
             <div className="flex flex-col items-center justify-center min-h-screen bg-background relative overflow-hidden">
                 <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-primary/20 rounded-full blur-[120px] pointer-events-none" />
                 <div className="glass-panel p-10 rounded-3xl flex flex-col items-center text-center max-w-sm animate-in zoom-in duration-500">
-                    <div className="h-16 w-16 bg-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/30">
-                        <Bot className="h-8 w-8 text-white" />
-                    </div>
+                    <PesanProIcon className="mb-6 h-16 w-16 rounded-2xl object-cover shadow-lg shadow-emerald-500/20" priority />
                     <h2 className="text-2xl font-bold text-foreground mb-2">Registration Successful!</h2>
                     <p className="text-muted-foreground">Redirecting you to the login page...</p>
                 </div>
@@ -108,9 +107,7 @@ export default function RegisterPage() {
 
             <div className="relative z-10 w-full max-w-md p-4 animate-in fade-in zoom-in-95 duration-500">
                 <div className="flex flex-col items-center mb-8">
-                    <div className="relative flex h-16 w-16 mb-4 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-primary text-white shadow-lg shadow-primary/30">
-                        <Bot className="h-8 w-8" />
-                    </div>
+                    <PesanProIcon className="mb-4 h-16 w-16 rounded-2xl object-cover shadow-lg shadow-primary/20" priority />
                     <h1 className="text-3xl font-bold tracking-tight text-foreground">Create Account</h1>
                     <p className="text-muted-foreground mt-2">Create your PesanPro workspace</p>
                 </div>
