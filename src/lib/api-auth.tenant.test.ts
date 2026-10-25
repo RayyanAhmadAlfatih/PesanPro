@@ -29,7 +29,7 @@ describe("tenant session isolation", () => {
     }));
   });
 
-  it("does not allow a user to access another user's device", async () => {
+  it("[L2-08][L2-20] does not allow a user to access another user's device", async () => {
     mocks.prisma.user.findUnique.mockResolvedValue({ role: "USER", status: "ACTIVE", ownerId: null });
     mocks.prisma.session.findFirst.mockResolvedValue(null);
 
