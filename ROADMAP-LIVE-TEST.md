@@ -29,6 +29,9 @@
 > (a) P2 event `message.edited`/`message.deleted` palsu untuk `status@broadcast`
 > — 41 dari 100 delivery terakhir; (b) P2 sesi `FAILED` tanpa notifikasi dan tanpa
 > pemulihan otomatis. Detail: `docs/qa/GITHUB-ISSUES-2026-10-26.md`.
+>
+> **L17 (26 Okt, sebagian):** **3 PASS** — 16 (badge unread = API), 17 (mark one
+> read), 19 (delete). 18 belum (butuh ≥2 notifikasi); sisanya butuh SUPERADMIN.
 
 > **Fase 0 (update 2026-10-23):** lima error lama diverifikasi ulang. Empat diperbaiki
 > di kode dan lolos gates lokal, satu tetap menunggu konfigurasi server.
@@ -798,10 +801,10 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L17-13                              | Send notification to one user       | Hanya target menerima               |
 | L17-14                              | Broadcast notification              | Semua target menerima               |
 | L17-15                              | Realtime toast/socket               | Muncul tanpa refresh                |
-| L17-16                              | Inbox unread                        | Counter benar                       |
-| L17-17                              | Mark one read                       | Berubah                             |
+| L17-16                              | Inbox unread **PASS 26 Okt** — badge lonceng "1" sama dengan `unread=1` di API | Counter benar                       |
+| L17-17                              | Mark one read **PASS 26 Okt** — `PATCH /api/notifications/read {ids:[…]}` → `unread` 1→0, badge hilang | Berubah                             |
 | L17-18                              | Mark all read                       | Semua berubah                       |
-| L17-19                              | Delete notification                 | Hilang                              |
+| L17-19                              | Delete notification **PASS 26 Okt** — `DELETE` → `total=0`, badge tetap kosong | Hilang                              |
 | L17-20                              | Notification href                   | Navigasi benar                      |
 | L17-21                              | System Monitor runtime heartbeat    | Semua worker terlihat               |
 | L17-22                              | MySQL latency                       | Muncul                              |

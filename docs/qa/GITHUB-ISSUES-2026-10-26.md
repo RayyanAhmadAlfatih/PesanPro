@@ -11,9 +11,11 @@ Semua uji live memakai nomor uji `6283877315731` dan kata kunci `uji*`.
 | --- | --- |
 | L13-17 `schedule.status` | **PASS** |
 | L13-18 `broadcast.status` | **PASS** |
+| L17-16/17/19 notifikasi | **PASS** |
 | P2 — event palsu dari status WhatsApp | **Diperbaiki di kode**, menunggu deploy |
 | P2 — sesi `FAILED` tanpa pemberitahuan & tanpa pemulihan | **Diperbaiki di kode**, menunggu deploy |
 | Sisa L13 | 07, 11, 12, 15, 16, 31 — butuh aksi HP / deploy / restart |
+| Sisa L17 | 01–15, 18, 20–44 — butuh SUPERADMIN (kecuali 18 yang butuh ≥2 notifikasi) |
 
 ---
 
@@ -119,8 +121,53 @@ tidak pernah dicoba lagi.
 
 ---
 
+## L17-16 / 17 / 19 — notifikasi (USER) — PASS
+
+| Tes | Bukti |
+| --- | --- |
+| L17-16 Inbox unread | Badge lonceng di header menampilkan **1**, `/api/notifications` memberi `unread=1` dari 1 baris |
+| L17-17 Mark one read | `PATCH /api/notifications/read {ids:[…]}` → `200`; `unread` menjadi **0**; badge hilang setelah reload |
+| L17-19 Delete notification | `DELETE /api/notifications/delete?id=…` → `200`; daftar menjadi `total=0`, badge tetap kosong |
+
+L17-18 (mark all read) belum dijalankan: hanya ada satu notifikasi, jadi jalur
+"semua" tidak bisa dibuktikan. Perlu dibuatkan ≥2 notifikasi oleh superadmin.
+
+---
+
 ## Paket menunggu pemilik
 
-Lihat bagian **BLOCKED-PEMILIK** di laporan sesi. Isinya: deploy build terbaru,
-kata sandi superadmin untuk L16/L17, aksi HP untuk L13-07/11/12/15/16, dan satu
-kali restart untuk L13-31.
+### 1. Deploy build terbaru (satu kali, untuk empat commit)
+
+Commit yang menunggu: `47bb120` + `6099d81` (edit/hapus pesan), `ebec9d3` +
+`2b5ae8d` (pensiunkan `contact.update`, `status.update`, `campaign.status`),
+`4402f8b` (buang event status), `3f3f74d` (pemulihan sesi FAILED).
+Tidak ada migrasi database.
+
+```bash
+cd <direktori-app-di-VPS>
+git fetch origin && git checkout workbuddy-fase0-qa-2026-10-23 && git pull --ff-only
+mv .next .next.prev-$(date +%s)
+node --max-old-space-size=3072 node_modules/next/dist/bin/next build --webpack
+# tunggu sampai muncul "Compiled successfully" — jangan restart kalau belum
+pm2 restart pesanpro
+```
+
+Durasi perkiraan: build 5–13 menit, restart + 502 sesaat ±30 detik.
+Dampak: sesi WhatsApp tersambung ulang otomatis; pengiriman tertunda beberapa detik.
+
+### 2. Akses SUPERADMIN
+
+Dibutuhkan untuk L16-11..23 dan hampir seluruh L17 (01–15, 18, 20–44).
+Cukup salah satu: kata sandi akun `pesanpro@kingofcoding.my.id`, atau login-kan
+browser `Profile 11` ke akun itu.
+
+### 3. Aksi HP (L13-07, 11, 12, 15, 16)
+
+- Kirim satu pesan WhatsApp biasa ke nomor uji → L13-07 (`message.received`).
+- Edit lalu hapus pesan itu dari HP → L13-15 dan L13-16 (butuh deploy nomor 1 dulu).
+- Ubah nama grup dan tambah/hapus satu anggota → L13-11 dan L13-12.
+
+### 4. Satu kali restart worker (L13-31)
+
+Setelah deploy, restart `pesanpro` sekali lagi sambil memastikan antrean webhook
+tidak hilang atau berganda.
