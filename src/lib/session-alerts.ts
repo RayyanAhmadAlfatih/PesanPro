@@ -9,7 +9,7 @@ import { logger } from "@/lib/logger";
  * only found out when a send failed with 503. The bell notification and the
  * realtime toast are the channels the dashboard already listens to.
  */
-export type SessionAlertKind = "LOGGED_OUT" | "STOPPED" | "RECONNECT_FAILED";
+export type SessionAlertKind = "LOGGED_OUT" | "STOPPED" | "RECONNECT_FAILED" | "FAILED";
 
 const ALERT_COPY: Record<SessionAlertKind, { title: string; message: (name: string) => string }> = {
   LOGGED_OUT: {
@@ -26,6 +26,11 @@ const ALERT_COPY: Record<SessionAlertKind, { title: string; message: (name: stri
     title: "Sesi WhatsApp gagal dipulihkan",
     message: (name) =>
       `Sesi "${name}" tidak bisa dipulihkan otomatis setelah koneksinya bermasalah. Mulai sesi kembali dari halaman Sesi.`,
+  },
+  FAILED: {
+    title: "Sesi WhatsApp tidak aktif",
+    message: (name) =>
+      `Sesi "${name}" berhenti karena gangguan teknis dan pemulihan otomatis belum berhasil. Mulai sesi kembali dari halaman Sesi.`,
   },
 };
 

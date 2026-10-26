@@ -6,6 +6,7 @@ import crypto from "crypto";
 import type { Role } from "@prisma/client";
 import { createOwnedSession } from "@/lib/session-service";
 import { shouldRecoverDevice } from "@/lib/device-policy";
+import { notifySessionOwner } from "@/lib/session-alerts";
 import {
     acquireSessionRuntimeLock,
     createWorkerId,
@@ -24,6 +25,9 @@ export class WhatsAppManager {
     private leaseTimers: Map<string, ReturnType<typeof setInterval>> = new Map();
     private reconcileTimer: ReturnType<typeof setInterval> | null = null;
     private reconciling = false;
+    /** Bounded retry state for sessions the runtime marked FAILED. */
+    private failedRecovery: Map<string, { attempts: number; nextAttemptAt: number; alerted: boolean }> = new Map();
+    private static readonly FAILED_RECOVERY_DELAYS_MS = [60_000, 300_000, 900_000, 3_600_000];
     private readonly workerId = createWorkerId();
     public io: Server | null = null;
 
@@ -96,26 +100,37 @@ export class WhatsAppManager {
      * loop the session stays CONNECTED forever while every send fails with
      * SESSION_NOT_READY. A missing instance is re-initialised here; a lease
      * held by another worker is left alone.
+     *
+     * A session that already flipped to FAILED is retried too, with growing
+     * delays, because that status is written by the runtime itself (lease loss,
+     * failed start) and nothing else would ever bring the device back. The
+     * owner is told once the retries keep failing, so the device is never down
+     * without anybody noticing.
      */
     async reconcileSessions() {
         if (this.reconciling || !this.io) return;
         this.reconciling = true;
         try {
             const sessions = await prisma.session.findMany({
-                where: { status: "CONNECTED" },
-                select: { id: true, sessionId: true },
+                where: { status: { in: ["CONNECTED", "FAILED"] } },
+                select: { id: true, sessionId: true, status: true, userId: true },
             });
             for (const session of sessions) {
                 if (this.sessions.has(session.sessionId)) continue;
                 const authCount = await prisma.authState.count({ where: { sessionId: session.sessionId } });
                 if (authCount === 0) continue;
+                if (session.status === "FAILED" && !this.reserveFailedRecovery(session.sessionId)) continue;
                 try {
                     await this.startSession(session.sessionId);
+                    this.failedRecovery.delete(session.sessionId);
                     logger.warn("Manager", `Reconciled missing session ${session.sessionId}`);
                 } catch (error) {
                     const message = error instanceof Error ? error.message : "";
                     if (message.includes("already active on another worker")) continue;
                     logger.error("Manager", `Failed to reconcile session ${session.sessionId}`, error);
+                    if (session.status === "FAILED") {
+                        await this.alertFailedRecovery(session.sessionId, session.userId);
+                    }
                 }
             }
         } catch (error) {
@@ -123,6 +138,30 @@ export class WhatsAppManager {
         } finally {
             this.reconciling = false;
         }
+    }
+
+    /**
+     * Decide whether a FAILED session may be retried now. Retries back off so a
+     * permanently broken device cannot hammer WhatsApp, but they never stop
+     * completely: the last delay repeats once an hour.
+     */
+    private reserveFailedRecovery(sessionId: string): boolean {
+        const now = Date.now();
+        const state = this.failedRecovery.get(sessionId) ?? { attempts: 0, nextAttemptAt: 0, alerted: false };
+        if (now < state.nextAttemptAt) return false;
+        const delays = WhatsAppManager.FAILED_RECOVERY_DELAYS_MS;
+        state.attempts += 1;
+        state.nextAttemptAt = now + delays[Math.min(state.attempts - 1, delays.length - 1)];
+        this.failedRecovery.set(sessionId, state);
+        return true;
+    }
+
+    /** Tell the owner once, after the third unsuccessful automatic retry. */
+    private async alertFailedRecovery(sessionId: string, userId: string) {
+        const state = this.failedRecovery.get(sessionId);
+        if (!state || state.alerted || state.attempts < 3) return;
+        state.alerted = true;
+        await notifySessionOwner({ userId, sessionId, kind: "FAILED" });
     }
 
     private startReconciliation(intervalMs = 60_000) {
