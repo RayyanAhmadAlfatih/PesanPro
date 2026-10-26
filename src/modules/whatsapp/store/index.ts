@@ -3,6 +3,7 @@ import type { WASocket, WAMessage, WAMessageContent } from "@whiskeysockets/bail
 import { normalizeMessageContent } from "@whiskeysockets/baileys";
 import { onMessageReceived, onMessageSent, dispatchWebhook } from "@/lib/webhook";
 import { resolveToPhoneJid, isLidJid, normalizeJid } from "@/lib/jid-utils";
+import { isTenantChatJid } from "@/lib/message-event-scope";
 import { maskAutoReplyJid as maskJid } from "@/lib/autoreply-privacy";
 
 import { Server } from "socket.io";
@@ -164,6 +165,11 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                 const keyId = update.key?.id;
                 if (!keyId) continue;
 
+                // Statuses, broadcast lists and channels reuse the same revoke
+                // markers as a real delete. They are not tenant conversations.
+                const remoteJid = update.key?.remoteJid ?? null;
+                if (!isTenantChatJid(remoteJid)) continue;
+
                 // Edits and revokes arrive on the update stream. Baileys wraps
                 // an edit as update.message.editedMessage.message (key.id is
                 // already the target message); revokes use messageStubType.
@@ -185,7 +191,6 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
 
                 if (isEdit || isRevoke) {
                     const targetKeyId = editEnvelope?.message ? keyId : (protocol?.key?.id ?? keyId);
-                    const remoteJid = update.key?.remoteJid ?? null;
                     const fromMe = update.key?.fromMe ?? false;
 
                     if (isEdit) {
@@ -340,6 +345,8 @@ async function processAndSaveMessage(
     // Filter out Protocol & Empty Messages
     if (!msg.message) return false;
     if (!keyId || !remoteJid) return false;
+    // Statuses, broadcast lists and channels are not tenant conversations.
+    if (!isTenantChatJid(remoteJid)) return false;
 
     // Ignore specific technical message types
     const messageKeys = Object.keys(msg.message);
