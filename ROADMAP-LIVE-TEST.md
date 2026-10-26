@@ -18,10 +18,17 @@
 > (`795926d`), P2 enam event `message.status` (`6f8e1a7`), `connection.update`
 > tidak pernah dikirim (`ef78b8b`). **Dipensiunkan:** `contact.update`,
 > `status.update`, dan `campaign.status` — dihapus dari UI + kontrak.
-> Sisa: 11, 12, 15–18, 31 (aksi HP/restart).
+> Sisa: 07, 11, 12, 15, 16, 31 (aksi HP/deploy/restart).
 > Build lokal gagal karena batas memori lingkungan; build diverifikasi di VPS
 > dengan heap 3072. Catatan deploy: jangan pindahkan `.next` sebelum build terbukti
 > `Compiled successfully`.
+>
+> **L13 (26 Okt):** **24 PASS, 3 N/A, 6 belum.** L13-17 `schedule.status` dan
+> L13-18 `broadcast.status` **PASS** lewat jadwal & broadcast sungguhan (delivery
+> `200`, payload sesuai kontrak). Dua bug baru diperbaiki dan menunggu deploy:
+> (a) P2 event `message.edited`/`message.deleted` palsu untuk `status@broadcast`
+> — 41 dari 100 delivery terakhir; (b) P2 sesi `FAILED` tanpa notifikasi dan tanpa
+> pemulihan otomatis. Detail: `docs/qa/GITHUB-ISSUES-2026-10-26.md`.
 
 > **Fase 0 (update 2026-10-23):** lima error lama diverifikasi ulang. Empat diperbaiki
 > di kode dan lolos gates lokal, satu tetap menunggu konfigurasi server.
@@ -633,8 +640,8 @@ Event yang tersedia di source:
 | L13-14                                       | status.update                                | **N/A (dipensiunkan 25 Okt 2026)** — tidak ada pengirim; dihapus dari UI + kontrak |
 | L13-15                                       | message.edited                               | Benar                                        |
 | L13-16                                       | message.deleted                              | Benar                                        |
-| L13-17                                       | schedule.status                              | Benar                                        |
-| L13-18                                       | broadcast.status                             | Benar                                        |
+| L13-17                                       | schedule.status **PASS 26 Okt 2026** — delivery `200`, payload `{scheduleId, executionId, status}` | Benar                                        |
+| L13-18                                       | broadcast.status **PASS 26 Okt 2026** — delivery `200`, payload `{broadcastId, status}` | Benar                                        |
 | L13-19                                       | campaign.status                              | **N/A (dipensiunkan 25 Okt 2026)** — Campaign pensiun; event dihapus dari UI, kontrak, dan worker |
 | L13-20                                       | Endpoint HTTP 500                            | Delivery FAILED/retry                        |
 | L13-21                                       | Endpoint timeout                             | Retry aman                                   |
