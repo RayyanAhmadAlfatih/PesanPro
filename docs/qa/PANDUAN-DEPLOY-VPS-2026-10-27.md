@@ -47,8 +47,9 @@ git pull --ff-only origin workbuddy-fase0-qa-2026-10-23
 git log --oneline -6
 ```
 
-Yang diharapkan: `git log` menampilkan `6db1acb` di paling atas, lalu `e08fbb1`,
-`3f3f74d`, `4402f8b`.
+Yang diharapkan: `git log` menampilkan `6db1acb` di daftar teratas (kalau commit
+panduan ikut tertarik, `fa0764f` muncul paling atas — tidak berpengaruh ke build),
+lalu `e08fbb1`, `3f3f74d`, `4402f8b`.
 
 Kalau `git pull` menolak karena ada perubahan lokal, **berhenti** dan lapor isi
 `git status --short`. Jangan dipaksa dengan `git reset`.
