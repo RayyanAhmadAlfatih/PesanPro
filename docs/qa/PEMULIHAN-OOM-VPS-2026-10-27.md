@@ -1,0 +1,147 @@
+# Pemulihan VPS setelah OOM — 27 Oktober 2026
+
+## Yang terlihat dari luar (bukti)
+
+| Waktu | Pemeriksaan | Hasil |
+| --- | --- | --- |
+| 18:23 | `/api/health/live`, `/auth/login`, `/` | timeout total (60 detik tanpa respons) |
+| 18:23 | Permintaan langsung ke `43.156.166.93` | tidak ada respons; SSH `timed out during banner exchange` |
+| 18:23 | Ping ke IP server | 26 ms, 0% loss → mesin hidup |
+| 18:23 | Port 22, 80, 443, 7800 | terbuka; port **3000 tertutup** |
+| 18:30 | `/api/health/live` | **502 dalam 0,14 detik** (nginx sudah sehat) |
+| 18:30 | Port 3000 | masih tertutup → proses Node mati |
+
+Kesimpulan: fase thrash sudah lewat (nginx kembali menjawab cepat), yang tersisa
+adalah **aplikasi Node mati** — kemungkinan besar dibunuh OOM killer saat build.
+Ini bukan nginx mati: nginx hidup dan menjawab `502` karena tidak ada yang
+mendengarkan di port 3000.
+
+Catatan akses: SSH ke `43.156.166.93` sekarang merespons, tetapi tidak ada kunci
+di mesin ini yang diizinkan (`Permission denied (publickey)` untuk root maupun
+`pesanpro`). Jadi langkah di bawah perlu dijalankan dari sisi Anda.
+
+---
+
+## Langkah 1 — Masuk ke server
+
+SSH seharusnya sudah bisa lagi sekarang (mesin sudah tidak menggantung). Kalau
+masih menggantung, pakai **konsol penyedia VPS (VNC)** atau **terminal aaPanel**
+di `https://43.156.166.93:7800`.
+
+---
+
+## Langkah 2 — Diagnosa 60 detik (setelah masuk)
+
+```bash
+free -m
+swapon --show
+dmesg -T | grep -iE "out of memory|killed process" | tail -15
+ps aux --sort=-%mem | head -8
+df -h /
+ls -ld /www/wwwroot/PesanPro/.next*
+pm2 status
+```
+
+Yang dicari:
+
+- `dmesg` menyebut `Killed process ... (node)` → OOM killer membunuh build atau aplikasi.
+- `free -m` menunjukkan `available` hampir 0 dan `swap` penuh.
+- `.next` hilang atau `.next.prev-*` ada → build terhenti di tengah.
+
+---
+
+## Langkah 3 — Hidupkan situs dulu, jangan build lagi
+
+```bash
+su - pesanpro
+cd /www/wwwroot/PesanPro
+pm2 status
+pkill -f "next build" 2>/dev/null   # kalau build masih menggantung
+ls -l .next/BUILD_ID 2>/dev/null && echo "BUILD UTUH" || echo "BUILD TIDAK ADA"
+ls -dt .next.prev-* | head -3
+```
+
+Pilih satu:
+
+**a. `BUILD UTUH`** (`.next/BUILD_ID` ada) — kasus paling ringan, pulih ±30 detik:
+
+```bash
+pm2 start pesanpro
+sleep 20
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/api/health/live
+```
+
+**b. `BUILD TIDAK ADA`** (`.next` hilang atau build terhenti):
+
+```bash
+mv .next .next.gagal-$(date +%s) 2>/dev/null
+mv .next.prev-<ANGKA-TERBARU> .next
+pm2 start pesanpro
+sleep 20
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/api/health/live
+```
+
+Target: `200` dari health lokal, lalu `200` dari URL publik. **Situs harus hidup
+dulu sebelum build ulang.**
+
+---
+
+## Langkah 4 — Tambah swap (sekali saja, permanen)
+
+Cek dulu: `swapon --show`. Kalau sudah ada swap ≥2 GB, lewati langkah ini.
+
+```bash
+fallocate -l 4G /swapfile-pesanpro || dd if=/dev/zero of=/swapfile-pesanpro bs=1M count=4096
+chmod 600 /swapfile-pesanpro
+mkswap /swapfile-pesanpro
+swapon /swapfile-pesanpro
+free -m
+grep -q swapfile-pesanpro /etc/fstab || echo '/swapfile-pesanpro none swap sw 0 0' >> /etc/fstab
+```
+
+Tanpa swap, build Next.js dengan heap 3072 MB akan OOM lagi di VPS ini — sudah
+terbukti dua kali (24 Okt dan hari ini).
+
+---
+
+## Langkah 5 — Build ulang dengan aman
+
+```bash
+su - pesanpro
+cd /www/wwwroot/PesanPro
+
+pm2 stop pesanpro                                  # bebas ±750 MB selama build
+mv .next .next.prev-$(date +%s)
+node --max-old-space-size=3072 node_modules/next/dist/bin/next build --webpack > /tmp/pesanpro-build.log 2>&1; echo "EXIT=$?"
+tail -5 /tmp/pesanpro-build.log
+```
+
+- `EXIT=0` + baris `Compiled successfully` → lanjut.
+- Selain itu → rollback: `mv .next .next.gagal-$(date +%s) && mv .next.prev-<ANGKA> .next && pm2 start pesanpro`.
+
+Kalau sukses:
+
+```bash
+pm2 start pesanpro
+sleep 25
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/api/health/live
+```
+
+Kalau build **masih** OOM meski sudah ada swap 4 GB: naikkan swap ke 6–8 GB
+(`swapoff /swapfile-pesanpro && rm /swapfile-pesanpro` lalu ulangi langkah 4
+dengan `8G`), dan pastikan tidak ada proses lain (backup, cron) berjalan
+bersamaan.
+
+---
+
+## Catatan penting
+
+- `ecosystem.config.cjs` memasang `max_memory_restart: 750M` pada proses
+  `pesanpro`. Saat memori server sempit, PM2 akan terus me-restart aplikasi —
+  kalau `pm2 status` menunjukkan restart naik terus tanpa henti, penyebabnya
+  tekanan memori server, bukan bug aplikasi.
+- Aplikasi berjalan lewat `tsx` (`node_modules/tsx/dist/cli.mjs src/server/index.ts`)
+  dengan heap 512 MB, jadi kebutuhan RAM normal ±300–500 MB. Yang berat hanya
+  proses build.
+- Setelah semuanya pulih, baru lanjut tes L13 (edit/hapus pesan) satu per satu.
+  L13-31 (restart worker) tetap paling akhir.
