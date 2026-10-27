@@ -145,3 +145,81 @@ bersamaan.
   proses build.
 - Setelah semuanya pulih, baru lanjut tes L13 (edit/hapus pesan) satu per satu.
   L13-31 (restart worker) tetap paling akhir.
+
+---
+
+## Bagian 6 — Build masih dibunuh (EXIT=137), 27 Okt 18:40
+
+Fakta dari sesi pemilik:
+
+- `pm2 stop all` sudah dilakukan, jadi bukan aplikasi yang menekan memori.
+- `free -m`: RAM 3659 MB (available 2833), **swap 4035 MB sudah ada** (1212 MB terpakai).
+- `mv .next .next.prev-<ts>` berhasil, artinya `.next` ada — tetapi `.next/BUILD_ID`
+  tidak ada, jadi build lama memang **tidak utuh** (build sebelumnya menimpa
+  `.next` yang sedang dipakai → itu sebab 502 pertama).
+- Build heap 3072 → `Killed`, `EXIT=137` (SIGKILL).
+- `pm2 start pesanpro` → status `online` tetapi port 3000 tetap tertutup:
+  aplikasi tidak bisa melayani tanpa `.next`.
+
+`next.config.mjs` sudah memaksa hemat memori (`experimental.cpus: 1`,
+`webpackMemoryOptimizations: true`, `config.parallelism = 1`), jadi penyebabnya
+bukan paralelisme build.
+
+### Cek siapa yang membunuh (30 detik)
+
+```bash
+dmesg -T | grep -iE "out of memory|killed process" | tail -5
+journalctl -u systemd-oomd --since "30 min ago" 2>/dev/null | tail -10
+cat /sys/fs/cgroup/memory.max 2>/dev/null
+cat /sys/fs/cgroup/memory.swap.max 2>/dev/null
+```
+
+- `Killed process ... node` → OOM killer kernel.
+- `Killed /user.slice/... due to memory pressure` → **systemd-oomd** (Ubuntu
+  22.04+). Ini yang paling mungkin: swap membuat thrash, tekanan memori naik,
+  oomd membunuh build walau masih ada RAM bebas.
+- `memory.max` ≈ 4 GB dan `memory.swap.max` = 0 → swap tidak boleh dipakai
+  service; peak harus diturunkan, bukan swap ditambah.
+
+### Urutan percobaan
+
+**A. Turunkan peak (coba dulu, 5–13 menit)**
+
+```bash
+cd /www/wwwroot/PesanPro
+pm2 stop pesanpro
+mv .next .next.gagal-$(date +%s) 2>/dev/null
+node --max-old-space-size=2560 --max-semi-space-size=16 \
+  node_modules/next/dist/bin/next build --webpack > /tmp/pesanpro-build.log 2>&1; echo "EXIT=$?"
+tail -5 /tmp/pesanpro-build.log
+```
+
+**B. Kalau masih `Killed`** — matikan systemd-oomd hanya selama build:
+
+```bash
+sudo systemctl stop systemd-oomd systemd-oomd.socket
+# ulangi perintah build di A
+sudo systemctl start systemd-oomd systemd-oomd.socket
+```
+
+**C. Kalau masih `Killed`** — build dengan Turbopack (heap jauh lebih kecil):
+
+```bash
+node --max-old-space-size=2048 node_modules/next/dist/bin/next build --turbopack
+```
+
+Kalau Turbopack menolak konfigurasi proyek, kembali ke webpack dan naikkan swap
+lewat root: `fallocate -l 8G /swapfile2 && chmod 600 /swapfile2 && mkswap /swapfile2
+&& swapon /swapfile2` (butuh root, bukan user `pesanpro`).
+
+### Setelah build sukses
+
+```bash
+pm2 start pesanpro
+sleep 25
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/api/health/live
+```
+
+Kalau `pm2` bilang `online` tetapi port tetap tertutup:
+`pm2 logs pesanpro --lines 30 --nostream` — biasanya
+`Could not find a production build in the '.next' directory`.
