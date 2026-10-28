@@ -3,7 +3,7 @@ import type { WASocket, WAMessage, WAMessageContent } from "@whiskeysockets/bail
 import { normalizeMessageContent } from "@whiskeysockets/baileys";
 import { onMessageReceived, onMessageSent, dispatchWebhook } from "@/lib/webhook";
 import { resolveToPhoneJid, isLidJid, normalizeJid } from "@/lib/jid-utils";
-import { isTenantChatJid } from "@/lib/message-event-scope";
+import { isTenantChatJid, readEditedText } from "@/lib/message-event-scope";
 import { maskAutoReplyJid as maskJid } from "@/lib/autoreply-privacy";
 
 import { Server } from "socket.io";
@@ -197,12 +197,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
 
                     if (isEdit) {
                         const editContent = editEnvelope?.message ?? protocol?.editedMessage ?? null;
-                        const normalizedEdit = editContent
-                            ? normalizeMessageContent(editContent)
-                            : null;
-                        const newText = normalizedEdit?.conversation
-                            ?? normalizedEdit?.extendedTextMessage?.text
-                            ?? "";
+                        const newText = readEditedText(editContent);
                         logger.info("Store", `Edit received on update stream for ${targetKeyId}`);
                         dispatchWebhook(sessionId, "message.edited", {
                             keyId: targetKeyId,
@@ -378,10 +373,7 @@ async function processAndSaveMessage(
             ? (editEnvelope as WAMessageContent)
             : null);
     if (editContent) {
-        const normalizedEdit = normalizeMessageContent(editContent);
-        const newText = normalizedEdit?.conversation
-            ?? normalizedEdit?.extendedTextMessage?.text
-            ?? "";
+        const newText = readEditedText(editContent);
         logger.info("Store", `Edit received on upsert for ${keyId}`);
         dispatchWebhook(sessionId, "message.edited", {
             keyId,
@@ -402,11 +394,7 @@ async function processAndSaveMessage(
         if (pMessage?.type === 14 && targetKeyId) {
             const editContent = pMessage?.editedMessage;
             if (editContent) {
-                // Determine new text
-                const normalizedEdit = normalizeMessageContent(editContent);
-                let newText = "";
-                if (normalizedEdit?.conversation) newText = normalizedEdit.conversation;
-                else if (normalizedEdit?.extendedTextMessage?.text) newText = normalizedEdit.extendedTextMessage.text;
+                const newText = readEditedText(editContent);
 
                 // Message text is not persisted, so there is no stored body to
                 // rewrite. The edit still reaches the tenant through the webhook.

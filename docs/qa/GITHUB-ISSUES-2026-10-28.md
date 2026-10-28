@@ -164,3 +164,28 @@ Login dengan `pesanpro@kingofcoding.my.id` + kata sandi dari vault ditolak
 (`CredentialsSignin`, kode `credentials`). Alur login yang sama berhasil untuk
 `testinguserb@gmail.com`, jadi masalahnya bukan cara login melainkan kredensial
 atau status akun. Perlu reset kata sandi atau pemeriksaan `User.status`.
+
+
+---
+
+## Analisis bentuk amplop edit (28 Okt malam)
+
+Diuji lokal dengan `normalizeMessageContent` dari Baileys 7.0.0-rc14:
+
+| Bentuk `msg.message` | Hasil normalisasi | Teks terbaca |
+| --- | --- | --- |
+| `{ conversation: "v2" }` | `{ conversation: "v2" }` | `v2` |
+| `{ conversation: "" }` | `{ conversation: "" }` | kosong |
+| `{ editedMessage: { message: { conversation: "v2" } } }` | `{ conversation: "v2" }` | `v2` |
+| `{ editedMessage: { message: {} } }` | `{}` | kosong |
+| `{ editedMessage: { conversation: "v2" } }` | `undefined` | butuh fallback |
+| `{ messageContextInfo: {} }` | `{ messageContextInfo: {} }` | kosong |
+
+Kesimpulan: pesan kedua yang muncul di delivery log (`type: TEXT`, `content: ""`)
+pasti salah satu dari bentuk **tanpa teks**. Karena itu:
+
+- `readEditedText()` sekarang menangani ketiga amplop edit (termasuk yang
+  `normalizeMessageContent` kembalikan `undefined`), dengan 7 tes unit.
+- Ditambah probe `Msg keys=… stub=… webhook=…` untuk setiap pesan masuk — hanya
+  nama field, tidak pernah isi — supaya bentuk persisnya terbaca di log tanpa
+  perlu menebak lagi.
