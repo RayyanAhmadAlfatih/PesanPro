@@ -347,3 +347,25 @@ grep -E '^NEXT_PUBLIC' /www/wwwroot/PesanPro/.env
 
 Yang benar-benar dibutuhkan saat build hanya `NEXT_PUBLIC_*` (dibakar ke bundle
 klien). `DATABASE_URL` hanya dipakai kalau ada halaman yang di-prerender.
+
+---
+
+## Hasil akhir — 28 Okt 09:45 (situs pulih)
+
+| Pemeriksaan | Hasil |
+| --- | --- |
+| `https://wagateway.kingofcoding.my.id/api/health/live` | **200** |
+| `/api/health/ready` | `{"status":"ok","ok":true}` (DB terjangkau) |
+| `/auth/login` dan `/` | **200** |
+| Build yang jalan | hash CSS berubah `1c9a101e…` → `3788ad54…` → build baru terpasang |
+| PM2 | `pesanpro` online, 65 MB, `pm2 save` tersimpan di `/home/pesanpro/.pm2/dump.pm2` |
+
+Pelajaran yang masuk ke panduan:
+
+1. `pm2 start <nama>` hanya bekerja kalau aplikasi sudah ada di daftar daemon.
+   Setelah daemon mati/reboot, mulai dari `pm2 start ecosystem.config.cjs`
+   **dari direktori aplikasi**, lalu `pm2 save`.
+2. `su - pesanpro -c '...'` menjalankan perintah dengan cwd `/home/pesanpro`;
+   path relatif akan salah. Selalu `cd` di dalam tanda kutip.
+3. Build di VPS lain lalu pindahkan `.next` berhasil dan tidak menyentuh RAM
+   produksi — ini jalur yang dipakai.
