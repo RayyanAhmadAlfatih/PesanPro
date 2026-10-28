@@ -65,6 +65,7 @@ describe("WhatsApp sync data minimization", () => {
     expect(store).toContain("remoteJid && !isTenantChatJid(remoteJid)");
     // Shape probe logs field names only, never message bodies.
     expect(store).toContain("Envelope keys=");
+    expect(store).toContain("Msg keys=");
     expect(store).not.toContain("JSON.stringify(msg.message");
   });
 

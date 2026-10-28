@@ -356,6 +356,9 @@ async function processAndSaveMessage(
 
     // Shape probe: message bodies are never logged, only field names, so an
     // edit we fail to recognise can still be identified from the server log.
+    if (!fromMe) {
+        logger.info("Store", `Msg keys=${messageKeys.join(",")} stub=${msg.messageStubType ?? "-"} webhook=${triggerWebhook}`);
+    }
     if (messageKeys.some((key) => ["editedMessage", "protocolMessage", "reactionMessage", "pollUpdateMessage", "messageContextInfo"].includes(key))) {
         const probe = msg.message as WAMessageContent & {
             editedMessage?: { message?: WAMessageContent | null } | null;
