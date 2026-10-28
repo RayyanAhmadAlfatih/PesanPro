@@ -412,3 +412,25 @@ su - pesanpro -c 'cd /www/wwwroot/PesanPro && pm2 start ecosystem.config.cjs && 
 sleep 25
 curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/api/health/live
 ```
+
+### Ternyata server sehat — 14:48
+
+`top` setelah proses build benar-benar mati:
+
+```
+MiB Mem : 3659.9 total, 2523.9 free, 897.1 used, 484.4 buff/cache
+MiB Swap: 4036.0 total, 3152.1 free, 883.9 used, 2762.8 avail
+%Cpu(s): 3.8 us, 3.8 sy, 84.6 id, 7.7 wa
+load average: 0.36, 3.33, 3.85
+```
+
+Tidak ada proses jahat. Pemakai terbesar hanya `php-fpm` (16% CPU, 88 MB),
+`mariadbd` (68 MB), `BT-Panel` (57 MB), `YDService` (agen Tencent, 31 MB).
+Angka 3,4 GB / CPU 100% sebelumnya adalah sisa build yang baru dibunuh — swap
+masih penuh dan belum terkuras. Sekarang turun sendiri.
+
+**Kesimpulan penting:** VPS ini dipakai bersama (dua pool php-fpm untuk situs
+lain + MariaDB + panel). Dari 3,6 GB RAM, realistis hanya ~2,7 GB yang bisa
+dipakai build, sementara puncak build Next.js 3,2–3,5 GB. Karena itu build di
+mesin ini **tidak akan pernah** selesai — bukan soal flag heap. Build harus di
+VPS lain (sudah terbukti berhasil).
