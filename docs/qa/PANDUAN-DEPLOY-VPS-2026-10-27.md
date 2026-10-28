@@ -188,3 +188,40 @@ du -sh /www/wwwroot/PesanPro/.next.gagal-* 2>/dev/null
 ```
 
 Hapus semua `.next.gagal-*` kecuali yang terbaru — tiap salinan bisa ratusan MB.
+
+---
+
+## PENTING — `.next` saja tidak cukup (ditemukan 28 Okt 20:00)
+
+Aplikasi **tidak** dijalankan dari `.next`. Lihat `ecosystem.config.cjs`:
+
+```js
+script: "node_modules/tsx/dist/cli.mjs",
+args:   "src/server/index.ts",
+```
+
+Artinya:
+
+| Bagian | Sumber yang dipakai | Cara update |
+| --- | --- | --- |
+| Halaman & API route Next.js (`src/app/...`) | hasil kompilasi `.next` | pindahkan `.next` |
+| Runtime server: worker, WhatsApp store, `src/lib/**` | **file `.ts` di `src/`** dibaca langsung oleh `tsx` | `git pull` di produksi |
+
+Karena itu, deploy yang hanya memindahkan `.next` **tidak** mengubah perilaku
+worker, webhook, atau store WhatsApp. Gejalanya: log baru tidak muncul, event
+baru tidak pernah terkirim, padahal build sudah benar.
+
+### Urutan deploy yang benar
+
+1. Di VPS build: `git pull` → `next build` → tar `.next` → scp ke produksi.
+2. Di produksi: `git pull --ff-only` (memperbarui `src/`), lalu pindahkan `.next`,
+   lalu `pm2 restart pesanpro`.
+3. Tanpa langkah `git pull` di produksi, perubahan server-side tidak akan aktif.
+
+Cek cepat setelah restart:
+
+```bash
+su - pesanpro -c 'cd /www/wwwroot/PesanPro && git log --oneline -1'
+```
+
+Harus menampilkan commit yang sama dengan yang ada di VPS build.
