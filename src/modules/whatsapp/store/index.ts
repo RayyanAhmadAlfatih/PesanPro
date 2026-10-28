@@ -348,12 +348,10 @@ async function processAndSaveMessage(
     if (!isTenantChatJid(remoteJid)) return false;
 
     // Keep the per-message secret: a later edit arrives encrypted with it.
-    rememberMessageSecret(
-        sessionId,
-        keyId,
-        (msg.message as WAMessageContent & { messageContextInfo?: { messageSecret?: Uint8Array } })
-            .messageContextInfo?.messageSecret,
-    );
+    const inboundSecret = (msg.message as WAMessageContent & {
+        messageContextInfo?: { messageSecret?: Uint8Array | null } | null;
+    }).messageContextInfo?.messageSecret ?? null;
+    rememberMessageSecret(sessionId, keyId, inboundSecret);
 
     // Ignore specific technical message types
     const messageKeys = Object.keys(msg.message);
@@ -361,7 +359,7 @@ async function processAndSaveMessage(
     // Shape probe: message bodies are never logged, only field names, so an
     // edit we fail to recognise can still be identified from the server log.
     if (!fromMe) {
-        logger.info("Store", `Msg keys=${messageKeys.join(",")} stub=${msg.messageStubType ?? "-"} webhook=${triggerWebhook}`);
+        logger.info("Store", `Msg keys=${messageKeys.join(",")} stub=${msg.messageStubType ?? "-"} secret=${inboundSecret ? "yes" : "no"} webhook=${triggerWebhook}`);
     }
     if (messageKeys.some((key) => ["editedMessage", "protocolMessage", "reactionMessage", "pollUpdateMessage", "messageContextInfo"].includes(key))) {
         const probe = msg.message as WAMessageContent & {
@@ -387,10 +385,14 @@ async function processAndSaveMessage(
         const secretType = secretEnvelope.secretEncType ?? null;
         logger.info("Store", `Secret message type=${secretType ?? "?"} target=${targetKeyId ?? "-"}`);
         if (secretType === 2 && targetKeyId) {
-            const secret = getMessageSecret(sessionId, targetKeyId);
+            const targetSecret = getMessageSecret(sessionId, targetKeyId);
+            const ownSecret = (msg.message as WAMessageContent & {
+                messageContextInfo?: { messageSecret?: Uint8Array | null } | null;
+            }).messageContextInfo?.messageSecret ?? null;
+            const secret = targetSecret ?? (ownSecret ? Buffer.from(ownSecret) : null);
             const decrypted = decryptSecretMessage(secretEnvelope.encPayload, secretEnvelope.encIv, secret);
             const newText = readEditedText(decrypted);
-            logger.info("Store", `Edit received on secret message for ${targetKeyId} decrypted=${decrypted ? "yes" : "no"}`);
+            logger.info("Store", `Edit received on secret message for ${targetKeyId} secret=${targetSecret ? "target" : ownSecret ? "own" : "none"} decrypted=${decrypted ? "yes" : "no"}`);
             dispatchWebhook(sessionId, "message.edited", {
                 keyId: targetKeyId,
                 newContent: newText,
