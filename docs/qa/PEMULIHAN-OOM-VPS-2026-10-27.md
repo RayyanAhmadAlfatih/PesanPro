@@ -223,3 +223,99 @@ curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/api/health/live
 Kalau `pm2` bilang `online` tetapi port tetap tertutup:
 `pm2 logs pesanpro --lines 30 --nostream` — biasanya
 `Could not find a production build in the '.next' directory`.
+
+### Update 18:55 — heap 2560 juga dibunuh
+
+`node --max-old-space-size=2560 --max-semi-space-size=16 ... build --webpack`
+→ `Killed`, `EXIT=137`, log berhenti di `Creating an optimized production build ...`
+(mati sangat awal, RAM host baru terpakai 26,7%).
+
+Kalau proses mati sebelum memori sempat naik, penyebabnya bukan kebutuhan heap
+Node, melainkan **pembunuh eksternal**: cgroup `memory.max`, `systemd-oomd`, atau
+penjaga proses dari panel/penyedia. Karena itu urutannya sekarang: diagnosa dulu,
+lalu Turbopack, lalu tambah swap dari root.
+
+---
+
+## Bagian 7 — 28 Okt 07:00: memori sudah habis sebelum build
+
+`free -m` di server:
+
+```
+Mem: 3659 total, 3411 used, 125 free, available 248
+Swap: 4035 total, 3789 used, 246 free
+```
+
+Artinya mesin **sudah kehabisan memori sebelum build dimulai** (swap 94% terpakai,
+sisa 248 MB). Itu sebabnya build mati dalam hitungan detik: bukan heap Node,
+tetapi tidak ada ruang sama sekali. Sebelum build apa pun, memori harus dibebaskan.
+
+`dmesg` dan `/sys/fs/cgroup/memory.max` tidak bisa dibaca sebagai user `pesanpro`
+(perlu root; di mesin ini cgroup v1 sehingga path-nya berbeda).
+
+### Bebaskan memori dulu
+
+```bash
+ps aux --sort=-%mem | head -8
+pkill -9 -f "next build"
+pkill -9 -f "next/dist/bin/next"
+pm2 list
+free -m
+```
+
+Yang biasanya memakan tempat: sisa proses build yang menggantung, `mysqld`,
+panel, atau proses aplikasi yang restart terus. Target: `available` ≥ 2,5 GB
+sebelum build.
+
+Kalau `mysqld` yang besar dan situs sedang mati, MySQL boleh dihentikan sementara
+selama build (`systemctl stop mysql`), lalu dinyalakan lagi sebelum
+`pm2 start pesanpro`.
+
+---
+
+## Bagian 8 — Opsi "numpang build" di VPS lain
+
+Boleh, dan ini cara yang paling aman kalau RAM 3,6 GB memang tidak cukup.
+Syaratnya ketat supaya hasil build bisa dipakai di produksi:
+
+| Syarat | Alasan |
+| --- | --- |
+| Commit yang sama (`e626746`) | kode dan hash build harus identik |
+| Node **major** sama (v22.x) | format output dan perilaku runtime |
+| `.env` produksi dibawa ke mesin build | `NEXT_PUBLIC_*` ikut dibakar ke bundle klien |
+| Hanya `.next` yang dipindah | `node_modules` produksi sudah benar (modul native Linux) |
+| Ekstrak sebagai user `pesanpro` | kalau root, file jadi milik root dan app gagal menulis cache |
+
+### Di VPS build (Ubuntu, RAM ≥ 4 GB, Node 22)
+
+```bash
+git clone git@github.com:RayyanAhmadAlfatih/PesanPro.git /tmp/pp-build
+cd /tmp/pp-build
+git checkout e626746
+npm ci
+scp pesanpro@43.156.166.93:/www/wwwroot/PesanPro/.env .env   # butuh akses SSH ke prod
+node --max-old-space-size=3072 node_modules/next/dist/bin/next build --webpack
+ls -l .next/BUILD_ID
+```
+
+### Pindahkan ke produksi
+
+```bash
+# dari VPS build
+rsync -az --delete /tmp/pp-build/.next/ pesanpro@43.156.166.93:/www/wwwroot/PesanPro/.next/
+
+# di produksi
+cd /www/wwwroot/PesanPro
+pm2 stop pesanpro
+ls -l .next/BUILD_ID
+pm2 start pesanpro
+sleep 25
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/api/health/live
+```
+
+Kalau `prisma/schema.prisma` berubah sejak instalasi terakhir, jalankan
+`npx prisma generate` di produksi setelah `.next` dipindah. Untuk deploy ini
+schemanya tidak berubah, jadi tidak perlu.
+
+**Jangan** menyalin `node_modules` dari VPS build — modul native (`sharp`,
+`bcryptjs`) harus yang terpasang di produksi.
