@@ -241,3 +241,58 @@ Selama ini deploy hanya memindahkan `.next`, padahal runtime berjalan dari
 `src/` lewat `tsx`. Repo produksi tertinggal **15 commit** (`6adb92e` → `062a023`)
 sampai `git pull` dijalankan pada 28 Okt 20:02. Sebelum itu, tidak satu pun
 perbaikan server-side pernah aktif.
+
+
+---
+
+## L13-15 — hasil akhir: event terkirim, isi edit tidak terbaca
+
+Probe dengan build `420599c`:
+
+```
+Msg keys=messageContextInfo,secretEncryptedMessage secret=yes webhook=true
+Edit received on secret message for 3EB01600F2D1F7897E7D8F secret=target decrypted=no
+```
+
+Artinya:
+
+- **Kunci pesan tersedia** (`secret=target`) dan ditemukan lewat cache.
+- **Dekripsi tetap gagal** (`decrypted=no`) dengan AES-256-CBC + `messageSecret`.
+
+Penyebabnya: WhatsApp tidak memakai AES-CBC biasa untuk `secretEncryptedMessage`.
+Pola yang dipakai Baileys untuk pesan sejenis (poll vote, event response) adalah
+**AES-GCM dengan kunci turunan HMAC**:
+
+```
+key0   = HMAC-SHA256(secret, 32 byte nol)
+decKey = HMAC-SHA256(key0, sign)
+sign   = msgId ‖ jidA ‖ jidB ‖ "<konteks>" ‖ 0x01
+aad    = "<msgId>\0<jid>"
+```
+
+Baileys sendiri **tidak** mengimplementasikan `secretEncryptedMessage` sama sekali
+(tidak ada di `lib/` maupun di branch `master`), dan whatsmeow juga tidak
+mengeksposnya di `message.go`. Jadi tidak ada implementasi acuan publik yang bisa
+disalin; menebak string konteks dan urutan JID berarti menebak protokol internal
+WhatsApp.
+
+### Yang sudah berhasil
+
+| Bagian | Status |
+| --- | --- |
+| Deteksi edit | **ya** — `secretEncType = 2`, `targetMessageKey.id` terbaca |
+| Event `message.edited` terkirim | **ya** — `SUCCEEDED 200` |
+| `keyId` = pesan yang diedit | **ya** |
+| `remoteJid`, `fromMe` | **ya** |
+| `newContent` = teks baru | **tidak** — payload terenkripsi internal |
+
+Efek samping yang ikut hilang: edit tidak lagi tercatat sebagai pesan masuk palsu
+berisi kosong (`type: TEXT`, `content: ""`).
+
+### Keputusan
+
+L13-15 dicatat **GAGAL-SEBAGIAN**: perilaku webhook benar (event, keyId,
+remoteJid, fromMe), tetapi `newContent` tidak bisa diisi tanpa membalik skema
+enkripsi internal WhatsApp. Opsi lanjutan hanya masuk akal kalau pemilik ingin
+menebak skema turunan HMAC/AES-GCM secara eksperimental — biaya satu siklus tes
+per percobaan, tanpa jaminan.

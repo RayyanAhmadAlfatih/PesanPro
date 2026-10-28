@@ -30,11 +30,13 @@
 > — 41 dari 100 delivery terakhir; (b) P2 sesi `FAILED` tanpa notifikasi dan tanpa
 > pemulihan otomatis. Detail: `docs/qa/GITHUB-ISSUES-2026-10-26.md`.
 >
-> **L13 (28 Okt, setelah deploy):** **27 PASS, 3 N/A, 2 belum.** Empat tes HP
+> **L13 (28 Okt, setelah deploy):** **27 PASS, 3 N/A, 1 gagal-sebagian, 1 belum.** Empat tes HP
 > terakhir lolos: 07 (`message.received`), 11 (`group.update`), 12
 > (`group.participant`), 16 (`message.deleted`). Filter `status@broadcast`
 > terbukti bekerja — tidak ada lagi event palsu setelah build baru jalan.
-> Sisa: **15 (message.edited)** dan **31 (restart worker)**.
+> L13-15 `message.edited` **gagal-sebagian**: event kini terkirim dengan `keyId`
+> yang benar, tetapi isi edit tidak bisa dibaca karena WhatsApp mengirimnya
+> sebagai `secretEncryptedMessage` terenkripsi. Sisa: **31 (restart worker)**.
 > Detail: `docs/qa/GITHUB-ISSUES-2026-10-28.md`.
 >
 > **L17 (26 Okt, sebagian):** **3 PASS** — 16 (badge unread = API), 17 (mark one
@@ -648,7 +650,7 @@ Event yang tersedia di source:
 | L13-12                                       | group.participant **PASS 28 Okt 2026** — dua event: `add` lalu `remove`, peserta membawa `phoneNumber` | Benar                                        |
 | L13-13                                       | contact.update                               | **N/A (dipensiunkan 25 Okt 2026)** — inbox chat sudah pensiun; event dihapus dari UI + kontrak |
 | L13-14                                       | status.update                                | **N/A (dipensiunkan 25 Okt 2026)** — tidak ada pengirim; dihapus dari UI + kontrak |
-| L13-15                                       | message.edited                               | Benar                                        |
+| L13-15                                       | message.edited **GAGAL-SEBAGIAN 28 Okt 2026** — event terkirim dengan `keyId`, `remoteJid`, `fromMe` benar, tetapi `newContent` kosong: WhatsApp mengirim isi edit sebagai `secretEncryptedMessage` (terenkripsi internal, tidak didukung Baileys maupun whatsmeow) | Benar                                        |
 | L13-16                                       | message.deleted **PASS 28 Okt 2026** — `keyId`, `remoteJid`, `fromMe` benar; dua event dengan `keyId` berbeda (bukan duplikat) | Benar                                        |
 | L13-17                                       | schedule.status **PASS 26 Okt 2026** — delivery `200`, payload `{scheduleId, executionId, status}` | Benar                                        |
 | L13-18                                       | broadcast.status **PASS 26 Okt 2026** — delivery `200`, payload `{broadcastId, status}` | Benar                                        |
