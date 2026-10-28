@@ -98,7 +98,7 @@ const AVAILABLE_EVENTS = [
     { id: "connection.update", label: "Connection Update", description: "When session connects/disconnects" },
     { id: "group.update", label: "Group Update", description: "When group info changes" },
     { id: "group.participant", label: "Group Member", description: "When participants join, leave, or change roles" },
-    { id: "message.edited", label: "Message Edited", description: "When a message is edited" },
+    { id: "message.edited", label: "Message Edited", description: "When a message is edited — target id only, WhatsApp does not expose the new text" },
     { id: "message.deleted", label: "Message Deleted", description: "When a message is revoked/deleted" },
     { id: "schedule.status", label: "Schedule Status", description: "When a durable schedule reaches a new state" },
     { id: "broadcast.status", label: "Broadcast Status", description: "When a broadcast completes or fails" },

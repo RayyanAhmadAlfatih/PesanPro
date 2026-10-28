@@ -2,6 +2,12 @@
 
 # MASTER LIVE TEST PESANPRO
 
+> **MULAI DARI SINI (checkpoint 28 Okt 2026):** baca
+> **`docs/qa/CHECKPOINT-2026-10-28.md`** lebih dulu. Isinya status terakhir,
+> commit terkait, bukti log L13-15, aturan deploy (`src/` wajib `git pull`,
+> bukan hanya `.next`), dan syarat membuka kembali L13-15.
+> Sisa L13: hanya **L13-31** (restart worker). Berikutnya L16 → L17 → L18 → L15.
+>
 > **Audit cakupan (23 Okt 2026):** jumlah tes sebenarnya **490**, bukan 427 —
 > selisih 63 tes: 37 tes L1 tambahan (umur sesi/OTP/harga), 12 tes CF7 di L15,
 > dan 14 tes What's New di L17. Prosedur lanjutan + daftar celah per ID ada di
