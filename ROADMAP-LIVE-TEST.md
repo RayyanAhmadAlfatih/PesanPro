@@ -30,6 +30,13 @@
 > — 41 dari 100 delivery terakhir; (b) P2 sesi `FAILED` tanpa notifikasi dan tanpa
 > pemulihan otomatis. Detail: `docs/qa/GITHUB-ISSUES-2026-10-26.md`.
 >
+> **L13 (28 Okt, setelah deploy):** **27 PASS, 3 N/A, 2 belum.** Empat tes HP
+> terakhir lolos: 07 (`message.received`), 11 (`group.update`), 12
+> (`group.participant`), 16 (`message.deleted`). Filter `status@broadcast`
+> terbukti bekerja — tidak ada lagi event palsu setelah build baru jalan.
+> Sisa: **15 (message.edited)** dan **31 (restart worker)**.
+> Detail: `docs/qa/GITHUB-ISSUES-2026-10-28.md`.
+>
 > **L17 (26 Okt, sebagian):** **3 PASS** — 16 (badge unread = API), 17 (mark one
 > read), 19 (delete). 18 belum (butuh ≥2 notifikasi); sisanya butuh SUPERADMIN.
 
@@ -633,16 +640,16 @@ Event yang tersedia di source:
 | L13-04                                       | Custom secret                                | Bisa digunakan                               |
 | L13-05                                       | Test webhook                                 | Receiver menerima                            |
 | L13-06                                       | Signature verification                       | Valid                                        |
-| L13-07                                       | Payload message.received                     | Benar                                        |
+| L13-07                                       | message.received **PASS 28 Okt 2026** — payload lengkap (`key`, `from`, `receiver`, `sender`, `chatType`, `type`, `content`), 1 event | Benar                                        |
 | L13-08                                       | message.sent                                 | Benar                                        |
 | L13-09                                       | message.status                               | Benar                                        |
 | L13-10                                       | connection.update                            | Benar                                        |
-| L13-11                                       | group.update                                 | Benar                                        |
-| L13-12                                       | group.participant                            | Benar                                        |
+| L13-11                                       | group.update **PASS 28 Okt 2026** — `subject` = `uji-L13-11 ganti`, `author` terisi | Benar                                        |
+| L13-12                                       | group.participant **PASS 28 Okt 2026** — dua event: `add` lalu `remove`, peserta membawa `phoneNumber` | Benar                                        |
 | L13-13                                       | contact.update                               | **N/A (dipensiunkan 25 Okt 2026)** — inbox chat sudah pensiun; event dihapus dari UI + kontrak |
 | L13-14                                       | status.update                                | **N/A (dipensiunkan 25 Okt 2026)** — tidak ada pengirim; dihapus dari UI + kontrak |
 | L13-15                                       | message.edited                               | Benar                                        |
-| L13-16                                       | message.deleted                              | Benar                                        |
+| L13-16                                       | message.deleted **PASS 28 Okt 2026** — `keyId`, `remoteJid`, `fromMe` benar; dua event dengan `keyId` berbeda (bukan duplikat) | Benar                                        |
 | L13-17                                       | schedule.status **PASS 26 Okt 2026** — delivery `200`, payload `{scheduleId, executionId, status}` | Benar                                        |
 | L13-18                                       | broadcast.status **PASS 26 Okt 2026** — delivery `200`, payload `{broadcastId, status}` | Benar                                        |
 | L13-19                                       | campaign.status                              | **N/A (dipensiunkan 25 Okt 2026)** — Campaign pensiun; event dihapus dari UI, kontrak, dan worker |
