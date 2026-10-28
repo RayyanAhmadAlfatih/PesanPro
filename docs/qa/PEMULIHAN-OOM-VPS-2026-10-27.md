@@ -369,3 +369,46 @@ Pelajaran yang masuk ke panduan:
    path relatif akan salah. Selalu `cd` di dalam tanda kutip.
 3. Build di VPS lain lalu pindahkan `.next` berhasil dan tidak menyentuh RAM
    produksi — ini jalur yang dipakai.
+
+---
+
+## Bagian 9 — 28 Okt 13:40: pelakunya bukan aplikasi
+
+Bukti dari server (aplikasi **sudah di-stop**):
+
+| Saat | RAM terpakai | Swap terpakai | CPU | Status PM2 |
+| --- | --- | --- | --- | --- |
+| sebelum `pm2 stop all` | 3499 MB | 2749 MB | 100% | online |
+| sesudah `pm2 stop all` | 3485 MB | 2167 MB | 80–100% | stopped |
+
+RAM hanya turun 14 MB dan CPU tetap penuh padahal aplikasi berhenti. Artinya
+**bukan aplikasi** yang menghabiskan memori/CPU — ada proses lain. Ini juga
+menjelaskan kenapa build selalu dibunuh: OOM killer memilih proses terbesar
+(build ±3 GB), bukan pelaku sebenarnya.
+
+### Cari pelakunya
+
+```bash
+ps aux --sort=-%cpu | head -8
+ps aux --sort=-%mem | head -8
+top -b -n1 | head -15
+ss -tp state established | head -15
+```
+
+### Kemungkinan dan tindakan
+
+| Temuan | Arti | Tindakan |
+| --- | --- | --- |
+| `next build` / `node` masih ada | sisa build yang menggantung | `pkill -9 -f "next build"` lalu cek `free -m` |
+| `mysqld` besar (1–1,5 GB) | normal untuk MySQL | biarkan; kalau perlu, stop sementara saat build |
+| proses dengan nama acak, CPU 100% terus, koneksi keluar aneh | indikasi **miner / server disusupi** | lihat `crontab -l`, `/etc/cron.d`, `/tmp`, `/var/tmp`, lalu putuskan langkah keamanan |
+| `aaPanel`/`BT-Panel`/backup | tugas panel | tunggu selesai atau hentikan sementara |
+
+### Setelah pelaku ditangani
+
+```bash
+free -m                                  # target available ≥ 2,5 GB
+su - pesanpro -c 'cd /www/wwwroot/PesanPro && pm2 start ecosystem.config.cjs && pm2 save'
+sleep 25
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/api/health/live
+```
