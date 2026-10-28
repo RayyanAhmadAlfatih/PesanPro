@@ -167,8 +167,10 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
 
                 // Statuses, broadcast lists and channels reuse the same revoke
                 // markers as a real delete. They are not tenant conversations.
+                // A missing jid is kept: some update envelopes omit it and the
+                // event is still legitimate.
                 const remoteJid = update.key?.remoteJid ?? null;
-                if (!isTenantChatJid(remoteJid)) continue;
+                if (remoteJid && !isTenantChatJid(remoteJid)) continue;
 
                 // Edits and revokes arrive on the update stream. Baileys wraps
                 // an edit as update.message.editedMessage.message (key.id is
@@ -201,6 +203,7 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                         const newText = normalizedEdit?.conversation
                             ?? normalizedEdit?.extendedTextMessage?.text
                             ?? "";
+                        logger.info("Store", `Edit received on update stream for ${targetKeyId}`);
                         dispatchWebhook(sessionId, "message.edited", {
                             keyId: targetKeyId,
                             newContent: newText,
@@ -350,6 +353,27 @@ async function processAndSaveMessage(
 
     // Ignore specific technical message types
     const messageKeys = Object.keys(msg.message);
+
+    // An edit can also arrive already unwrapped as msg.message.editedMessage.
+    // Baileys normalises that envelope before the upsert, so it never shows up
+    // as a protocolMessage here and used to be saved as a brand-new message.
+    const unwrappedEdit = (msg.message as WAMessageContent & {
+        editedMessage?: { message?: WAMessageContent | null } | null;
+    }).editedMessage;
+    if (unwrappedEdit?.message) {
+        const normalizedEdit = normalizeMessageContent(unwrappedEdit.message);
+        const newText = normalizedEdit?.conversation
+            ?? normalizedEdit?.extendedTextMessage?.text
+            ?? "";
+        logger.info("Store", `Edit received on upsert for ${keyId}`);
+        dispatchWebhook(sessionId, "message.edited", {
+            keyId,
+            newContent: newText,
+            remoteJid,
+            fromMe
+        }, `message.edited:${keyId}`);
+        return null;
+    }
 
     // Check for message edit/revoke protocol messages FIRST
     if (messageKeys.includes('protocolMessage')) {

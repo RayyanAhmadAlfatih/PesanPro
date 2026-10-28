@@ -50,4 +50,18 @@ describe("WhatsApp sync data minimization", () => {
     expect(instance).toContain("syncFullHistory: false");
     expect(instance).not.toContain("syncFullHistory: true");
   });
+
+  it("publishes message.edited for both edit envelopes", () => {
+    // Baileys delivers an edit either on the update stream
+    // (update.message.editedMessage) or already unwrapped in the upsert
+    // (msg.message.editedMessage). Missing the second path meant a real edit
+    // produced no webhook at all.
+    const store = readFileSync("src/modules/whatsapp/store/index.ts", "utf8");
+
+    expect(store).toContain("unwrappedEdit?.message");
+    expect(store).toContain("Edit received on upsert");
+    expect(store).toContain("Edit received on update stream");
+    // A missing jid must not drop a legitimate edit.
+    expect(store).toContain("remoteJid && !isTenantChatJid(remoteJid)");
+  });
 });

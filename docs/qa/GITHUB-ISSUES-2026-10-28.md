@@ -100,12 +100,39 @@ memang dihapus. Perlu konfirmasi pemilik apakah yang dihapus memang dua pesan.
 
 ---
 
-## L13-15 — `message.edited` — belum ada bukti
+## L13-15 — `message.edited` — GAGAL, sudah diperbaiki (menunggu deploy)
 
-Setelah build baru berjalan (28 Okt 02:42 UTC), belum ada satu pun event
-`message.edited`. Sebelum deploy, event ini hanya muncul untuk
-`status@broadcast` (bug yang sudah diperbaiki), bukan untuk pesan biasa.
-Perlu satu percobaan: kirim pesan ke `6283877315731`, lalu edit pesan itu.
+**Uji:** pemilik mengedit pesan pada 28 Okt (setelah build baru jalan).
+**Hasil:** tidak ada satu pun event `message.edited` di delivery log; event
+terakhir sebelum percobaan adalah `group.participant` 10:53 WIB. Jadi edit
+sama sekali tidak menghasilkan webhook — bukan payload yang salah.
+
+**Dua penyebab yang ditemukan di kode:**
+
+1. Baileys bisa mengirim edit **sudah terbuka** sebagai
+   `msg.message.editedMessage` pada `messages.upsert`, bukan sebagai
+   `protocolMessage` dan bukan pada `messages.update`. Jalur upsert tidak punya
+   cabang untuk bentuk itu, sehingga edit jatuh ke pemrosesan pesan biasa dan
+   tidak pernah memicu event.
+2. Filter JID yang ditambahkan 26 Okt membuang update ketika `remoteJid` kosong
+   (`isTenantChatJid(null) === false`). Sebelum filter itu ada, update tanpa JID
+   tetap diproses.
+
+**Perbaikan (28 Okt):**
+
+- Cabang baru di `processAndSaveMessage` untuk `msg.message.editedMessage`:
+  hitung teks baru, kirim `message.edited`, lalu `return null` supaya tidak
+  tersimpan sebagai pesan baru.
+- Filter di `messages.update` diubah menjadi
+  `if (remoteJid && !isTenantChatJid(remoteJid)) continue;` — JID yang tidak ada
+  tidak lagi membuang event sah, sedangkan `status@broadcast`, `@broadcast`,
+  dan `@newsletter` tetap dibuang.
+- Log diagnostik `Edit received on upsert` / `Edit received on update stream`
+  supaya jalur mana yang dipakai terlihat di `pm2 logs` saat retest.
+- Tes: `whatsapp-sync-minimization.test.ts` +1 (kedua amplop edit dikenali,
+  guard JID tidak membuang JID kosong).
+
+**Status:** diperbaiki di branch, **menunggu build + deploy**, lalu retest.
 
 ---
 
