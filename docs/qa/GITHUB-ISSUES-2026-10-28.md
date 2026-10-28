@@ -132,6 +132,28 @@ sama sekali tidak menghasilkan webhook — bukan payload yang salah.
 - Tes: `whatsapp-sync-minimization.test.ts` +1 (kedua amplop edit dikenali,
   guard JID tidak membuang JID kosong).
 
+### Retest pertama setelah deploy `b70d02b` — masih nol event
+
+Pemilik mengulang tes edit; `grep "Edit received"` di `pm2 logs` kosong dan
+delivery log tetap tanpa `message.edited`. Artinya edit tidak pernah masuk ke
+kedua jalur yang baru ditambal.
+
+**Penyebab ketiga (ditemukan dari kode):** edit dari HP tertaut masuk lewat
+stream **append**, bukan `notify`. Di jalur `protocolMessage` (type 14) ada
+pemeriksaan `if (triggerWebhook)` — dan `triggerWebhook` hanya bernilai `true`
+untuk stream `notify`. Jadi edit dihitung, lalu **dibuang tanpa jejak**: tidak
+ada event, tidak ada log. Revoke pun terkena masalah yang sama.
+
+**Perbaikan lanjutan:**
+
+- Edit dan revoke pada `protocolMessage` sekarang **selalu** dipublikasikan,
+  tidak lagi bergantung pada `triggerWebhook` — keduanya peristiwa protokol,
+  bukan pesan baru.
+- Tambah log `Protocol message type=… target=… webhook=…`, plus
+  `Edit/Delete received on protocol message`, supaya retest berikutnya
+  memperlihatkan persis apa yang diterima server.
+- Tes: `whatsapp-sync-minimization` 7/7.
+
 **Status:** diperbaiki di branch, **menunggu build + deploy**, lalu retest.
 
 ---

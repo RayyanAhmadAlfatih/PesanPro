@@ -379,6 +379,7 @@ async function processAndSaveMessage(
     if (messageKeys.includes('protocolMessage')) {
         const pMessage = msg.message.protocolMessage;
         const targetKeyId = pMessage?.key?.id;
+        logger.info("Store", `Protocol message type=${pMessage?.type ?? "?"} target=${targetKeyId ?? "-"} webhook=${triggerWebhook}`);
 
         // Message Edit (Type 14)
         if (pMessage?.type === 14 && targetKeyId) {
@@ -392,16 +393,15 @@ async function processAndSaveMessage(
 
                 // Message text is not persisted, so there is no stored body to
                 // rewrite. The edit still reaches the tenant through the webhook.
-
-                // Trigger Webhook
-                if (triggerWebhook) {
-                    dispatchWebhook(sessionId, "message.edited", {
-                        keyId: targetKeyId,
-                        newContent: newText,
-                        remoteJid,
-                        fromMe
-                    }, `message.edited:${keyId}`);
-                }
+                // An edit is a protocol event, not a new message, so it is
+                // published on every stream (notify and append alike).
+                logger.info("Store", `Edit received on protocol message for ${targetKeyId}`);
+                dispatchWebhook(sessionId, "message.edited", {
+                    keyId: targetKeyId,
+                    newContent: newText,
+                    remoteJid,
+                    fromMe
+                }, `message.edited:${keyId}`);
             }
             return null; // Stop processing as new message
         }
@@ -416,14 +416,13 @@ async function processAndSaveMessage(
                 data: { status: "FAILED" }
             });
 
-            // Trigger Webhook
-            if (triggerWebhook) {
-                dispatchWebhook(sessionId, "message.deleted", {
-                    keyId: targetKeyId,
-                    remoteJid,
-                    fromMe
-                }, `message.deleted:${targetKeyId}`);
-            }
+            // A revoke is a protocol event too: publish it on every stream.
+            logger.info("Store", `Delete received on protocol message for ${targetKeyId}`);
+            dispatchWebhook(sessionId, "message.deleted", {
+                keyId: targetKeyId,
+                remoteJid,
+                fromMe
+            }, `message.deleted:${targetKeyId}`);
             return null;
         }
     }

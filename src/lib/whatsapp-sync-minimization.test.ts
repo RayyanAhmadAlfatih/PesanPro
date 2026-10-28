@@ -64,4 +64,15 @@ describe("WhatsApp sync data minimization", () => {
     // A missing jid must not drop a legitimate edit.
     expect(store).toContain("remoteJid && !isTenantChatJid(remoteJid)");
   });
+
+  it("publishes protocol edits and revokes on every stream", () => {
+    // Edits made from the linked phone arrive on the append stream, where the
+    // old code skipped the webhook entirely because it only published on
+    // notify. Protocol events are not new messages, so they always publish.
+    const store = readFileSync("src/modules/whatsapp/store/index.ts", "utf8");
+
+    expect(store).toContain("Edit received on protocol message");
+    expect(store).toContain("Delete received on protocol message");
+    expect(store).toContain("Protocol message type=");
+  });
 });
