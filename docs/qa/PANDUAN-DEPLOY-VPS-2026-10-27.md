@@ -143,3 +143,48 @@ retest L13-15 (edit) dan L13-16 (hapus) memakai HP.
 
 **L13-31 (restart worker) belum dilakukan di sini** — tes itu dijalankan paling
 akhir, satu per satu, setelah tes lain selesai.
+
+---
+
+## Jalur tetap: build di VPS lain (dipakai sejak 28 Okt)
+
+VPS produksi (3,6 GB, dipakai bersama php-fpm + MariaDB + panel) tidak sanggup
+build Next.js. Build dilakukan di VPS terpisah, lalu hanya `.next` yang dipindah.
+
+### Di VPS build (root, `/tmp/pp-build`)
+
+```bash
+export NVM_DIR="$HOME/.nvm"; . "$NVM_DIR/nvm.sh"; nvm use 22; node -v   # harus v22.x
+cd /tmp/pp-build
+git pull origin workbuddy-fase0-qa-2026-10-23
+git log --oneline -1                       # pastikan commit yang dituju
+node --max-old-space-size=3072 node_modules/next/dist/bin/next build --webpack > /tmp/build.log 2>&1; echo "EXIT=$?"
+tail -6 /tmp/build.log                     # harus EXIT=0 + "Compiled successfully"
+ls -l .next/BUILD_ID
+tar czf /tmp/next.tgz -C /tmp/pp-build .next
+scp /tmp/next.tgz root@43.156.166.93:/tmp/
+```
+
+Kalau `package-lock.json` berubah sejak clone terakhir, jalankan `npm ci` sebelum build.
+
+### Di VPS produksi (root)
+
+```bash
+su - pesanpro -c 'cd /www/wwwroot/PesanPro && pm2 stop pesanpro'
+cd /www/wwwroot/PesanPro
+mv .next .next.gagal-$(date +%s)
+tar xzf /tmp/next.tgz
+chown -R pesanpro:pesanpro .next
+ls -l .next/BUILD_ID
+su - pesanpro -c 'cd /www/wwwroot/PesanPro && pm2 start ecosystem.config.cjs && pm2 save'
+sleep 25
+curl -s -o /dev/null -w "%{http_code}\n" http://127.0.0.1:3000/api/health/live
+```
+
+### Setelah situs sehat
+
+```bash
+du -sh /www/wwwroot/PesanPro/.next.gagal-* 2>/dev/null
+```
+
+Hapus semua `.next.gagal-*` kecuali yang terbaru — tiap salinan bisa ratusan MB.
