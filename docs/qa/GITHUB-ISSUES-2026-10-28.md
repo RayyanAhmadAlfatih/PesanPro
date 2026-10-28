@@ -189,3 +189,55 @@ pasti salah satu dari bentuk **tanpa teks**. Karena itu:
 - Ditambah probe `Msg keys=… stub=… webhook=…` untuk setiap pesan masuk — hanya
   nama field, tidak pernah isi — supaya bentuk persisnya terbaca di log tanpa
   perlu menebak lagi.
+
+
+---
+
+## L13-15 — akar masalah sebenarnya: edit dikirim sebagai `secretEncryptedMessage`
+
+Probe pada build yang benar-benar aktif akhirnya menjawab semuanya:
+
+```
+Msg keys=extendedTextMessage,messageContextInfo   (pesan asli)
+Msg keys=secretEncryptedMessage                   (edit, 1 detik kemudian)
+Msg keys=messageContextInfo,secretEncryptedMessage
+```
+
+**Bukan** `editedMessage`, **bukan** `protocolMessage`. WhatsApp mengirim edit
+sebagai `secretEncryptedMessage`:
+
+```
+secretEncryptedMessage {
+  targetMessageKey: { id: <id pesan yang diedit> }
+  encPayload: <isi baru, terenkripsi>
+  encIv:      <iv>
+  secretEncType: 2   // MESSAGE_EDIT (1 = EVENT_EDIT, 0 = UNKNOWN)
+}
+```
+
+Baileys 7.0.0-rc14 **tidak menangani** jenis ini sama sekali (tidak ada
+referensi di `lib/`), jadi pesannya jatuh ke pemrosesan biasa, teksnya kosong,
+dan tersimpan sebagai pesan baru — persis yang terlihat di delivery log
+(`type: TEXT`, `content: ""`).
+
+Isi edit dienkripsi AES-256-CBC dengan **`messageSecret` milik pesan target**
+(`messageContextInfo.messageSecret`), yang selama ini tidak pernah disimpan.
+
+### Perbaikan
+
+- `src/lib/whatsapp-secret-message.ts` (baru): cache `messageSecret` di memori
+  (32 byte, TTL 2 jam, maksimal 5.000 entri, dikunci per sesi + id pesan) dan
+  `decryptSecretMessage()` yang memakai `aesDecryptWithIV` + `proto.Message.decode`.
+  Teks pesan tetap tidak pernah disimpan — hanya kunci 32 byte.
+- Store: setiap pesan masuk yang membawa `messageContextInfo.messageSecret`
+  disimpan kuncinya; pesan `secretEncryptedMessage` dengan `secretEncType = 2`
+  didekripsi, lalu `message.edited` dikirim dengan `keyId` = pesan target.
+- Tes: 7 unit (cache: simpan/ambil, pemisahan sesi, kedaluwarsa 2 jam, input
+  kosong; dekripsi: round-trip berhasil, kunci salah, bagian tidak lengkap).
+
+### Catatan deploy yang menentukan
+
+Selama ini deploy hanya memindahkan `.next`, padahal runtime berjalan dari
+`src/` lewat `tsx`. Repo produksi tertinggal **15 commit** (`6adb92e` → `062a023`)
+sampai `git pull` dijalankan pada 28 Okt 20:02. Sebelum itu, tidak satu pun
+perbaikan server-side pernah aktif.

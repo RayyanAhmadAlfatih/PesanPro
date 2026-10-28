@@ -4,6 +4,7 @@ import { normalizeMessageContent } from "@whiskeysockets/baileys";
 import { onMessageReceived, onMessageSent, dispatchWebhook } from "@/lib/webhook";
 import { resolveToPhoneJid, isLidJid, normalizeJid } from "@/lib/jid-utils";
 import { isTenantChatJid, readEditedText } from "@/lib/message-event-scope";
+import { rememberMessageSecret, getMessageSecret, decryptSecretMessage } from "@/lib/whatsapp-secret-message";
 import { maskAutoReplyJid as maskJid } from "@/lib/autoreply-privacy";
 
 import { Server } from "socket.io";
@@ -346,6 +347,14 @@ async function processAndSaveMessage(
     // Statuses, broadcast lists and channels are not tenant conversations.
     if (!isTenantChatJid(remoteJid)) return false;
 
+    // Keep the per-message secret: a later edit arrives encrypted with it.
+    rememberMessageSecret(
+        sessionId,
+        keyId,
+        (msg.message as WAMessageContent & { messageContextInfo?: { messageSecret?: Uint8Array } })
+            .messageContextInfo?.messageSecret,
+    );
+
     // Ignore specific technical message types
     const messageKeys = Object.keys(msg.message);
 
@@ -360,6 +369,36 @@ async function processAndSaveMessage(
         };
         const inner = probe.editedMessage?.message ?? null;
         logger.info("Store", `Envelope keys=${messageKeys.join(",")} inner=${inner ? Object.keys(inner).join(",") : "-"} webhook=${triggerWebhook}`);
+    }
+
+    // An edit from a linked device arrives as a secret-encrypted message: the
+    // new text is encrypted with the target message's secret and Baileys does
+    // not decode it, so it used to be saved as an empty message.
+    const secretEnvelope = (msg.message as WAMessageContent & {
+        secretEncryptedMessage?: {
+            targetMessageKey?: { id?: string | null } | null;
+            encPayload?: Uint8Array | null;
+            encIv?: Uint8Array | null;
+            secretEncType?: number | null;
+        } | null;
+    }).secretEncryptedMessage;
+    if (secretEnvelope) {
+        const targetKeyId = secretEnvelope.targetMessageKey?.id ?? null;
+        const secretType = secretEnvelope.secretEncType ?? null;
+        logger.info("Store", `Secret message type=${secretType ?? "?"} target=${targetKeyId ?? "-"}`);
+        if (secretType === 2 && targetKeyId) {
+            const secret = getMessageSecret(sessionId, targetKeyId);
+            const decrypted = decryptSecretMessage(secretEnvelope.encPayload, secretEnvelope.encIv, secret);
+            const newText = readEditedText(decrypted);
+            logger.info("Store", `Edit received on secret message for ${targetKeyId} decrypted=${decrypted ? "yes" : "no"}`);
+            dispatchWebhook(sessionId, "message.edited", {
+                keyId: targetKeyId,
+                newContent: newText,
+                remoteJid,
+                fromMe
+            }, `message.edited:${keyId}`);
+        }
+        return null;
     }
 
     // An edit can also arrive already unwrapped as msg.message.editedMessage.
