@@ -319,3 +319,31 @@ schemanya tidak berubah, jadi tidak perlu.
 
 **Jangan** menyalin `node_modules` dari VPS build — modul native (`sharp`,
 `bcryptjs`) harus yang terpasang di produksi.
+
+### Jebakan transfer `.env` (28 Okt 09:20)
+
+`scp` dari VPS build ke produksi gagal karena tiga hal:
+
+1. `/www/wwwroot/PesanPro` hanya bisa diakses user `pesanpro`; user lain mendapat
+   pesan menyesatkan `No such file or directory` (bukan `Permission denied`).
+2. Login SSH dengan kata sandi untuk `pesanpro` dan `root` ditolak — root
+   biasanya `prohibit-password`, jadi hanya kunci yang boleh.
+3. Karena itu arahkan transfer dari **produksi ke VPS build** (root produksi yang
+   membaca file), bukan sebaliknya.
+
+```bash
+# di VPS build: catat IP-nya
+hostname -I
+
+# di produksi (root):
+scp /www/wwwroot/PesanPro/.env root@<IP-VPS-BUILD>:/tmp/pp-build/.env
+```
+
+Kalau transfer tidak memungkinkan, cukup ambil nilai publiknya (tanpa rahasia):
+
+```bash
+grep -E '^NEXT_PUBLIC' /www/wwwroot/PesanPro/.env
+```
+
+Yang benar-benar dibutuhkan saat build hanya `NEXT_PUBLIC_*` (dibakar ke bundle
+klien). `DATABASE_URL` hanya dipakai kalau ada halaman yang di-prerender.
