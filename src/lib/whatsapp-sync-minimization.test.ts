@@ -58,11 +58,14 @@ describe("WhatsApp sync data minimization", () => {
     // produced no webhook at all.
     const store = readFileSync("src/modules/whatsapp/store/index.ts", "utf8");
 
-    expect(store).toContain("unwrappedEdit?.message");
+    expect(store).toContain("editEnvelope?.message");
     expect(store).toContain("Edit received on upsert");
     expect(store).toContain("Edit received on update stream");
     // A missing jid must not drop a legitimate edit.
     expect(store).toContain("remoteJid && !isTenantChatJid(remoteJid)");
+    // Shape probe logs field names only, never message bodies.
+    expect(store).toContain("Envelope keys=");
+    expect(store).not.toContain("JSON.stringify(msg.message");
   });
 
   it("publishes protocol edits and revokes on every stream", () => {

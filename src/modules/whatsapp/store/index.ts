@@ -354,14 +354,28 @@ async function processAndSaveMessage(
     // Ignore specific technical message types
     const messageKeys = Object.keys(msg.message);
 
+    // Shape probe: message bodies are never logged, only field names, so an
+    // edit we fail to recognise can still be identified from the server log.
+    if (messageKeys.some((key) => ["editedMessage", "protocolMessage", "reactionMessage", "pollUpdateMessage", "messageContextInfo"].includes(key))) {
+        const probe = msg.message as WAMessageContent & {
+            editedMessage?: { message?: WAMessageContent | null } | null;
+        };
+        const inner = probe.editedMessage?.message ?? null;
+        logger.info("Store", `Envelope keys=${messageKeys.join(",")} inner=${inner ? Object.keys(inner).join(",") : "-"} webhook=${triggerWebhook}`);
+    }
+
     // An edit can also arrive already unwrapped as msg.message.editedMessage.
     // Baileys normalises that envelope before the upsert, so it never shows up
     // as a protocolMessage here and used to be saved as a brand-new message.
-    const unwrappedEdit = (msg.message as WAMessageContent & {
-        editedMessage?: { message?: WAMessageContent | null } | null;
+    const editEnvelope = (msg.message as WAMessageContent & {
+        editedMessage?: ({ message?: WAMessageContent | null } & WAMessageContent) | null;
     }).editedMessage;
-    if (unwrappedEdit?.message) {
-        const normalizedEdit = normalizeMessageContent(unwrappedEdit.message);
+    const editContent = editEnvelope?.message
+        ?? (editEnvelope && (editEnvelope.conversation !== undefined || editEnvelope.extendedTextMessage)
+            ? (editEnvelope as WAMessageContent)
+            : null);
+    if (editContent) {
+        const normalizedEdit = normalizeMessageContent(editContent);
         const newText = normalizedEdit?.conversation
             ?? normalizedEdit?.extendedTextMessage?.text
             ?? "";
