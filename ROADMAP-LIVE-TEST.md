@@ -824,7 +824,7 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L17-17                              | Mark one read **PASS 26 Okt** — `PATCH /api/notifications/read {ids:[…]}` → `unread` 1→0, badge hilang | Berubah                             |
 | L17-18                              | Mark all read                       | Semua berubah                       |
 | L17-19                              | Delete notification **PASS 26 Okt** — `DELETE` → `total=0`, badge tetap kosong | Hilang                              |
-| L17-20                              | Notification href — **belum terbukti**: `href` tersimpan benar dan item tampil, tetapi klik otomatis tidak memicu navigasi; perlu dicoba manual | Navigasi benar                      |
+| L17-20                              | Notification href **PASS 29 Okt 2026 (uji manual pemilik)** — klik notifikasi `uji-L17-20 klik manual` membuka halaman Tagihan sesuai `href`; halaman memang lambat, tetapi navigasinya benar | Navigasi benar                      |
 | L17-21                              | System Monitor runtime heartbeat **PASS 29 Okt 2026** — 7 proses (`WEB`, pesan, jadwal, broadcast, campaign, autoreply, webhook) semua `HEALTHY` dengan heartbeat segar | Semua worker terlihat               |
 | L17-22                              | MySQL latency **PASS 29 Okt 2026** — muncul (584–634 ms) dan memicu alert `DATABASE_LATENCY` yang sudah lama terbuka; angkanya tinggi, perlu ditinjau | Muncul                              |
 | L17-23                              | Private storage **PASS 29 Okt 2026** — `ok`, path `data/private-media`, sisa 16,2 GB dari 63,3 GB | Sehat                               |

@@ -212,3 +212,16 @@ L16-18/19/20 yang sebelumnya baru diuji di level API. Override uji sudah dihapus
    Tidak berbahaya dan bisa dihapus sendiri dari lonceng.
 3. Tombol **Reject** juga memakai endpoint yang sama, jadi perbaikan `8ec211f`
    menutup kedua jalur (approve dan reject).
+
+---
+
+# L17-20 — PASS (uji manual pemilik, 29 Okt 2026 19:2x WIB)
+
+Notifikasi `uji-L17-20 klik manual` (href `/dashboard/billing`) diklik langsung
+oleh pemilik di browser. Hasilnya: aplikasi berpindah ke halaman Tagihan sesuai
+`href`. Halaman memang lambat karena masalah performa yang dibahas di
+`docs/qa/DIAGNOSA-LAMBAT-2026-10-29.md`, tetapi navigasinya benar.
+
+Catatan: klik otomatis lewat alat browser tidak memicu navigasi, sedangkan klik
+manusia berhasil — jadi untuk tes semacam ini, verifikasi manual memang lebih
+akurat. Notifikasi ujinya sudah dihapus.

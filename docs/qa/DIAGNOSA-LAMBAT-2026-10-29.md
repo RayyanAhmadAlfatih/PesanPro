@@ -118,3 +118,73 @@ mysql -e "SHOW FULL PROCESSLIST;" | head -20
 
 Catatan: angka di atas saya ambil saat trafik rendah. Artinya kondisi normalnya
 sudah lambat, dan akan makin terasa saat ada pemakaian bersamaan.
+
+---
+
+# Pembaruan 19:25 — hasil `free` dan `vmstat` mengubah kesimpulan
+
+Data dari server (dijalankan pemilik):
+
+```
+Mem:   total 3659  used 2734  free 333  buff/cache 845  available 925
+Swap:  total 4035  used  932  free 3103
+
+r  b  swpd   free   si   so   bi   bo    in   cs  us sy id wa st
+4  0 955252 341876 288  309  379  573  1460    9  19  3 77  1  0
+1  0 955252 279380   0    0    0  672  1988 1972  47  4 48  1  0
+1  0 955252 239060   4    0    8  660  1864 1918  45  5 50  1  0
+2  0 955252 156152   0    0    0   11  2178 1959  62  4 35  0  0
+1  0 955252 382712   0    0    0   13  3387 1692  70  5 25  1  0
+```
+
+## Koreksi: bukan swap, tapi CPU
+
+- **Swap hanya terpakai 932 MB dari 4.035 MB**, dan kolom `si`/`so` hampir
+  selalu 0 setelah baris pertama. Artinya server **tidak** sedang mengaduk swap.
+  Dugaan saya sebelumnya salah dan saya coret.
+- **Kolom `us` (CPU user) 45–70%**, `id` turun sampai 25%, sementara `wa` (I/O
+  wait) hanya 0–1%. Jadi CPU-nya yang bekerja keras, bukan disknya.
+- `r` (antrean proses siap jalan) 1–4 pada mesin kecil: ada proses yang benar-benar
+  menghabiskan CPU.
+
+## Sumber beban CPU: worker yang mengecek tiap detik
+
+Tujuh worker berjalan di dalam proses yang sama dengan web, masing-masing
+mengecek antrean **setiap 1.000 ms**:
+
+| Worker | Interval bawaan |
+| --- | --- |
+| message, schedule, broadcast, campaign, autoreply, webhook | 1.000 ms |
+| email | 2.000 ms |
+
+Setiap pengecekan menjalankan minimal satu, kadang dua, perintah SQL — termasuk
+penyapuan baris kedaluwarsa. Jadi saat antrean **kosong** pun ada sekitar 12–14
+query per detik yang terus berjalan. Di mesin kecil, beban itulah yang membuat
+permintaan halaman ikut mengantre.
+
+Semua interval ini bisa diatur lewat `.env` tanpa mengubah kode:
+
+```
+MESSAGE_WORKER_POLL_MS=3000
+SCHEDULE_WORKER_POLL_MS=3000
+BROADCAST_WORKER_POLL_MS=3000
+CAMPAIGN_WORKER_POLL_MS=3000
+AUTOREPLY_WORKER_POLL_MS=3000
+WEBHOOK_WORKER_POLL_MS=3000
+```
+
+Efeknya: beban query saat menganggur turun jadi sepertiga. Konsekuensinya pesan,
+jadwal, dan webhook bisa terlambat sampai ±3 detik dari sebelumnya — untuk
+antrean yang memang asinkron, ini hampir tidak terasa bagi pengguna, jauh lebih
+murah daripada halaman menunggu 17 detik.
+
+## Satu perintah lagi untuk memastikan pelakunya
+
+```bash
+nproc
+ps -eo pid,pcpu,pmem,etime,cmd --sort=-pcpu | head -8
+```
+
+Kalau `nproc` menunjukkan 1–2 dan baris teratas adalah proses `tsx`/`node`
+milik `pesanpro`, penyebabnya terkonfirmasi: satu proses Node berebut CPU dengan
+MariaDB di mesin yang sama.
