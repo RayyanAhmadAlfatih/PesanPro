@@ -120,3 +120,50 @@ L17-02…15, 20, 26…28, dan 31…44 masih menunggu: sebagian butuh sesi tenant
 (notifikasi diterima user), sebagian lagi mengubah tampilan yang dilihat
 pelanggan sungguhan (nama aplikasi, logo, pengumuman popup), jadi perlu
 persetujuan pemilik sebelum dijalankan di produksi.
+
+---
+
+# Verifikasi ulang L16 lewat browser (29 Okt 2026, 16:1x WIB)
+
+Tes sebelumnya dijalankan lewat API. Bagian ini mengulang alur yang sama di
+aplikasi sungguhan (Chrome, sesi login asli) untuk memastikan tampilannya juga
+bekerja — bukan hanya endpoint-nya.
+
+## Yang diulang di UI
+
+| Tes | Hasil UI |
+| --- | --- |
+| L16-09 | **PASS** — form "Submit payment proof" diisi (plan Bisnis, referensi `uji-L16-14-tolak-ui`, berkas PNG), tombol "Kirim untuk diverifikasi" aktif lalu mengirim. Pengajuan masuk `PENDING` dan muncul di riwayat. |
+| L16-12 | **PASS** — menekan "Approve & activate" tanpa catatan memunculkan pesan **"Add a review note first"**, pengajuan tetap `PENDING`. |
+| L16-13 | **FAIL terkonfirmasi di layar** — lihat di bawah |
+| L16-14 | **PASS (data)** — "Reject" dengan catatan mengubah pengajuan menjadi `REJECTED` di server. Tetapi layar tidak memberi umpan balik apa pun dan barisnya masih tampak `PENDING` sampai halaman dimuat ulang. |
+
+## Bukti bug P1 terlihat langsung oleh admin
+
+Alur yang saya lakukan sebagai superadmin:
+
+1. Buka **Operasi Komersial**, isi catatan review, tekan **Approve & activate**.
+2. Tidak ada pesan sukses, tidak ada pesan gagal, dan daftar tidak berubah —
+   baris tetap berlabel `PENDING` dengan tombol Approve/Reject masih aktif.
+3. Saya periksa ke server: pengajuannya **sudah `APPROVED`** dan langganan tenant
+   sudah aktif.
+4. Muat ulang halaman → baris baru berubah menjadi `APPROVED`.
+
+Tangkapan layar sebelum muat ulang: `.qa-tmp/l16-ui-stale.png` (baris
+`uji-L16-14-reject-ui` masih `PENDING` padahal server sudah `REJECTED`).
+
+Jadi dampak nyatanya lebih buruk daripada "muncul pesan error": **admin tidak
+mendapat umpan balik sama sekali**. Kalau dia tidak memuat ulang halaman, dia
+akan mengira tombolnya tidak bekerja dan mencoba lagi berulang kali.
+
+Perbaikan `8ec211f` menutup penyebabnya (respons 500), sehingga jalur sukses
+akan kembali berjalan dan daftar ikut disegarkan. **Masih menunggu build `.next`.**
+
+## Catatan teknis saat menguji
+
+- Unggah berkas lewat CLI browser ditolak Chrome ("Not allowed") karena izin
+  "Allow access to file URLs" tidak aktif untuk ekstensi. Saya tidak mengubah
+  setelan itu; berkas dilampirkan langsung ke input form di halaman, lalu form
+  dikirim seperti biasa. Jalur unggah server tetap yang sebenarnya (multipart).
+- Halaman Operasi Komersial butuh ±15–20 detik sampai daftar pembayaran muncul;
+  sebelum itu yang terlihat hanya kerangka kosong.
