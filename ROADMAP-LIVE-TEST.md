@@ -822,7 +822,7 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L17-15                              | Realtime toast/socket **PASS 29 Okt 2026** — badge lonceng 24 → 25 tanpa muat ulang; gelembung toast tidak muncul | Muncul tanpa refresh                |
 | L17-16                              | Inbox unread **PASS 26 Okt** — badge lonceng "1" sama dengan `unread=1` di API | Counter benar                       |
 | L17-17                              | Mark one read **PASS 26 Okt** — `PATCH /api/notifications/read {ids:[…]}` → `unread` 1→0, badge hilang | Berubah                             |
-| L17-18                              | Mark all read                       | Semua berubah                       |
+| L17-18                              | Mark all read **PASS 29 Okt 2026** — 21 belum dibaca → 0 setelah `PATCH /api/notifications/read` tanpa daftar id | Semua berubah                       |
 | L17-19                              | Delete notification **PASS 26 Okt** — `DELETE` → `total=0`, badge tetap kosong | Hilang                              |
 | L17-20                              | Notification href **PASS 29 Okt 2026 (uji manual pemilik)** — klik notifikasi `uji-L17-20 klik manual` membuka halaman Tagihan sesuai `href`; halaman memang lambat, tetapi navigasinya benar | Navigasi benar                      |
 | L17-21                              | System Monitor runtime heartbeat **PASS 29 Okt 2026** — 7 proses (`WEB`, pesan, jadwal, broadcast, campaign, autoreply, webhook) semua `HEALTHY` dengan heartbeat segar | Semua worker terlihat               |
@@ -830,9 +830,9 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L17-23                              | Private storage **PASS 29 Okt 2026** — `ok`, path `data/private-media`, sisa 16,2 GB dari 63,3 GB | Sehat                               |
 | L17-24                              | CPU/memory/disk **PASS 29 Okt 2026** — CPU 24,2%, memori 56,5% (2,17/3,84 GB), disk 73,3% | Data realistis                      |
 | L17-25                              | Queue stats **PASS 29 Okt 2026** — 8 antrean dengan angka pending/proses/dead-letter; `messages` punya 21 dead-letter yang cocok dengan alert | Cocok dengan queue                  |
-| L17-26                              | Buat kondisi warning aman           | Operational alert muncul            |
-| L17-27                              | Acknowledge                         | Status berubah                      |
-| L17-28                              | Resolve                             | Hilang dari active alerts           |
+| L17-26                              | Buat kondisi warning aman **PASS (pengamatan) 29 Okt 2026** — tiga alert `QUEUE_DEAD_LETTER` aktif dari kondisi nyata (webhook 5.747, autoreply 53, messages 21); alert `DATABASE_LATENCY` otomatis `RESOLVED` setelah server diperbaiki | Operational alert muncul            |
+| L17-27                              | Acknowledge **PASS 29 Okt 2026** — status jadi `ACKNOWLEDGED` dan tetap begitu setelah 75 detik (melewati satu siklus scan) | Status berubah                      |
+| L17-28                              | Resolve — **belum terisolasi**: `RESOLVE` dijawab `200`, tetapi baris yang sama kembali `OPEN` dalam 0,28 detik karena kondisinya (21 dead-letter) masih ada. Butuh kondisi yang benar-benar hilang untuk membuktikan | Hilang dari active alerts           |
 | L17-29                              | Audit login/logout **PASS 29 Okt 2026** — `user.login` menyimpan email (termasuk login superadmin hari ini), `user.logout` tercatat tetapi tanpa email/IP (cacat kecil P3) | Ada                                 |
 | L17-30                              | Audit privileged actions **PASS 29 Okt 2026** — `plan.update`, `subscription.update`, `payment_verification.approved`, override upsert/delete tercatat lengkap dengan email pelaku | Ada                                 |
 

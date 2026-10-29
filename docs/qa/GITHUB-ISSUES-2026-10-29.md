@@ -225,3 +225,29 @@ oleh pemilik di browser. Hasilnya: aplikasi berpindah ke halaman Tagihan sesuai
 Catatan: klik otomatis lewat alat browser tidak memicu navigasi, sedangkan klik
 manusia berhasil — jadi untuk tes semacam ini, verifikasi manual memang lebih
 akurat. Notifikasi ujinya sudah dihapus.
+
+---
+
+# L17 — notifikasi dan alert (29 Okt 2026, 20:2x WIB)
+
+| Tes | Status | Bukti |
+| --- | --- | --- |
+| L17-18 | **PASS** | `PATCH /api/notifications/read` tanpa daftar id menandai semua: 21 belum dibaca → 0 |
+| L17-26 | **PASS (pengamatan)** | Tiga alert `QUEUE_DEAD_LETTER` aktif dari kondisi nyata; alert `DATABASE_LATENCY` otomatis `RESOLVED` setelah server diperbaiki, jadi jalur buka–tutup alert terbukti |
+| L17-27 | **PASS** | `ACKNOWLEDGE` → status `ACKNOWLEDGED`, masih bertahan setelah 75 detik |
+| L17-28 | **belum terisolasi** | `RESOLVE` dijawab `200`, tetapi baris yang sama kembali `OPEN` dalam 0,28 detik |
+
+## Catatan soal Resolve
+
+Resolve bekerja, tetapi langsung dibatalkan oleh pemindaian berikutnya karena
+kondisinya masih ada (21 pesan dead-letter). Secara perilaku ini wajar — alert
+memang harus muncul lagi selama masalahnya belum hilang — tetapi efeknya tombol
+Resolve **tidak bisa dipakai untuk menutup alert yang sengaja dibiarkan**.
+
+Acknowledge berbeda: status `ACKNOWLEDGED` bertahan melewati siklus scan, jadi
+untuk "saya sudah tahu, jangan diganggu lagi" yang dipakai adalah Acknowledge,
+bukan Resolve.
+
+Untuk menuntaskan L17-28 perlu kondisi yang benar-benar hilang. Contoh yang sudah
+terjadi: alert `DATABASE_LATENCY` berstatus `RESOLVED` setelah server diperbaiki,
+dan itu membuktikan alert memang keluar dari daftar aktif saat kondisinya hilang.
