@@ -795,7 +795,7 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L16-18                                | Entitlement override enable **PASS (API) 29 Okt 2026** — `200`, limit 9 tersimpan; efek langsung ke tenant belum diverifikasi | Efektif                               |
 | L16-19                                | Override disable **PASS (API) 29 Okt 2026** — `200`, `enabled=false` | Efektif                               |
 | L16-20                                | Override limit **PASS (API) 29 Okt 2026** — `200`, limit 42 tersimpan | Efektif                               |
-| L16-21                                | Expiring override — belum dijalankan (butuh sesi tenant untuk membuktikan kembali ke plan default) | Kembali plan default                  |
+| L16-21                                | Expiring override **PASS 29 Okt 2026** — override limit 42 berlaku, lalu setelah `expiresAt` lewat efektif kembali ke plan (limit 1, sumber `PLAN`); barisnya tetap tersimpan untuk audit | Kembali plan default                  |
 | L16-22                                | Set default plan **PASS 29 Okt 2026** — `STARTER` jadi default, `TRIAL` otomatis dilepas | Benar                                 |
 | L16-23                                | Disable plan **PASS 29 Okt 2026** — `BISNIS` nonaktif hilang dari `/api/plans`, aktif lagi muncul kembali | Tidak ditawarkan ke user              |
 
@@ -806,25 +806,25 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | ID                                  | Test                                | Expected                            |
 | ----------------------------------- | ----------------------------------- | ----------------------------------- |
 | L17-01                              | SUPERADMIN list users **PASS 29 Okt 2026** — `GET /api/users` mengembalikan daftar lengkap dengan role, status, deviceLimit, dan langganan | Berhasil                            |
-| L17-02                              | Edit name/email                     | Berubah                             |
-| L17-03                              | Change password admin-side          | Password baru aktif                 |
-| L17-04                              | USER→SUPERADMIN                     | Role berubah                        |
-| L17-05                              | SUPERADMIN→USER                     | Permission berubah                  |
-| L17-06                              | Suspend                             | User kehilangan akses               |
-| L17-07                              | Reactivate                          | Pulih                               |
+| L17-02                              | Edit name/email **PASS 29 Okt 2026** — nama & email berubah di daftar, lalu dikembalikan | Berubah                             |
+| L17-03                              | Change password admin-side **PASS 29 Okt 2026** — login dengan sandi baru berhasil, sandi asli dipulihkan dan tetap bisa dipakai | Password baru aktif                 |
+| L17-04                              | USER→SUPERADMIN **PASS 29 Okt 2026** — sesi baru berrole `SUPERADMIN`, `/api/users` → `200` | Role berubah                        |
+| L17-05                              | SUPERADMIN→USER **PASS 29 Okt 2026** — role kembali `USER`, sesi lama ditolak `401` | Permission berubah                  |
+| L17-06                              | Suspend **PASS 29 Okt 2026** — login ditolak `CredentialsSignin` | User kehilangan akses               |
+| L17-07                              | Reactivate **PASS 29 Okt 2026** — login kembali berhasil | Pulih                               |
 | L17-08                              | Delete user                         | Sesuai dependency policy            |
 | L17-09                              | Change app name                     | Sidebar/title berubah               |
 | L17-10                              | Change timezone                     | Scheduler menggunakan timezone baru |
 | L17-11                              | Logo URL                            | Branding benar                      |
 | L17-12                              | Favicon URL                         | Benar                               |
-| L17-13                              | Send notification to one user       | Hanya target menerima               |
-| L17-14                              | Broadcast notification              | Semua target menerima               |
-| L17-15                              | Realtime toast/socket               | Muncul tanpa refresh                |
+| L17-13                              | Send notification to one user **PASS 29 Okt 2026** — unread tenant A 22 → 23, tenant B tidak berubah | Hanya target menerima               |
+| L17-14                              | Broadcast notification **PASS 29 Okt 2026** — 8 akun, item terbaru muncul di A dan B | Semua target menerima               |
+| L17-15                              | Realtime toast/socket **PASS 29 Okt 2026** — badge lonceng 24 → 25 tanpa muat ulang; gelembung toast tidak muncul | Muncul tanpa refresh                |
 | L17-16                              | Inbox unread **PASS 26 Okt** — badge lonceng "1" sama dengan `unread=1` di API | Counter benar                       |
 | L17-17                              | Mark one read **PASS 26 Okt** — `PATCH /api/notifications/read {ids:[…]}` → `unread` 1→0, badge hilang | Berubah                             |
 | L17-18                              | Mark all read                       | Semua berubah                       |
 | L17-19                              | Delete notification **PASS 26 Okt** — `DELETE` → `total=0`, badge tetap kosong | Hilang                              |
-| L17-20                              | Notification href                   | Navigasi benar                      |
+| L17-20                              | Notification href — **belum terbukti**: `href` tersimpan benar dan item tampil, tetapi klik otomatis tidak memicu navigasi; perlu dicoba manual | Navigasi benar                      |
 | L17-21                              | System Monitor runtime heartbeat **PASS 29 Okt 2026** — 7 proses (`WEB`, pesan, jadwal, broadcast, campaign, autoreply, webhook) semua `HEALTHY` dengan heartbeat segar | Semua worker terlihat               |
 | L17-22                              | MySQL latency **PASS 29 Okt 2026** — muncul (584–634 ms) dan memicu alert `DATABASE_LATENCY` yang sudah lama terbuka; angkanya tinggi, perlu ditinjau | Muncul                              |
 | L17-23                              | Private storage **PASS 29 Okt 2026** — `ok`, path `data/private-media`, sisa 16,2 GB dari 63,3 GB | Sehat                               |

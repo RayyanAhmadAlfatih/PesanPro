@@ -167,3 +167,48 @@ akan kembali berjalan dan daftar ikut disegarkan. **Masih menunggu build `.next`
   dikirim seperti biasa. Jalur unggah server tetap yang sebenarnya (multipart).
 - Halaman Operasi Komersial butuh ±15–20 detik sampai daftar pembayaran muncul;
   sebelum itu yang terlihat hanya kerangka kosong.
+
+---
+
+# L16-21 + L17 lanjutan (29 Okt 2026, 17:4x WIB)
+
+## L16-21 — override berbatas waktu: **PASS**
+
+Override `WEBHOOKS` dipasang dengan limit 42 dan masa berlaku 3 menit.
+
+| Waktu | Efektif untuk tenant | Sumber |
+| --- | --- | --- |
+| Sebelum kedaluwarsa | limit **42** | `OVERRIDE` |
+| Setelah kedaluwarsa (10:51:27Z, batas 10:50:06Z) | limit **1** | `PLAN` |
+
+Baris override tetap tersimpan dengan `expiresAt` yang sudah lewat — memang
+seharusnya begitu supaya jejak auditnya tidak hilang — tetapi tidak lagi dipakai
+saat menghitung hak akses. Ini sekaligus membuktikan sisi "efektif" dari
+L16-18/19/20 yang sebelumnya baru diuji di level API. Override uji sudah dihapus.
+
+## L17 — hasil tambahan
+
+| Tes | Status | Bukti |
+| --- | --- | --- |
+| L17-02 | **PASS** | Nama dan email tenant A diubah lewat admin → langsung berubah di daftar; dikembalikan ke nilai semula |
+| L17-03 | **PASS** | Kata sandi diubah dari sisi admin → login dengan sandi baru berhasil (`302` ke dashboard); sandi asli dikembalikan dan login lama berhasil lagi |
+| L17-04 | **PASS** | `USER` → `SUPERADMIN`: sesi baru membawa role `SUPERADMIN` dan `/api/users` dijawab `200` |
+| L17-05 | **PASS** | `SUPERADMIN` → `USER`: role kembali, sesi lama ditolak `401` saat mengakses `/api/users` |
+| L17-06 | **PASS** | `SUSPENDED`: login ditolak (`CredentialsSignin`) |
+| L17-07 | **PASS** | `ACTIVE` lagi: login berhasil (`302` ke dashboard) |
+| L17-13 | **PASS** | Notifikasi tertarget: unread tenant A 22 → 23, tenant B tetap 50 |
+| L17-14 | **PASS** | Broadcast: 8 akun, notifikasi muncul sebagai item terbaru di A dan B |
+| L17-15 | **PASS** | Badge lonceng berubah 24 → 25 **tanpa muat ulang halaman** saat notifikasi dikirim |
+| L17-20 | **belum terbukti** | `href` tersimpan benar (`/dashboard/billing`) dan item tampil di panel, tetapi klik otomatis saya tidak memicu navigasi — perlu dicoba manual |
+
+## Catatan yang perlu diingat
+
+1. **Mengubah langganan, role, status, email, atau kata sandi selalu mematikan
+   sesi pengguna itu.** Ini perilaku yang benar, tetapi saat menguji berarti
+   sesi tenant harus dibuat ulang setiap kali.
+2. **Notifikasi broadcast masih tersisa di 5 akun lain** (akun pemilik sendiri:
+   `yusuf.edubisnet`, `rayyan2709.gamer`, `rayyan.a.alfatih`,
+   `admin@kingofcoding`, `rayyan@kingofcoding`). Untuk A dan B sudah dihapus.
+   Tidak berbahaya dan bisa dihapus sendiri dari lonceng.
+3. Tombol **Reject** juga memakai endpoint yang sama, jadi perbaikan `8ec211f`
+   menutup kedua jalur (approve dan reject).
