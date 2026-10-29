@@ -82,3 +82,41 @@ pesan gagal meski datanya berubah.
 - Semua perubahan lain sudah dikembalikan: plan aktif dan TRIAL default seperti
   semula, override dihapus, tenant B kembali `STARTER` / `ACTIVE` /
   `2026-10-31T02:14:12Z` dengan `deviceLimit` 1.
+
+---
+
+# L17 — sebagian (tes baca-saja, 29 Oktober 2026)
+
+Tes yang tidak mengubah data dikerjakan lebih dulu supaya tidak menunggu sesi
+tenant.
+
+| Tes | Status | Bukti |
+| --- | --- | --- |
+| L17-01 | **PASS** | `GET /api/users` mengembalikan semua akun dengan role, status, `deviceLimit`, dan langganan |
+| L17-21 | **PASS** | 7 proses (`WEB` + 6 worker) semua `HEALTHY`, heartbeat 29 Okt 03:17:47Z |
+| L17-22 | **PASS** | Latensi MySQL muncul (584–634 ms) dan memicu alert `DATABASE_LATENCY` |
+| L17-23 | **PASS** | Penyimpanan privat `ok`, sisa 16,2 GB dari 63,3 GB |
+| L17-24 | **PASS** | CPU 24,2%, memori 56,5%, disk 73,3% |
+| L17-25 | **PASS** | 8 antrean dengan angka pending/proses/dead-letter |
+| L17-29 | **PASS** | `user.login` menyimpan email; `user.logout` tercatat |
+| L17-30 | **PASS** | Aksi istimewa tercatat lengkap dengan email pelaku |
+
+## Yang perlu ditinjau (bukan penghalang)
+
+1. **Latensi database 584–634 ms** untuk query kesiapan. Alert
+   `database-latency:mysql` sudah terbuka sejak 17 Sep dengan 431 kemunculan.
+   Angka ini wajar bila query memang berat, tetapi untuk aplikasi yang baru
+   dipakai beberapa tenant, ini perlu dilihat sebelum trafik naik.
+2. **21 dead-letter di antrean `messages`** dan 4 kondisi warning aktif. Bukan
+   bug, tetapi menandakan ada pekerjaan yang berhenti dan menunggu tindakan
+   operator.
+3. **Audit logout tanpa email dan IP** (`userEmail: null`, `ip: null`), hanya
+   `userId`. Untuk investigasi, menambahkan email dan IP akan jauh lebih
+   berguna. Cacat kecil (P3), bukan penghalang rilis.
+
+## Belum dikerjakan di L17
+
+L17-02…15, 20, 26…28, dan 31…44 masih menunggu: sebagian butuh sesi tenant
+(notifikasi diterima user), sebagian lagi mengubah tampilan yang dilihat
+pelanggan sungguhan (nama aplikasi, logo, pengumuman popup), jadi perlu
+persetujuan pemilik sebelum dijalankan di produksi.

@@ -805,7 +805,7 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 
 | ID                                  | Test                                | Expected                            |
 | ----------------------------------- | ----------------------------------- | ----------------------------------- |
-| L17-01                              | SUPERADMIN list users               | Berhasil                            |
+| L17-01                              | SUPERADMIN list users **PASS 29 Okt 2026** — `GET /api/users` mengembalikan daftar lengkap dengan role, status, deviceLimit, dan langganan | Berhasil                            |
 | L17-02                              | Edit name/email                     | Berubah                             |
 | L17-03                              | Change password admin-side          | Password baru aktif                 |
 | L17-04                              | USER→SUPERADMIN                     | Role berubah                        |
@@ -825,16 +825,16 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L17-18                              | Mark all read                       | Semua berubah                       |
 | L17-19                              | Delete notification **PASS 26 Okt** — `DELETE` → `total=0`, badge tetap kosong | Hilang                              |
 | L17-20                              | Notification href                   | Navigasi benar                      |
-| L17-21                              | System Monitor runtime heartbeat    | Semua worker terlihat               |
-| L17-22                              | MySQL latency                       | Muncul                              |
-| L17-23                              | Private storage                     | Sehat                               |
-| L17-24                              | CPU/memory/disk                     | Data realistis                      |
-| L17-25                              | Queue stats                         | Cocok dengan queue                  |
+| L17-21                              | System Monitor runtime heartbeat **PASS 29 Okt 2026** — 7 proses (`WEB`, pesan, jadwal, broadcast, campaign, autoreply, webhook) semua `HEALTHY` dengan heartbeat segar | Semua worker terlihat               |
+| L17-22                              | MySQL latency **PASS 29 Okt 2026** — muncul (584–634 ms) dan memicu alert `DATABASE_LATENCY` yang sudah lama terbuka; angkanya tinggi, perlu ditinjau | Muncul                              |
+| L17-23                              | Private storage **PASS 29 Okt 2026** — `ok`, path `data/private-media`, sisa 16,2 GB dari 63,3 GB | Sehat                               |
+| L17-24                              | CPU/memory/disk **PASS 29 Okt 2026** — CPU 24,2%, memori 56,5% (2,17/3,84 GB), disk 73,3% | Data realistis                      |
+| L17-25                              | Queue stats **PASS 29 Okt 2026** — 8 antrean dengan angka pending/proses/dead-letter; `messages` punya 21 dead-letter yang cocok dengan alert | Cocok dengan queue                  |
 | L17-26                              | Buat kondisi warning aman           | Operational alert muncul            |
 | L17-27                              | Acknowledge                         | Status berubah                      |
 | L17-28                              | Resolve                             | Hilang dari active alerts           |
-| L17-29                              | Audit login/logout                  | Ada                                 |
-| L17-30                              | Audit privileged actions            | Ada                                 |
+| L17-29                              | Audit login/logout **PASS 29 Okt 2026** — `user.login` menyimpan email (termasuk login superadmin hari ini), `user.logout` tercatat tetapi tanpa email/IP (cacat kecil P3) | Ada                                 |
+| L17-30                              | Audit privileged actions **PASS 29 Okt 2026** — `plan.update`, `subscription.update`, `payment_verification.approved`, override upsert/delete tercatat lengkap dengan email pelaku | Ada                                 |
 
 ### What's New popup (Pengumuman Pop-up)
 
