@@ -8,6 +8,7 @@ import { getClientIp } from "@/lib/rate-limit";
 import {
   PaymentVerificationReviewError,
   reviewPaymentVerificationInTransaction,
+  serializeReviewResponse,
 } from "@/lib/payment-verification-service";
 
 const reviewSchema = z.object({
@@ -56,15 +57,10 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
     });
   }
   return NextResponse.json({
-    data: {
-      ...result.verification,
-      amount: result.verification.amount.toString(),
-      proofStoragePath: undefined,
-      proofMimeType: undefined,
-      proofSizeBytes: undefined,
-      proofChecksumSha256: undefined,
+    data: serializeReviewResponse({
+      verification: result.verification,
       subscription: result.subscription,
       idempotent: result.idempotent,
-    },
+    }),
   });
 }

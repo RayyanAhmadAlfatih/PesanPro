@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { billingPeriodEnd, reviewPaymentVerificationInTransaction } from "./payment-verification-service";
+import { billingPeriodEnd, reviewPaymentVerificationInTransaction, serializeReviewResponse } from "./payment-verification-service";
 import { _resetEnvCache } from "./env";
 
 const reviewedAt = new Date("2026-09-23T10:00:00.000Z");
@@ -200,5 +200,58 @@ describe("manual payment verification", () => {
       reviewerEmail: "admin@example.com",
       reviewedAt,
     })).rejects.toMatchObject({ code: "PAYMENT_NOT_PENDING" });
+  });
+});
+
+describe("review response serialization", () => {
+  it("converts plan entitlement limits so the response can be JSON encoded", () => {
+    const payload = serializeReviewResponse({
+      verification: {
+        id: "payment-1",
+        amount: { toString: () => "149000" },
+        proofStoragePath: "/var/private/proof.png",
+        proofMimeType: "image/png",
+        proofSizeBytes: 70n,
+        proofChecksumSha256: "abc",
+        plan: {
+          id: "plan_bisnis",
+          name: "Bisnis",
+          entitlements: [
+            { feature: "DEVICES", limitValue: 2n },
+            { feature: "API_ACCESS", limitValue: null },
+          ],
+        },
+      },
+      subscription: { id: "sub-1", status: "ACTIVE" },
+      idempotent: false,
+    });
+
+    expect(payload.amount).toBe("149000");
+    expect(payload.proofStoragePath).toBeUndefined();
+    expect(payload.proofMimeType).toBeUndefined();
+    expect(payload.proofSizeBytes).toBeUndefined();
+    expect(payload.proofChecksumSha256).toBeUndefined();
+    expect(payload.plan).toMatchObject({
+      id: "plan_bisnis",
+      entitlements: [
+        { feature: "DEVICES", limitValue: "2" },
+        { feature: "API_ACCESS", limitValue: null },
+      ],
+    });
+    expect(payload.subscription).toEqual({ id: "sub-1", status: "ACTIVE" });
+    expect(payload.idempotent).toBe(false);
+    expect(() => JSON.stringify(payload)).not.toThrow();
+  });
+
+  it("keeps working when the verification has no plan attached", () => {
+    const payload = serializeReviewResponse({
+      verification: { id: "payment-2", amount: { toString: () => "75000" }, plan: null },
+      subscription: null,
+      idempotent: true,
+    });
+
+    expect(payload.plan).toBeNull();
+    expect(payload.idempotent).toBe(true);
+    expect(() => JSON.stringify(payload)).not.toThrow();
   });
 });

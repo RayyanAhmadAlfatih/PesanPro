@@ -151,3 +151,44 @@ export async function reviewPaymentVerificationInTransaction(
   });
   return { verification, subscription, idempotent: false };
 }
+
+/**
+ * Builds the JSON body for the admin review endpoint.
+ *
+ * The verification carries the plan with its entitlements, and
+ * `PlanEntitlement.limitValue` is a BigInt. Serialising it directly made the
+ * route throw after the transaction had already committed, so the admin saw an
+ * error while the payment was in fact approved. Limits are converted to strings
+ * here, the same way the plan endpoints do it.
+ */
+export function serializeReviewResponse<
+  V extends {
+    amount: { toString(): string };
+    proofStoragePath?: string | null;
+    proofMimeType?: string | null;
+    proofSizeBytes?: bigint | null;
+    proofChecksumSha256?: string | null;
+    plan?: { entitlements?: ReadonlyArray<{ limitValue?: bigint | null }> } | null;
+  },
+  S,
+>(input: { verification: V; subscription: S; idempotent: boolean }) {
+  const payload: Record<string, unknown> = { ...input.verification };
+  delete payload.proofStoragePath;
+  delete payload.proofMimeType;
+  delete payload.proofSizeBytes;
+  delete payload.proofChecksumSha256;
+  payload.amount = input.verification.amount.toString();
+  const plan = input.verification.plan;
+  if (plan) {
+    payload.plan = {
+      ...plan,
+      entitlements: (plan.entitlements ?? []).map((item) => ({
+        ...item,
+        limitValue: item.limitValue?.toString() ?? null,
+      })),
+    };
+  }
+  payload.subscription = input.subscription;
+  payload.idempotent = input.idempotent;
+  return payload;
+}

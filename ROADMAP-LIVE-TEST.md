@@ -783,21 +783,21 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L16-06                                | Trial                                 | End date benar                        |
 | L16-07                                | Grace period                          | Behaviour benar                       |
 | L16-08                                | List plan                             | Benar                                 |
-| L16-09                                | Submit payment proof HTTPS            | PENDING                               |
+| L16-09                                | Submit payment proof HTTPS **PASS 29 Okt 2026** — `201`, status `PENDING`, nominal diambil dari plan (149.000), bukan dari klien | PENDING                               |
 | L16-10                                | Invalid proof URL                     | Ditolak                               |
-| L16-11                                | SUPERADMIN lihat submission           | Ya                                    |
-| L16-12                                | Approve tanpa note jika note required | Ditolak                               |
-| L16-13                                | Approve + note                        | APPROVED                              |
-| L16-14                                | Reject                                | REJECTED                              |
-| L16-15                                | Approval otomatis mengaktifkan plan   | **Dikonfirmasi 24 Okt:** setelah approve, paket aktif + email terkirim |
-| L16-16                                | SUPERADMIN assign subscription        | Aktif                                 |
-| L16-17                                | Change plan                           | Entitlement berubah                   |
-| L16-18                                | Entitlement override enable           | Efektif                               |
-| L16-19                                | Override disable                      | Efektif                               |
-| L16-20                                | Override limit                        | Efektif                               |
-| L16-21                                | Expiring override                     | Kembali plan default                  |
-| L16-22                                | Set default plan                      | Benar                                 |
-| L16-23                                | Disable plan                          | Tidak ditawarkan ke user              |
+| L16-11                                | SUPERADMIN lihat submission **PASS 29 Okt 2026** — pengajuan `PENDING` terlihat lengkap; path bukti internal tidak ikut terkirim | Ya                                    |
+| L16-12                                | Approve tanpa note jika note required **PASS 29 Okt 2026** — `400`, pengajuan tetap `PENDING` | Ditolak                               |
+| L16-13                                | Approve + note **FAIL P1 29 Okt 2026** — data tersimpan `APPROVED` tetapi respons `500` (BigInt `limitValue` gagal diubah ke JSON). Fix + 2 tes regresi sudah dibuat, **menunggu build `.next`** | APPROVED                              |
+| L16-14                                | Reject — belum dijalankan (butuh pengajuan `PENDING` baru; sesi tenant 24 jam kedaluwarsa) | REJECTED                              |
+| L16-15                                | Approval otomatis mengaktifkan plan **PASS 29 Okt 2026** — setelah approve, tenant jadi `BISNIS` aktif sampai 29 Nov 2026 | **Dikonfirmasi 24 Okt:** setelah approve, paket aktif + email terkirim |
+| L16-16                                | SUPERADMIN assign subscription **PASS 29 Okt 2026** — `200`, `deviceLimit` 3 → 1, tanggal berakhir sesuai input | Aktif                                 |
+| L16-17                                | Change plan **PASS 29 Okt 2026** — `STARTER` → `PRO`, `deviceLimit` 1 → 10 | Entitlement berubah                   |
+| L16-18                                | Entitlement override enable **PASS (API) 29 Okt 2026** — `200`, limit 9 tersimpan; efek langsung ke tenant belum diverifikasi | Efektif                               |
+| L16-19                                | Override disable **PASS (API) 29 Okt 2026** — `200`, `enabled=false` | Efektif                               |
+| L16-20                                | Override limit **PASS (API) 29 Okt 2026** — `200`, limit 42 tersimpan | Efektif                               |
+| L16-21                                | Expiring override — belum dijalankan (butuh sesi tenant untuk membuktikan kembali ke plan default) | Kembali plan default                  |
+| L16-22                                | Set default plan **PASS 29 Okt 2026** — `STARTER` jadi default, `TRIAL` otomatis dilepas | Benar                                 |
+| L16-23                                | Disable plan **PASS 29 Okt 2026** — `BISNIS` nonaktif hilang dari `/api/plans`, aktif lagi muncul kembali | Tidak ditawarkan ke user              |
 
 ---
 
