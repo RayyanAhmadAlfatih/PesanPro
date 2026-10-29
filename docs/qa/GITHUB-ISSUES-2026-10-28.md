@@ -296,3 +296,65 @@ remoteJid, fromMe), tetapi `newContent` tidak bisa diisi tanpa membalik skema
 enkripsi internal WhatsApp. Opsi lanjutan hanya masuk akal kalau pemilik ingin
 menebak skema turunan HMAC/AES-GCM secara eksperimental — biaya satu siklus tes
 per percobaan, tanpa jaminan.
+
+---
+
+# L13-31 — Restart webhook worker (28 Okt 2026, 22:10 WIB) — **PASS**
+
+Tes terakhir di bab L13. Tujuannya memastikan antrean webhook tidak hilang dan
+tidak berganda saat proses aplikasi di-restart.
+
+## Cara tes dibuat agar tidak kosong
+
+Restart tanpa beban tidak membuktikan apa pun, jadi antrean disiapkan lebih dulu:
+
+1. Endpoint `qa-l13-events` sementara diarahkan ke `https://httpbin.org/status/500`
+   dan `maxAttempts` dinaikkan 8 → 12, supaya delivery tertahan di antrean.
+2. Tiga delivery lama di-replay lewat `POST .../deliveries/{id}/replay`
+   (sekaligus mengulang L13-23). Total baris 414 → 417, tepat +3.
+3. Ketiganya masuk `RETRYING` dengan `HTTP_500`.
+4. Pemilik menjalankan `pm2 restart pesanpro` pada ±22:10 WIB.
+5. Endpoint dikembalikan ke `https://httpbin.org/post`, `maxAttempts` kembali 8.
+
+## Bukti: delivery bertahan melewati restart
+
+`workerId` pada setiap attempt memuat penanda proses, sehingga batas restart bisa
+dilihat tanpa membaca log server. Proses lama `…220896-1bfffb3f`, proses baru
+`…233345-92556045`.
+
+| Delivery | Attempt proses lama | Attempt proses baru | Hasil |
+| --- | --- | --- | --- |
+| `cmvs6ot9u…` (`message.edited`) | 1–8 | 9 | `SUCCEEDED 200` 14:11:38Z |
+| `cmvs6ovmm…` (`message.received`) | 1–8 | 9–10 | `SUCCEEDED 200` 14:19:46Z |
+| `cmvs6oxgh…` (`message.edited`) | 1–8 | 9–10 | `SUCCEEDED 200` 14:20:02Z |
+
+Ketiganya tetap satu baris delivery yang sama (ID tidak berubah), attempt
+berlanjut dari nomor terakhir, dan berakhir sukses setelah endpoint normal.
+**Tidak ada yang hilang, tidak ada baris pengganti.**
+
+Event yang datang setelah restart juga langsung diproses: `connection.update`
+(`cmvs6yx6y…`) dibuat 14:10:22Z dan sukses pada attempt ke-7.
+
+## Duplikat
+
+- Tidak ada `eventId` yang punya lebih dari satu baris delivery non-replay
+  (diperiksa pada 200 delivery terakhir).
+- Tiga baris `replayOfId` yang ada adalah replay yang memang sengaja dibuat
+  untuk tes ini.
+- Tidak ada dead-letter baru dari jendela tes (`createdAt >= 14:00Z`): 0.
+
+## Catatan jujur
+
+Baris log `Received SIGINT, shutting down gracefully` dan
+`Stopped … recovered N delivery claim(s)` **tidak tertangkap** di 200 baris log
+terakhir yang diambil setelah restart — log aplikasi sangat padat sehingga
+jendela 200 baris hanya mencakup beberapa menit. Jadi jalur "claim dilepas saat
+shutdown" belum bisa dipastikan dari log. Yang terbukti dari data adalah hasil
+akhirnya: antrean tidak hilang dan tidak berganda. Pengujian khusus claim yang
+sedang `PROCESSING` saat proses dibunuh tetap perlu dilakukan di L18-07.
+
+## Efek samping pada data QA
+
+Empat event nyata yang ikut tertahan selama jendela 500 (tiga `message.received`
+dan satu `connection.update`) juga berakhir `SUCCEEDED`. Konfigurasi endpoint
+sudah dikembalikan: URL `https://httpbin.org/post`, `maxAttempts` 8, aktif.

@@ -2,11 +2,15 @@
 
 # MASTER LIVE TEST PESANPRO
 
-> **MULAI DARI SINI (checkpoint 28 Okt 2026):** baca
+> **MULAI DARI SINI (checkpoint 28 Okt 2026, diperbarui 29 Okt):** baca
 > **`docs/qa/CHECKPOINT-2026-10-28.md`** lebih dulu. Isinya status terakhir,
 > commit terkait, bukti log L13-15, aturan deploy (`src/` wajib `git pull`,
 > bukan hanya `.next`), dan syarat membuka kembali L13-15.
-> Sisa L13: hanya **L13-31** (restart worker). Berikutnya L16 → L17 → L18 → L15.
+> **L13 SELESAI** — L13-31 restart worker **PASS 28 Okt 22:10 WIB** (antrean
+> tidak hilang/berganda, bukti `workerId` per attempt di
+> `docs/qa/GITHUB-ISSUES-2026-10-28.md`). Rekap L13: 28 PASS, 3 N/A,
+> 1 gagal-sebagian (L13-15, di backlog). Berikutnya L16 → L17 → L18 → L15;
+> L16-11…23 dan L17 masih menunggu kata sandi SUPERADMIN.
 >
 > **Audit cakupan (23 Okt 2026):** jumlah tes sebenarnya **490**, bukan 427 —
 > selisih 63 tes: 37 tes L1 tambahan (umur sesi/OTP/harga), 12 tes CF7 di L15,
@@ -656,7 +660,7 @@ Event yang tersedia di source:
 | L13-12                                       | group.participant **PASS 28 Okt 2026** — dua event: `add` lalu `remove`, peserta membawa `phoneNumber` | Benar                                        |
 | L13-13                                       | contact.update                               | **N/A (dipensiunkan 25 Okt 2026)** — inbox chat sudah pensiun; event dihapus dari UI + kontrak |
 | L13-14                                       | status.update                                | **N/A (dipensiunkan 25 Okt 2026)** — tidak ada pengirim; dihapus dari UI + kontrak |
-| L13-15                                       | message.edited **GAGAL-SEBAGIAN 28 Okt 2026** — event terkirim dengan `keyId`, `remoteJid`, `fromMe` benar, tetapi `newContent` kosong: WhatsApp mengirim isi edit sebagai `secretEncryptedMessage` (terenkripsi internal, tidak didukung Baileys maupun whatsmeow) | Benar                                        |
+| L13-15                                       | message.edited **GAGAL-SEBAGIAN 28 Okt 2026, ditutup ke backlog** (bukan PASS, bukan pensiun permanen) — event terkirim dengan `keyId`, `remoteJid`, `fromMe` benar, tetapi `newContent` kosong: WhatsApp mengirim isi edit sebagai `secretEncryptedMessage` (terenkripsi internal, tidak didukung Baileys maupun whatsmeow). Dibuka lagi hanya bila Baileys/whatsmeow merilis dukungan atau skemanya terpublikasi — lihat `docs/qa/CHECKPOINT-2026-10-28.md` | Benar                                        |
 | L13-16                                       | message.deleted **PASS 28 Okt 2026** — `keyId`, `remoteJid`, `fromMe` benar; dua event dengan `keyId` berbeda (bukan duplikat) | Benar                                        |
 | L13-17                                       | schedule.status **PASS 26 Okt 2026** — delivery `200`, payload `{scheduleId, executionId, status}` | Benar                                        |
 | L13-18                                       | broadcast.status **PASS 26 Okt 2026** — delivery `200`, payload `{broadcastId, status}` | Benar                                        |
@@ -672,7 +676,7 @@ Event yang tersedia di source:
 | L13-28                                       | Rotate secret                                | New secret bekerja                           |
 | L13-29                                       | Previous signature transition                | Sesuai 24h design                            |
 | L13-30                                       | Delete                                       | Tidak menerima lagi                          |
-| L13-31                                       | Restart webhook worker                       | Outbox tidak hilang/duplicate abnormal       |
+| L13-31                                       | Restart webhook worker **PASS 28 Okt 2026** — tiga delivery yang tertahan `RETRYING` (HTTP 500) dilanjutkan proses baru dan berakhir `SUCCEEDED`; baris tidak berganda, tidak ada yang hilang. Bukti `workerId` lama→baru per attempt | Outbox tidak hilang/duplicate abnormal       |
 | L13-32                                       | Cross-tenant webhook                         | Ditolak                                      |
 
 ---

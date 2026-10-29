@@ -5,7 +5,7 @@ supaya tidak mengulang pekerjaan yang sudah selesai.
 
 ---
 
-## Status L13 (webhook) — 27 PASS, 3 N/A, 1 gagal-sebagian, 1 belum
+## Status L13 (webhook) — 28 PASS, 3 N/A, 1 gagal-sebagian — SELESAI
 
 | Tes | Status |
 | --- | --- |
@@ -16,10 +16,32 @@ supaya tidak mengulang pekerjaan yang sudah selesai.
 | L13-16 `message.deleted` | **PASS** 28 Okt |
 | L13-13, 14, 19 | N/A (fitur dipensiunkan) |
 | **L13-15 `message.edited`** | **GAGAL-SEBAGIAN** — lihat bagian di bawah |
-| L13-31 restart worker | belum dijalankan (paling akhir) |
+| L13-31 restart worker | **PASS** 28 Okt 22:10 WIB — lihat bagian di bawah |
 
-Sisa pekerjaan L13: **hanya L13-31** (restart worker sekali, cek antrean webhook
-tidak hilang atau berganda).
+**Bab L13 selesai.** Rekap akhir: 28 PASS, 3 N/A (13, 14, 19), 1 gagal-sebagian
+(15, masuk backlog).
+
+### L13-31 — cara tes dan hasilnya
+
+Restart tanpa beban tidak membuktikan apa pun, jadi antrean disiapkan dulu:
+endpoint diarahkan sementara ke `https://httpbin.org/status/500`, tiga delivery
+di-replay (total 414 → 417), lalu `pm2 restart pesanpro`. Setelah itu endpoint
+dikembalikan ke `httpbin.org/post` dan `maxAttempts` kembali 8.
+
+Bukti utama — `workerId` pada setiap attempt memuat penanda proses, jadi batas
+restart terlihat dari data, bukan dari log:
+
+| Delivery | Attempt proses lama | Attempt proses baru | Hasil |
+| --- | --- | --- | --- |
+| `cmvs6ot9u…` `message.edited` | 1–8 | 9 | `SUCCEEDED 200` |
+| `cmvs6ovmm…` `message.received` | 1–8 | 9–10 | `SUCCEEDED 200` |
+| `cmvs6oxgh…` `message.edited` | 1–8 | 9–10 | `SUCCEEDED 200` |
+
+Tidak ada baris pengganti, tidak ada `eventId` berganda, tidak ada dead-letter
+baru. Detail: `docs/qa/GITHUB-ISSUES-2026-10-28.md`.
+
+**Belum terbukti:** baris log shutdown graceful tidak tertangkap (log terlalu
+padat), jadi pelepasan claim saat shutdown belum dipastikan — itu materi L18-07.
 
 ---
 
@@ -146,12 +168,16 @@ Panduan lengkap: `docs/qa/PANDUAN-DEPLOY-VPS-2026-10-27.md`.
 
 ## Langkah berikutnya (sesi baru)
 
-1. **L13-31** — restart worker sekali, pastikan antrean webhook tidak hilang
-   atau berganda. Ini tes terakhir L13.
-2. **L16** — sisa: 11–23 (butuh SUPERADMIN). Catatan: kata sandi superadmin di
-   vault **ditolak** saat dicoba 28 Okt; perlu reset atau konfirmasi ulang.
-3. **L17** — 01–15, 20–44 (butuh SUPERADMIN). L17-16/17/19 sudah PASS.
-4. **L18, L15** — belum disentuh.
+1. **L16** — sisa: 07 & 09 (blocked-pemilik) dan 11–23 (butuh SUPERADMIN).
+   Catatan: kata sandi superadmin di vault **ditolak** saat dicoba 28 Okt; perlu
+   reset atau konfirmasi ulang.
+2. **L17** — 01–15, 20–44 (butuh SUPERADMIN). L17-16/17/19 sudah PASS.
+3. **L18, L15** — belum disentuh. L18-07 (kill saat `PROCESSING`) adalah lanjutan
+   alami dari L13-31 karena menguji pelepasan claim, bukan hanya antrean.
+
+**Blocker utama sesi berikutnya:** akses SUPERADMIN. Tanpa itu, 11 tes L16 dan
+lebih dari 40 tes L17 tidak bisa dijalankan. Semua perintah produksi juga harus
+dijalankan pemilik — tidak ada kunci SSH yang diterima dari mesin QA.
 
 Lihat `ROADMAP-LIVE-TEST.md` untuk daftar tes lengkap dan
 `docs/qa/GITHUB-ISSUES-2026-10-28.md` untuk kronologi hari ini.
