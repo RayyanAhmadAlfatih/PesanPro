@@ -77,6 +77,11 @@ const envSchema = z.object({
   ALLOW_INSECURE_WEBHOOKS: z.enum(["true", "false"]).default("false").transform((value) => value === "true"),
   RUNTIME_HEARTBEAT_INTERVAL_MS: z.coerce.number().int().min(5000).max(60_000).default(15_000),
   RUNTIME_HEARTBEAT_STALE_MS: z.coerce.number().int().min(15_000).max(300_000).default(90_000),
+  // Restart through the graceful path once RSS stays above this limit. 0
+  // disables the watchdog. Keep it below PM2's max_memory_restart so the
+  // shutdown stays orderly instead of a hard kill.
+  RUNTIME_MEMORY_LIMIT_MB: z.coerce.number().int().min(0).max(8192).default(700),
+  RUNTIME_MEMORY_CHECK_MS: z.coerce.number().int().min(5_000).max(600_000).default(30_000),
   OPS_ALERT_COOLDOWN_MS: z.coerce.number().int().min(60_000).max(86_400_000).default(300_000),
   OPS_QUEUE_WARNING_AGE_MS: z.coerce.number().int().min(60_000).max(86_400_000).default(300_000),
   OPS_QUEUE_CRITICAL_AGE_MS: z.coerce.number().int().min(60_000).max(604_800_000).default(1_800_000),

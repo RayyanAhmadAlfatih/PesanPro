@@ -211,13 +211,13 @@ describe("review response serialization", () => {
         amount: { toString: () => "149000" },
         proofStoragePath: "/var/private/proof.png",
         proofMimeType: "image/png",
-        proofSizeBytes: 70n,
+        proofSizeBytes: BigInt(70),
         proofChecksumSha256: "abc",
         plan: {
           id: "plan_bisnis",
           name: "Bisnis",
           entitlements: [
-            { feature: "DEVICES", limitValue: 2n },
+            { feature: "DEVICES", limitValue: BigInt(2) },
             { feature: "API_ACCESS", limitValue: null },
           ],
         },

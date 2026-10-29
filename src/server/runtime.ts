@@ -11,6 +11,7 @@ import { validateEnvOrExit } from "../lib/env";
 import { resolveTrustedClientIp, TRUSTED_CLIENT_IP_HEADER } from "../lib/client-ip";
 import pkg from "../../package.json";
 import { RuntimeHeartbeatReporter } from "../lib/runtime-heartbeat";
+import { startMemoryWatchdog, type MemoryWatchdog } from "../lib/memory-watchdog";
 import type { RuntimeProcessType } from "@prisma/client";
 
 const env = validateEnvOrExit();
@@ -214,9 +215,11 @@ app.prepare().then(async () => {
   dailyMaintenance.unref?.();
 
   // Graceful shutdown (Gate 0)
+  let memoryWatchdog: MemoryWatchdog | null = null;
   const shutdown = async (signal: string) => {
     logger.info("Server", `Received ${signal}, shutting down gracefully...`);
     try {
+      memoryWatchdog?.stop();
       clearInterval(operationalScan);
       clearTimeout(initialMaintenance);
       clearInterval(dailyMaintenance);
@@ -243,6 +246,18 @@ app.prepare().then(async () => {
 
   process.on("SIGTERM", () => shutdown("SIGTERM"));
   process.on("SIGINT", () => shutdown("SIGINT"));
+
+  // PM2's max_memory_restart did not fire while this process sat at ~1.4 GB, so
+  // it watches itself and leaves through the same graceful path. The supervisor
+  // then starts a clean process.
+  if (env.RUNTIME_MEMORY_LIMIT_MB > 0) {
+    memoryWatchdog = startMemoryWatchdog({
+      limitBytes: env.RUNTIME_MEMORY_LIMIT_MB * 1024 * 1024,
+      intervalMs: env.RUNTIME_MEMORY_CHECK_MS,
+      logger,
+      onExceed: () => shutdown("memory-limit"),
+    });
+  }
 }).catch((error) => {
   logger.error("Server", "Startup failed", error);
   process.exit(1);
