@@ -2,6 +2,7 @@ import type { Metadata, Viewport } from "next";
 import "./globals.css";
 import { Providers } from "@/components/providers";
 import { TopLoader } from "@/components/ui/top-loader";
+import { prisma } from "@/lib/prisma";
 
 const APP_DESCRIPTION = "PesanPro — Self-hosted WhatsApp Gateway SaaS multi-tenant dengan multi-device, queue yang tahan restart, dan API yang aman.";
 const APP_URL = process.env.NEXT_PUBLIC_APP_URL || process.env.BASE_URL || "https://pesanpro.app";
@@ -15,8 +16,25 @@ export const viewport: Viewport = {
   initialScale: 1,
 };
 
-export function generateMetadata(): Metadata {
-  const appName = process.env.APP_NAME?.trim() || "PesanPro";
+// The application name can be changed from the dashboard settings, so the
+// metadata must read the stored value instead of only the build-time env.
+// APP_NAME stays as the fallback so a build or a temporary database outage can
+// never break metadata rendering.
+async function resolveAppName(): Promise<string> {
+  const fallback = process.env.APP_NAME?.trim() || "PesanPro";
+  try {
+    const config = await prisma.systemConfig.findUnique({
+      where: { id: "default" },
+      select: { appName: true },
+    });
+    return config?.appName?.trim() || fallback;
+  } catch {
+    return fallback;
+  }
+}
+
+export async function generateMetadata(): Promise<Metadata> {
+  const appName = await resolveAppName();
 
   const appDefaultTitle = `${appName} | Premium WhatsApp Gateway`;
 
