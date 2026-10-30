@@ -883,12 +883,12 @@ Ini phase terakhir sebelum kita mengatakan PesanPro siap public production.
 | L18-18                                         | Webhook receiver down → up                     | Retry/recovery                                 |
 | L18-19                                         | WA disconnected → reconnect                    | Job handling benar                             |
 | L18-20                                         | Tenant isolation regression seluruh resource   | PASS                                           |
-| L18-21                                         | Scan response/log untuk token/password/API key | Tidak bocor                                    |
-| L18-22                                         | `.env`/secret tidak public                     | Tidak bisa diakses                             |
-| L18-23                                         | Stack trace production                         | Tidak bocor ke browser                         |
-| L18-24                                         | Responsive mobile dashboard                    | Tidak ada blocking UI                          |
-| L18-25                                         | Chrome desktop/mobile                          | Critical flow normal                           |
-| L18-26                                         | Long session penggunaan realtime               | Socket stabil                                  |
+| L18-21                                         | Scan response/log untuk token/password/API key | **PASS 30 Okt 2026** — 9 kecocokan hanya boolean/nama (`secret=yes/no`, `secretType`, `tokenCount`); tidak ada nilai rahasia |
+| L18-22                                         | `.env`/secret tidak public                     | **PASS 30 Okt 2026** — `/.env`, `/.env.local`, `/.git/config`, `/prisma/schema.prisma`, `/package.json`, `/backup.sql`, `/docker-compose.yml` → 404 |
+| L18-23                                         | Stack trace production                         | **PASS 30 Okt 2026** — payload rusak → error generik (`Invalid reset request`, dll.), tanpa stack trace |
+| L18-24                                         | Responsive mobile dashboard                    | **PASS 30 Okt 2026** — iPhone 14 390x844: dashboard render normal (banner + kartu), tidak ada UI terblokir |
+| L18-25                                         | Chrome desktop/mobile                          | **PASS 30 Okt 2026** — desktop (settings/pengumuman) & mobile (dashboard) flow normal |
+| L18-26                                         | Long session penggunaan realtime               | **PASS (sebagian) 30 Okt 2026** — console: `Socket connected for notifications`, tanpa error; observasi singkat |
 
 ---
 
