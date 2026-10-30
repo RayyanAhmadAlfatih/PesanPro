@@ -813,7 +813,7 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L17-06                              | Suspend **PASS 29 Okt 2026** — login ditolak `CredentialsSignin` | User kehilangan akses               |
 | L17-07                              | Reactivate **PASS 29 Okt 2026** — login kembali berhasil | Pulih                               |
 | L17-08                              | Delete user                         | Sesuai dependency policy            |
-| L17-09                              | Change app name                     | **PASS 30 Okt 2026 (UI+API)** — sidebar ikut berubah; ⚠️ title browser TIDAK berubah (terikat env `APP_NAME`, lihat issue) |
+| L17-09                              | Change app name                     | **PASS 30 Okt 2026 (UI+API)** — sidebar & **title browser** ikut berubah setelah fix `89ce3de`; diverifikasi live: "PesanPro Title Test" → title ikut, lalu revert |
 | L17-10                              | Change timezone                     | **PASS 30 Okt 2026 (UI+API)** — nilai select tersimpan di DB |
 | L17-11                              | Logo URL                            | **PASS 30 Okt 2026 (UI+API)** — tersimpan & tampil di form |
 | L17-12                              | Favicon URL                         | **PASS 30 Okt 2026 (UI+API)** — tersimpan & tampil di form |

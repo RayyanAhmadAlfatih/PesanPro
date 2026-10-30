@@ -15,8 +15,12 @@ membaca `systemConfig.appName` lewat Prisma, dengan fallback ke `APP_NAME` /
 `PesanPro` bila DB tidak tersedia (mis. saat build). Tidak ada cache, jadi
 perubahan app name langsung terlihat setelah reload.
 
-**Verifikasi:** `tsc --noEmit` bersih, `eslint` bersih. Verifikasi live menunggu
-deploy (build `.next` + restart).
+**Verifikasi:** `tsc --noEmit` bersih, `eslint` bersih, `next build` lolos.
+**Diverifikasi live setelah deploy (30 Okt 2026, 21:2x WIB):** ubah Application
+Name lewat UI menjadi "PesanPro Title Test" → Save → buka halaman baru →
+`<title>` menjadi `PesanPro Title Test | Premium WhatsApp Gateway`; setelah
+dikembalikan ke "PesanPro" → `<title>` kembali
+`PesanPro | Premium WhatsApp Gateway`. Sidebar juga ikut berubah.
 
 ## 2. L17-31 s.d. L17-44 — pengumuman popup
 
