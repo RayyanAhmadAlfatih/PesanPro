@@ -840,20 +840,20 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 
 | ID      | Test                                                        | Expected                                                        |
 | ------- | ----------------------------------------------------------- | --------------------------------------------------------------- |
-| L17-31  | Buat pengumuman sebagai draf                                | Tersimpan sebagai draf, tidak ada popup untuk siapa pun          |
-| L17-32  | Tayangkan pengumuman                                        | Popup muncul sekali saat user membuka dashboard                  |
-| L17-33  | Tutup popup lalu refresh                                    | Tidak muncul lagi                                                |
-| L17-34  | Login dari browser atau perangkat lain                      | Tidak muncul lagi                                                |
-| L17-35  | Tayangkan pengumuman baru                                   | Popup muncul lagi karena versinya lebih baru                     |
-| L17-36  | Ubah pengumuman yang sudah tayang                           | Tidak memunculkan ulang popup ke user yang sudah menutupnya      |
-| L17-37  | Tarik dari tayangan                                         | Popup tidak muncul untuk user yang belum melihatnya              |
-| L17-38  | Buka `/dashboard/sessions` saat popup tertunda              | Popup tidak menutupi alur QR, muncul setelah pindah halaman      |
-| L17-39  | Tarik draf dari `src/lib/changelog.ts`                      | Masuk sebagai draf, belum tayang                                 |
-| L17-40  | USER biasa buka `/dashboard/announcements`                  | Dialihkan ke `/dashboard`                                        |
-| L17-41  | Isi tautan detail dengan URL eksternal                      | Ditolak, hanya path di dalam aplikasi                            |
-| L17-42  | Isi lebih dari 4 poin                                       | Ditolak dengan pesan batas poin                                  |
-| L17-43  | Mobile viewport                                             | Popup tetap terbaca, tombol minimal 44 px                        |
-| L17-44  | Keyboard saja (Tab, Enter, Escape)                          | Popup bisa ditutup, fokus terlihat jelas                         |
+| L17-31  | Buat pengumuman sebagai draf                                | **PASS 30 Okt 2026** — `publish:false` → DRAFT, `publishedAt` null, tanpa popup |
+| L17-32  | Tayangkan pengumuman                                        | **PASS 30 Okt 2026** — publish → popup muncul saat buka dashboard |
+| L17-33  | Tutup popup lalu refresh                                    | **PASS 30 Okt 2026** — klik "Mengerti" + reload → tidak muncul |
+| L17-34  | Login dari browser atau perangkat lain                      | **PASS 30 Okt 2026** — tab baru (sessionStorage kosong) tanpa popup → watermark di server |
+| L17-35  | Tayangkan pengumuman baru                                   | **PASS 30 Okt 2026** — publish baru → popup muncul lagi (versi 9.9.9) |
+| L17-36  | Ubah pengumuman yang sudah tayang                           | **PASS 30 Okt 2026** — edit mempertahankan `publishedAt` → tidak muncul ulang |
+| L17-37  | Tarik dari tayangan                                         | **PASS 30 Okt 2026** — unpublish semua → 0 published, tab baru tanpa popup |
+| L17-38  | Buka `/dashboard/sessions` saat popup tertunda              | **PASS 30 Okt 2026** — ditunda di /dashboard/sessions, muncul setelah ke /dashboard |
+| L17-39  | Tarik draf dari `src/lib/changelog.ts`                      | **N/A 30 Okt 2026** — `CHANGELOG` kosong by design; sync `imported:0` |
+| L17-40  | USER biasa buka `/dashboard/announcements`                  | **PASS 30 Okt 2026** — USER → `307` redirect ke `/dashboard`; API admin `403` |
+| L17-41  | Isi tautan detail dengan URL eksternal                      | **PASS 30 Okt 2026** — `400` "Link must be an in-app path" |
+| L17-42  | Isi lebih dari 4 poin                                       | **PASS 30 Okt 2026** — `400` "At most 4 bullets" |
+| L17-43  | Mobile viewport                                             | **PASS 30 Okt 2026** — iPhone 14 390x844: dialog 358px, tombol 44px, tanpa overflow |
+| L17-44  | Keyboard saja (Tab, Enter, Escape)                          | **PASS 30 Okt 2026** — Escape menutup; Tab fokus "Mengerti" (ring 5px); Enter menutup |
 
 ---
 
