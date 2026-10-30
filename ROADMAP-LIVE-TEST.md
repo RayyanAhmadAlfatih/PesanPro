@@ -813,10 +813,10 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L17-06                              | Suspend **PASS 29 Okt 2026** — login ditolak `CredentialsSignin` | User kehilangan akses               |
 | L17-07                              | Reactivate **PASS 29 Okt 2026** — login kembali berhasil | Pulih                               |
 | L17-08                              | Delete user                         | Sesuai dependency policy            |
-| L17-09                              | Change app name                     | Sidebar/title berubah               |
-| L17-10                              | Change timezone                     | Scheduler menggunakan timezone baru |
-| L17-11                              | Logo URL                            | Branding benar                      |
-| L17-12                              | Favicon URL                         | Benar                               |
+| L17-09                              | Change app name                     | **PASS 30 Okt 2026 (UI+API)** — sidebar ikut berubah; ⚠️ title browser TIDAK berubah (terikat env `APP_NAME`, lihat issue) |
+| L17-10                              | Change timezone                     | **PASS 30 Okt 2026 (UI+API)** — nilai select tersimpan di DB |
+| L17-11                              | Logo URL                            | **PASS 30 Okt 2026 (UI+API)** — tersimpan & tampil di form |
+| L17-12                              | Favicon URL                         | **PASS 30 Okt 2026 (UI+API)** — tersimpan & tampil di form |
 | L17-13                              | Send notification to one user **PASS 29 Okt 2026** — unread tenant A 22 → 23, tenant B tidak berubah | Hanya target menerima               |
 | L17-14                              | Broadcast notification **PASS 29 Okt 2026** — 8 akun, item terbaru muncul di A dan B | Semua target menerima               |
 | L17-15                              | Realtime toast/socket **PASS 29 Okt 2026** — badge lonceng 24 → 25 tanpa muat ulang; gelembung toast tidak muncul | Muncul tanpa refresh                |

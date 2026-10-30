@@ -251,3 +251,36 @@ bukan Resolve.
 Untuk menuntaskan L17-28 perlu kondisi yang benar-benar hilang. Contoh yang sudah
 terjadi: alert `DATABASE_LATENCY` berstatus `RESOLVED` setelah server diperbaiki,
 dan itu membuktikan alert memang keluar dari daftar aktif saat kondisinya hilang.
+
+---
+
+# L17-09 s.d. L17-12 — branding & pengaturan sistem (30 Okt 2026, 08:0x WIB)
+
+Diuji lewat **UI (browser Brave Profile 11, superadmin) dan API** (`/api/settings/system`, SUPERADMIN only).
+
+| Tes | Status | Bukti |
+| --- | --- | --- |
+| L17-09 ubah app name | **PASS** | Isi form "PesanPro QA UI" → Save → setelah reload sidebar menampilkan "PesanPro QA UI"; API `appName` ikut berubah |
+| L17-10 ubah timezone | **PASS** | Pilih `Asia/Makassar` → Save → API `timezone` = Asia/Makassar |
+| L17-11 ubah logo URL | **PASS** | Isi logo → Save → API `logoUrl` tersimpan & muncul kembali di form |
+| L17-12 ubah favicon URL | **PASS** | Isi favicon → Save → API `faviconUrl` tersimpan & muncul kembali di form |
+| Revert ke nilai awal | **PASS** | Kembalikan ke `PesanPro / Asia/Jakarta / "" / /favicon.ico` → API & UI (sidebar + form) kembali baseline |
+
+## Temuan: title browser tidak mengikuti pengaturan
+
+Form berjanji "Changes the name in the sidebar and browser title", tapi **title tab
+browser tetap `PesanPro | Premium WhatsApp Gateway`** meski `appName` di DB sudah
+"PesanPro QA UI". Penyebab: `src/app/layout.tsx` baris 19 membaca
+`process.env.APP_NAME` (env build-time) untuk `metadata.title`, bukan
+`systemConfig.appName` dari DB. Hanya Navbar (sidebar) yang membaca nilai DB
+(`src/app/dashboard/layout.tsx`). Jadi ubah app name lewat UI hanya mengubah
+sidebar, bukan title tab — kecuali `APP_NAME` di-set dan di-build ulang.
+
+Saran perbaikan (opsional, di luar tes): bikin client component kecil yang
+`mixin` `systemConfig.appName` ke `document.title`, atau baca `systemConfig` di
+server layout. Perlu konfirmasi pemilik sebelum diubah karena menyentuh metadata.
+
+## Catatan alur tes
+- Sesi bsk (`ozvc`) mati di tengah revert → revert diselesaikan lewat API (POST
+  baseline) lalu diverifikasi ulang lewat UI (sesi `kgcl`) bahwa sidebar & form
+  kembali baseline. Kondisi produksi tidak dibiarkan dalam state tes.
