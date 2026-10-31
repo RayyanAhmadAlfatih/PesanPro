@@ -70,7 +70,6 @@ export default async function DocsPage() {
       <footer className="border-t border-[var(--pp-line)]">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-6 text-xs text-[var(--pp-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
           <span>PesanPro v{pkg.version}</span>
-          <span>Dibuat oleh wa-akg</span>
         </div>
       </footer>
     </div>
