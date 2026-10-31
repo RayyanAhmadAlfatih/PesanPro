@@ -342,7 +342,10 @@ export async function executeClaimedWebhookDelivery(claim: ClaimedWebhookDeliver
   }
   await requireEntitlement(claim.delivery.webhook.tenantId, "WEBHOOKS");
   const destination = new URL(claim.delivery.webhook.url).hostname.toLowerCase();
-  const rate = await checkPersistentRateLimit(`webhook-destination:${destination}`, WEBHOOK_DESTINATION_RATE_PER_MINUTE, 60_000);
+  // Scope the limiter by tenant as well as host: a single tenant flooding a
+  // shared receiver host must not exhaust the bucket and starve other tenants'
+  // deliveries to that same host.
+  const rate = await checkPersistentRateLimit(`webhook-destination:${claim.delivery.webhook.tenantId}:${destination}`, WEBHOOK_DESTINATION_RATE_PER_MINUTE, 60_000);
   if (!rate.success) {
     throw new WebhookTransportError("DESTINATION_RATE_LIMITED", "Webhook destination rate limit reached", true, rate.retryAfterMs);
   }

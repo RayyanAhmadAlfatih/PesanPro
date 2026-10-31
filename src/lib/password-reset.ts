@@ -91,12 +91,24 @@ export async function requestPasswordReset(emailInput: string): Promise<Password
   const baseUrl = process.env.PASSWORD_RESET_BASE_URL ?? process.env.BASE_URL ?? "http://localhost:3000";
   const resetUrl = `${baseUrl.replace(/\/$/, "")}/auth/reset-password?token=${encodeURIComponent(secret)}`;
 
+  // The endpoint must stay enumeration-safe (always `accepted: true`), so the
+  // user gets no signal when delivery is impossible. Surface it loudly to the
+  // operator instead, naming the missing configuration, so lockouts are
+  // diagnosable rather than silent.
+  if (!process.env.RESEND_API_KEY || !process.env.PASSWORD_RESET_FROM) {
+    logger.error(
+      "Auth",
+      "Password reset requested but email delivery is not configured (set RESEND_API_KEY and PASSWORD_RESET_FROM); no reset email was sent",
+    );
+    return { accepted: true };
+  }
+
   try {
     const delivered = smtpConfigured()
       ? await sendResetEmailViaSmtp(user.email, resetUrl)
       : await sendResetEmail(user.email, resetUrl);
     if (!delivered && process.env.NODE_ENV === "production") {
-      logger.error("Auth", "Password reset email delivery is not configured or failed");
+      logger.error("Auth", "Password reset email delivery failed; the reset link could not be delivered");
     }
   } catch (error) {
     logger.error("Auth", "Password reset email delivery failed", error);

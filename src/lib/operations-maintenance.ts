@@ -32,7 +32,7 @@ export function operationalRetentionBoundaries(now = new Date(), autoReplyRetent
 export async function runOperationalMaintenance(now = new Date()) {
   const env = getEnv();
   const boundaries = operationalRetentionBoundaries(now, env.AUTOREPLY_TRIGGER_LOG_RETENTION_DAYS, env.MESSAGE_RETENTION_DAYS);
-  const [audit, heartbeats, alerts, autoReplyLogs, overrides, rateLimits, privateMedia, messages, pairingCodes, otpChallenges] = await Promise.all([
+  const [audit, heartbeats, alerts, autoReplyLogs, overrides, rateLimits, privateMedia, idempotency, messages, pairingCodes, otpChallenges] = await Promise.all([
     purgeExpiredAuditLogs(env.AUDIT_RETENTION_DAYS, now),
     prisma.runtimeHeartbeat.deleteMany({ where: { heartbeatAt: { lt: boundaries.heartbeatBefore } } }),
     prisma.operationalAlert.deleteMany({
@@ -47,6 +47,10 @@ export async function runOperationalMaintenance(now = new Date()) {
     prisma.tenantEntitlementOverride.deleteMany({ where: { expiresAt: { lte: now } } }),
     prisma.rateLimitBucket.deleteMany({ where: { expiresAt: { lte: now } } }),
     purgeExpiredPrivateMedia(now),
+    // Idempotency records carry an `expiresAt` (7-day key window) but were never
+    // reclaimed, so the table grew without bound. Reclaim the expired rows here;
+    // the message job itself is retained for audit history.
+    prisma.idempotencyRecord.deleteMany({ where: { expiresAt: { lte: now } } }),
     boundaries.messageBefore
       ? prisma.message.deleteMany({ where: { timestamp: { lt: boundaries.messageBefore } } })
       : Promise.resolve({ count: 0 }),
@@ -68,6 +72,7 @@ export async function runOperationalMaintenance(now = new Date()) {
     expiredEntitlementOverrides: overrides.count,
     expiredRateLimits: rateLimits.count,
     expiredPrivateMedia: privateMedia.deleted,
+    expiredIdempotencyRecords: idempotency.count,
     expiredMessages: messages.count,
     expiredPairingCodes: pairingCodes.count,
     expiredOtpChallenges: otpChallenges.count,
