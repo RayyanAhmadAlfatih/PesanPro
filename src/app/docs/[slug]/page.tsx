@@ -3,6 +3,7 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { readGuide } from "@/lib/docs";
+import pkg from "../../../../package.json";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -44,7 +45,7 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
 
       <footer className="border-t border-[var(--pp-line)]">
         <div className="mx-auto flex w-full max-w-4xl flex-col gap-2 px-4 py-6 text-xs text-[var(--pp-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <span>PesanPro v0.1.0</span>
+          <span>PesanPro v{pkg.version}</span>
           <span>Dibuat oleh wa-akg</span>
         </div>
       </footer>

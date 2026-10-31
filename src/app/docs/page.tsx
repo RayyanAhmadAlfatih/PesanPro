@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { listGuides } from "@/lib/docs";
+import pkg from "../../../package.json";
 
 export const dynamic = "force-dynamic";
 export const revalidate = 0;
@@ -68,7 +69,7 @@ export default async function DocsPage() {
 
       <footer className="border-t border-[var(--pp-line)]">
         <div className="mx-auto flex w-full max-w-5xl flex-col gap-2 px-4 py-6 text-xs text-[var(--pp-muted)] sm:flex-row sm:items-center sm:justify-between sm:px-6">
-          <span>PesanPro v0.1.0</span>
+          <span>PesanPro v{pkg.version}</span>
           <span>Dibuat oleh wa-akg</span>
         </div>
       </footer>

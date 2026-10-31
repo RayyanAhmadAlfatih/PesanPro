@@ -8,9 +8,33 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), da
 
 ### Akan datang
 
-- Deploy migrasi paket dan batas upload ke produksi.
-- GitHub Release untuk `v0.1.0` dan pembersihan branch lama.
+- Deploy migrasi paket, onboarding, dan support ke produksi.
+- GitHub Release untuk `v0.2.0` dan pembersihan branch lama.
 - Halaman status layanan dan dokumentasi pemulihan bencana.
+
+## [0.2.0] - 2026-10-31
+
+Rilis onboarding dan dokumentasi di dalam aplikasi.
+
+### Ditambahkan
+
+- Onboarding saat daftar: paket, periode, rekening tujuan, dan bukti transfer diisi sebelum akun dibuat.
+- Kolom rekening pembayaran di `SystemConfig` dan kartu **Payment destination** di Settings superadmin.
+- Endpoint publik `/api/public/onboarding` yang mengirim daftar paket dan rekening tujuan ke halaman daftar.
+- Halaman dokumentasi publik `/docs` dan `/docs/[slug]` yang membaca panduan `.md` yang sama dengan repositori, plus menu **Dokumentasi** di landing page dan dashboard.
+- `docs/AGENT-PLAYBOOK.md`: aturan berpikir, diagnosis, testing lewat `browser-skill`, coding, struktur repo, dan format laporan.
+- Kontak WhatsApp admin di `SystemConfig` dan halaman **Bantuan** di dashboard, dengan tombol chat langsung ke nomor yang diatur superadmin.
+- Kredit pembuat **wa-akg** di README, footer aplikasi, halaman masuk, dan metadata paket.
+
+### Diubah
+
+- Halaman daftar menjadi tiga langkah dan memakai bahasa Indonesia: data akun, pilih paket, lalu transfer dan unggah bukti.
+- Bukti pembayaran tidak lagi dihitung ke kuota `MEDIA_STORAGE_BYTES`.
+
+### Diperbaiki
+
+- Registrasi tidak bisa dikirim tanpa paket dan bukti transfer; server menolak permintaan yang tidak lengkap.
+- Akun `PENDING` bisa mengunggah bukti pembayaran meski belum punya jatah penyimpanan.
 
 ## [0.1.0] - 2026-10-31
 
@@ -21,16 +45,9 @@ Rilis pra-launch pertama. Fokus: paket premium tanpa trial, harga kompetitif, da
 - Panduan lengkap `docs/panduan/01` sampai `10`: memulai untuk UMKM, broadcast, auto-reply, media, API developer, webhook, integrasi tanpa kode, troubleshooting, paket dan margin, serta panduan admin.
 - Contoh kode cURL, Node.js, dan PHP, plus SDK mini untuk Node.js dan PHP.
 - Entitlement `MEDIA_MAX_UPLOAD_BYTES` agar batas unggah bisa diatur per paket.
-- Kolom rekening pembayaran di `SystemConfig` dan kartu **Payment destination** di halaman Settings superadmin.
-- Endpoint publik `/api/public/onboarding` yang mengirim daftar paket dan rekening tujuan ke halaman daftar.
-- Registrasi onboarding: paket, nominal, rekening tujuan, dan bukti transfer diisi saat membuat akun.
 - Batas unggah per paket: Starter 50 MB, Bisnis 75 MB, Pro 100 MB.
 - Halaman Tagihan baru: kartu paket berbahasa awam, nominal yang bisa disalin, langkah pengiriman bukti, checklist sebelum kirim, dan riwayat berstatus Indonesia.
 - `README.md`, `CHANGELOG.md`, dan indeks panduan.
-- Kredit pembuat **wa-akg** di README, footer aplikasi, halaman masuk, dan metadata paket.
-- Halaman dokumentasi publik `/docs` yang membaca panduan `.md` yang sama dengan repositori, plus menu **Dokumentasi** di landing page dan dashboard.
-- `docs/AGENT-PLAYBOOK.md`: aturan berpikir, diagnosis, testing lewat `browser-skill`, coding, struktur repo, dan format laporan.
-- Kontak WhatsApp admin di `SystemConfig` dan halaman **Bantuan** di dashboard, dengan tombol chat langsung ke nomor yang diatur superadmin.
 
 ### Diubah
 
@@ -50,7 +67,6 @@ Rilis pra-launch pertama. Fokus: paket premium tanpa trial, harga kompetitif, da
 ### Diperbaiki
 
 - Persetujuan dan penolakan pembayaran tidak lagi mengembalikan `500` karena nilai `BigInt` pada entitlement.
-- Bukti pembayaran tidak lagi dihitung ke kuota `MEDIA_STORAGE_BYTES`, sehingga akun `PENDING` bisa mengunggah bukti sebelum punya paket.
 - Watchdog koneksi WhatsApp memutus sesi yang menggantung lebih dari 60 detik.
 - Reaksi dari nomor sendiri tidak lagi tercatat sebagai pesan masuk.
 - Notifikasi `LOGGED_OUT` dan `STOPPED` dikirim lewat saluran peringatan sesi.

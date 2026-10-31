@@ -2,7 +2,7 @@
 
 Gateway WhatsApp untuk UMKM. Satu dashboard untuk menghubungkan nomor WhatsApp, mengirim broadcast, membalas otomatis, menjadwalkan pesan, dan memanggil REST API.
 
-Status: pra-rilis `0.1.0` (31 Oktober 2026). Tidak ada paket trial. Akun baru bisa masuk dashboard, tetapi pengiriman, auto-reply, webhook, dan unggah media aktif setelah pembayaran disetujui admin.
+Status: pra-rilis `0.2.0` (31 Oktober 2026). Tidak ada paket trial. Akun baru bisa masuk dashboard, tetapi pengiriman, auto-reply, webhook, dan unggah media aktif setelah pembayaran disetujui admin.
 
 Dibuat dan dikembangkan oleh **wa-akg**.
 
