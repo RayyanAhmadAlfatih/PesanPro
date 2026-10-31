@@ -233,6 +233,9 @@ export default async function Home() {
                 Harga
               </Link>
             )}
+            <Link href="/docs" className="hidden text-sm font-medium text-[var(--pp-muted)] transition-colors hover:text-[var(--pp-ink)] md:block">
+              Dokumentasi
+            </Link>
             <Link href="/auth/login">
               <Button size="sm" className="rounded-md px-4">
                 Masuk
@@ -622,6 +625,9 @@ export default async function Home() {
           </div>
 
           <nav className="flex flex-wrap items-center gap-6 text-sm">
+            <Link href="/docs" className="text-[var(--pp-muted)] transition-colors hover:text-[var(--pp-ink)]">
+              Dokumentasi
+            </Link>
             <Link href="/privacy" className="text-[var(--pp-muted)] transition-colors hover:text-[var(--pp-ink)]">
               Kebijakan privasi
             </Link>

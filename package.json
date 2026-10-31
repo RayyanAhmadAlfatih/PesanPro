@@ -61,6 +61,7 @@
     "emailjs": "5.0.3",
     "jimp": "^1.6.0",
     "lucide-react": "^0.562.0",
+    "marked": "^18.1.2",
     "moment": "^2.31.0",
     "moment-timezone": "^0.6.0",
     "next": "16.4.2",

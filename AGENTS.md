@@ -65,6 +65,18 @@ dashboard, and the durable message queue.
 Do not rewrite working code merely for preference. A rename or refactor must be
 needed for the requested fix and remain inside the files involved.
 
+## Operational playbook
+
+`docs/AGENT-PLAYBOOK.md` is binding for this repository. Read it before browser
+testing, diagnosis, or structural changes. The rules that matter most:
+
+- Verify UI behaviour with `browser-skill` (`bsk`), and stop the session when
+  the check is finished.
+- Never send real WhatsApp messages, run a live broadcast, or change production
+  data during a test without explicit approval.
+- Collect two independent evidence sources before declaring a cause.
+- Keep the diff minimal and do not refactor unrelated code.
+
 ## Reports and communication
 
 - Write reports in plain, everyday language that a non-technical user can understand.

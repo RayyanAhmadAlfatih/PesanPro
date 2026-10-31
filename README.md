@@ -134,6 +134,10 @@ Panduan lengkap ada di [`docs/panduan`](docs/panduan/README.md):
 | [09 Paket dan margin](docs/panduan/09-paket-dan-margin.md) | Matriks harga dan hitungan margin |
 | [10 Panduan admin](docs/panduan/10-panduan-admin.md) | Verifikasi pembayaran dan operasional |
 
+Panduan yang sama juga tersedia di dalam aplikasi pada halaman [`/docs`](https://wagateway.kingofcoding.my.id/docs), dan bisa dibuka dari menu **Dokumentasi** di dashboard.
+
+Aturan kerja untuk agen AI ada di [`docs/AGENT-PLAYBOOK.md`](docs/AGENT-PLAYBOOK.md).
+
 ## Deploy
 
 Panduan langkah demi langkah ada di [`docs/qa/VPS-RUNTIME-GUIDE-2026-10-12.md`](docs/qa/VPS-RUNTIME-GUIDE-2026-10-12.md). Urutan dasarnya:

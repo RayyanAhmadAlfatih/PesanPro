@@ -28,6 +28,8 @@ Rilis pra-launch pertama. Fokus: paket premium tanpa trial, harga kompetitif, da
 - Halaman Tagihan baru: kartu paket berbahasa awam, nominal yang bisa disalin, langkah pengiriman bukti, checklist sebelum kirim, dan riwayat berstatus Indonesia.
 - `README.md`, `CHANGELOG.md`, dan indeks panduan.
 - Kredit pembuat **wa-akg** di README, footer aplikasi, halaman masuk, dan metadata paket.
+- Halaman dokumentasi publik `/docs` yang membaca panduan `.md` yang sama dengan repositori, plus menu **Dokumentasi** di landing page dan dashboard.
+- `docs/AGENT-PLAYBOOK.md`: aturan berpikir, diagnosis, testing lewat `browser-skill`, coding, struktur repo, dan format laporan.
 
 ### Diubah
 

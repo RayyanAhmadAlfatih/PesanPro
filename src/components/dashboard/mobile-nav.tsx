@@ -22,6 +22,7 @@ import {
     BadgeDollarSign,
     ListRestart,
     Code2,
+    BookOpen,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -63,6 +64,7 @@ const navGroups: NavGroup[] = [
             { href: "/dashboard/billing", label: "Tagihan", icon: CreditCard },
             { href: "/dashboard/settings", label: "Pengaturan", icon: Settings },
             { href: "/dashboard/inbox", label: "Notifikasi", icon: Inbox },
+            { href: "/docs", label: "Dokumentasi", icon: BookOpen },
         ],
     },
     {

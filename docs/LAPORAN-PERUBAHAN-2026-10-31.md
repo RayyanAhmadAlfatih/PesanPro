@@ -122,6 +122,17 @@ Rekening diisi superadmin di **Settings → Payment destination** (`bankName`, `
 
 Bukti pembayaran tidak lagi dibebankan ke kuota `MEDIA_STORAGE_BYTES`, karena akun baru masih di paket `PENDING` yang tidak punya jatah penyimpanan. Batas 5 MB per file dan rate limit 5 percobaan per jam menjadi pengendalinya.
 
+## 8. Dokumentasi di dalam aplikasi
+
+Panduan tidak lagi hanya berupa file `.md` di repositori.
+
+- Halaman publik `/docs` menampilkan daftar panduan.
+- Halaman `/docs/<slug>` merender isi panduan yang sama dengan yang ada di `docs/panduan`.
+- Tautan **Dokumentasi** ditambahkan di header dan footer landing page, serta di sidebar dashboard (desktop dan mobile).
+- Isi panduan dibaca saat request, jadi perubahan `.md` langsung terlihat tanpa menyalin konten ke komponen.
+
+Aturan kerja agen ada di `docs/AGENT-PLAYBOOK.md` dan dirujuk dari `AGENTS.md`. Isinya: cara berpikir, alur diagnosis, testing lewat `browser-skill` (`bsk`), aturan coding, peta struktur repo, gate sebelum handoff, dan format laporan.
+
 ## Yang perlu dilakukan saat deploy
 
 1. Backup database.
