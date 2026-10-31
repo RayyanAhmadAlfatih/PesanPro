@@ -523,7 +523,6 @@ export default function RegisterPage() {
             Masuk
           </Link>
         </p>
-        <p className="mt-3 text-center text-xs text-muted-foreground">Dibuat oleh wa-akg</p>
       </div>
     </div>
   );

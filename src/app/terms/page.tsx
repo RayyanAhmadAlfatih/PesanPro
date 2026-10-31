@@ -80,6 +80,11 @@ export default function TermsPage() {
                             PesanPro is provided &quot;as is&quot; and without warranties of any kind. We utilize third-party libraries (such as Baileys) to connect to WhatsApp web protocols. Changes to WhatsApp&apos;s internal systems may occasionally disrupt service. We are not liable for any account suspensions or bans imposed by WhatsApp as a result of your usage.
                         </p>
 
+                        <h2 className="mt-8 text-2xl border-b pb-2">5. Attribution</h2>
+                        <p>
+                            PesanPro acknowledges <a href="https://github.com/mrifqidaffaaditya/WA-AKG">WA-AKG</a>, the MIT-licensed open-source project whose work this product builds on, with appreciation to its author. PesanPro is a separate product and is not affiliated with or endorsed by WA-AKG. The full MIT license notice is included in the project&apos;s LICENSE file.
+                        </p>
+
                         <div className="mt-12 p-6 bg-primary/5 rounded-2xl border border-primary/10">
                             <p className="font-semibold mb-2">Have questions about these terms?</p>
                             <p className="text-sm text-muted-foreground mb-0">Please contact the service administrator for further clarification.</p>

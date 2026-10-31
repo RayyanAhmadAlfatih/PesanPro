@@ -621,7 +621,6 @@ export default async function Home() {
             <span className="font-[family-name:var(--font-mono-ui)] text-xs text-[var(--pp-muted)]">
               v{pkg.version}
             </span>
-            <span className="text-xs text-[var(--pp-muted)]">Dibuat oleh wa-akg</span>
           </div>
 
           <nav className="flex flex-wrap items-center gap-6 text-sm">
