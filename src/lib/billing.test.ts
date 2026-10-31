@@ -46,7 +46,7 @@ describe("billing subscription policy", () => {
     }, now)).toBe("SUSPENDED");
   });
 
-  it("auto-provisions the default trial for a self-registered user", async () => {
+  it("provisions the inactive default plan instead of a trial", async () => {
     vi.useFakeTimers();
     vi.setSystemTime(now);
     const createSubscription = vi.fn().mockImplementation(async ({ data }) => ({ id: "subscription-1", ...data }));
@@ -57,31 +57,31 @@ describe("billing subscription policy", () => {
         findUnique: vi.fn().mockResolvedValue(null),
         create: createSubscription,
       },
-      plan: { findFirst: vi.fn().mockResolvedValue({ id: "plan-trial", trialDays: 14 }) },
+      plan: { findFirst: vi.fn().mockResolvedValue({ id: "plan-pending" }) },
       subscriptionHistory: { create: createHistory },
     };
 
     try {
       await expect(provisionDefaultSubscriptionInTransaction(client as never, "user-1")).resolves.toMatchObject({
         userId: "user-1",
-        planId: "plan-trial",
-        status: "TRIAL",
+        planId: "plan-pending",
+        status: "ACTIVE",
       });
       expect(createSubscription).toHaveBeenCalledWith({
         data: expect.objectContaining({
           userId: "user-1",
-          planId: "plan-trial",
-          status: "TRIAL",
+          planId: "plan-pending",
+          status: "ACTIVE",
           startsAt: now,
-          trialEndsAt: new Date("2026-09-12T00:00:00.000Z"),
-          endsAt: new Date("2026-09-12T00:00:00.000Z"),
+          trialEndsAt: null,
+          endsAt: null,
         }),
       });
       expect(createHistory).toHaveBeenCalledWith({
         data: expect.objectContaining({
           userId: "user-1",
-          planId: "plan-trial",
-          status: "TRIAL",
+          planId: "plan-pending",
+          status: "ACTIVE",
           reason: "default_provisioning",
         }),
       });

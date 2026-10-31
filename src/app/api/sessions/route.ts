@@ -3,6 +3,7 @@ import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, getAccessibleSessions } from "@/lib/api-auth";
 import { z } from "zod";
 import { DeviceLimitError, DevicePermissionError } from "@/lib/device-policy";
+import { EntitlementDeniedError, SubscriptionInactiveError } from "@/lib/billing";
 import { recordAudit } from "@/lib/audit";
 import { getClientIp } from "@/lib/rate-limit";
 
@@ -60,6 +61,13 @@ export async function POST(request: NextRequest) {
         }
         if (error instanceof DevicePermissionError) {
             return NextResponse.json({ status: false, message: error.message }, { status: 403 });
+        }
+        if (error instanceof EntitlementDeniedError || error instanceof SubscriptionInactiveError) {
+            return NextResponse.json({
+                status: false,
+                message: "Paket Anda belum aktif. Pilih paket di halaman Billing untuk menambah perangkat.",
+                error: "ENTITLEMENT_DENIED",
+            }, { status: 403 });
         }
         return NextResponse.json({ status: false, message: "Failed to create session", error: "Failed to create session" }, { status: 500 });
     }

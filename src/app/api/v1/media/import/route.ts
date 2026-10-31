@@ -3,7 +3,7 @@ import { NextRequest } from "next/server";
 import { z } from "zod";
 import { getAuthenticatedUser } from "@/lib/api-auth";
 import { apiV1Error, apiV1Exception, apiV1Success, getRequestId } from "@/lib/api-v1";
-import { getEnv } from "@/lib/env";
+import { getMediaUploadPolicy } from "@/lib/media-upload-policy";
 import { storePrivateMedia } from "@/lib/private-media";
 import { safeFetch, readResponseBufferWithLimit } from "@/lib/ssrf";
 
@@ -19,7 +19,8 @@ export async function POST(request: NextRequest) {
     const user = await getAuthenticatedUser(request);
     if (!user) return apiV1Error(requestId, "UNAUTHORIZED", "Authentication is required", 401);
     const input = schema.parse(await request.json());
-    const maxBytes = getEnv().MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+    const policy = await getMediaUploadPolicy(user.id);
+    const maxBytes = policy.maxUploadBytes;
     const response = await safeFetch(input.url, {}, { timeoutMs: 15_000, maxBytes, maxRedirects: 2 });
     if (!response.ok) return apiV1Error(requestId, "MEDIA_FETCH_FAILED", "Remote media could not be downloaded", 422);
     let buffer: Buffer;

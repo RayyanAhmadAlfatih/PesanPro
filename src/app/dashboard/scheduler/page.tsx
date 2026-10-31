@@ -1,8 +1,9 @@
 "use client";
 
 import { useEffect, useEffectEvent, useState } from "react";
-import { CalendarClock, CheckCircle2, Clock3, FileUp, History, Pencil, RefreshCw, RotateCcw, ShieldCheck, Trash2, XCircle } from "lucide-react";
+import { CalendarClock, CheckCircle2, Clock3, History, Pencil, RefreshCw, RotateCcw, ShieldCheck, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import { MediaPicker } from "@/components/dashboard/media-picker";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 import { useSession } from "@/components/dashboard/session-provider";
 import {
@@ -104,8 +105,6 @@ export default function SchedulerPage() {
   const [recipient, setRecipient] = useState("");
   const [text, setText] = useState("");
   const [mediaId, setMediaId] = useState("");
-  const [file, setFile] = useState<File | null>(null);
-  const [fileInputKey, setFileInputKey] = useState(0);
   const [timezone, setTimezone] = useState(browserTimezone);
   const [localDateTime, setLocalDateTime] = useState(() => localDateTimeForZone(browserTimezone));
   const [kind, setKind] = useState<"ONE_TIME" | "RECURRING">("ONE_TIME");
@@ -140,8 +139,6 @@ export default function SchedulerPage() {
     setRecipient("");
     setText("");
     setMediaId("");
-    setFile(null);
-    setFileInputKey((value) => value + 1);
     setKind("ONE_TIME");
     setCronExpression("0 9 * * *");
     setMissedRunPolicy("SEND_LATE");
@@ -154,8 +151,6 @@ export default function SchedulerPage() {
     setRecipient(schedule.recipient);
     setText(schedule.text ?? "");
     setMediaId(schedule.mediaId ?? "");
-    setFile(null);
-    setFileInputKey((value) => value + 1);
     setTimezone(schedule.timezone);
     setLocalDateTime(localDateTimeForZone(schedule.timezone, new Date(schedule.nextRunAt)));
     setKind(schedule.kind);
@@ -165,25 +160,13 @@ export default function SchedulerPage() {
     window.scrollTo({ top: 0, behavior: "smooth" });
   };
 
-  const uploadMedia = async () => {
-    if (!file || !sessionId) return mediaId || undefined;
-    const form = new FormData();
-    form.set("file", file);
-    form.set("sessionId", sessionId);
-    const response = await fetch("/api/v1/media", { method: "POST", body: form });
-    const payload = await response.json() as ApiEnvelope<{ id: string }>;
-    if (!response.ok || !payload.data) throw new Error(errorMessage(payload, "Media upload failed"));
-    return payload.data.id;
-  };
-
   const saveSchedule = async () => {
-    if (!sessionId || !recipient.trim() || (!text.trim() && !mediaId && !file)) {
+    if (!sessionId || !recipient.trim() || (!text.trim() && !mediaId)) {
       toast.error("Recipient and text or media are required");
       return;
     }
     setSaving(true);
     try {
-      const uploadedMediaId = await uploadMedia();
       const response = await fetch(editingId ? `/api/v1/schedules/${editingId}` : "/api/v1/schedules", {
         method: editingId ? "PUT" : "POST",
         headers: { "content-type": "application/json" },
@@ -191,7 +174,7 @@ export default function SchedulerPage() {
           sessionId,
           recipient: recipient.trim(),
           text: text.trim() || undefined,
-          mediaId: uploadedMediaId,
+          mediaId: mediaId || undefined,
           localDateTime,
           timezone,
           kind,
@@ -305,8 +288,7 @@ export default function SchedulerPage() {
             {kind === "RECURRING" && <div className="space-y-2 lg:col-span-2"><Label htmlFor="cron">Cron expression</Label><Input id="cron" value={cronExpression} onChange={(event) => setCronExpression(event.target.value)} placeholder="0 9 * * *" className="font-mono" /><p className="text-xs text-muted-foreground">Example: <code>0 9 * * 1-5</code> runs at 09:00 every weekday in the chosen timezone.</p></div>}
             <div className="space-y-2"><Label>Missed-run policy</Label><Select value={missedRunPolicy} onValueChange={(value: "SEND_LATE" | "SKIP" | "CANCEL") => setMissedRunPolicy(value)}><SelectTrigger><SelectValue /></SelectTrigger><SelectContent><SelectItem value="SEND_LATE">Send late</SelectItem><SelectItem value="SKIP">Skip occurrence</SelectItem><SelectItem value="CANCEL">Cancel schedule</SelectItem></SelectContent></Select></div>
             <div className="space-y-2"><Label htmlFor="grace">Grace period (seconds)</Label><Input id="grace" type="number" min="0" max="86400" value={misfireGraceSeconds} onChange={(event) => setMisfireGraceSeconds(event.target.value)} /></div>
-            <div className="space-y-2"><Label htmlFor="media"><FileUp className="mr-1.5 inline h-4 w-4" />Private media upload</Label><Input key={fileInputKey} id="media" type="file" onChange={(event) => setFile(event.target.files?.[0] ?? null)} /></div>
-            <div className="space-y-2"><Label htmlFor="media-id">Existing media ID</Label><Input id="media-id" value={mediaId} onChange={(event) => setMediaId(event.target.value)} placeholder="Optional private media ID" className="font-mono" /></div>
+            <div className="space-y-2 lg:col-span-2"><MediaPicker value={mediaId} onChange={setMediaId} label="Lampiran media (opsional)" /></div>
             <div className="flex flex-wrap justify-end gap-2 lg:col-span-2">
               {editingId && <Button variant="outline" onClick={resetForm}><RotateCcw className="mr-2 h-4 w-4" />Discard edit</Button>}
               <Button onClick={saveSchedule} disabled={saving}><Clock3 className="mr-2 h-4 w-4" />{saving ? "Saving..." : editingId ? "Update schedule" : "Schedule message"}</Button>

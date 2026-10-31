@@ -12,6 +12,13 @@ const eslintConfig = defineConfig([
     "out/**",
     "build/**",
     "next-env.d.ts",
+    // Untracked duplicate copy of the repository. It is not part of the app
+    // and would otherwise be linted twice with stale code.
+    "pure/**",
+    // Build directories left behind by failed or partial builds. They are
+    // generated output, not source, and linting them can exhaust the heap.
+    ".next.*/**",
+    ".qa-tmp/**",
   ]),
 ]);
 

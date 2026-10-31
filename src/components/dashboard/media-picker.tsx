@@ -17,6 +17,28 @@ type Envelope<T> = { data?: T; error?: { code?: string; message?: string } };
 
 type LoadState = "idle" | "loading" | "uploading";
 
+type UploadPolicy = {
+  canUpload: boolean;
+  maxUploadBytes: number;
+  planName: string | null;
+};
+
+// One request per page load, shared by every picker on the page.
+let uploadPolicyPromise: Promise<UploadPolicy | null> | null = null;
+
+function loadUploadPolicy() {
+  if (!uploadPolicyPromise) {
+    uploadPolicyPromise = fetch("/api/media/upload-policy", { cache: "no-store" })
+      .then(async (response) => {
+        if (!response.ok) return null;
+        const payload = await response.json() as { data?: UploadPolicy };
+        return payload.data ?? null;
+      })
+      .catch(() => null);
+  }
+  return uploadPolicyPromise;
+}
+
 const ACCEPT = [
   "image/jpeg",
   "image/png",
@@ -69,10 +91,20 @@ export function MediaPicker({ value, onChange, label = "Media (opsional)", disab
   const inputRef = useRef<HTMLInputElement>(null);
   const provisionalUploads = useRef(new Set<string>());
   const [meta, setMeta] = useState<PrivateMediaDto | null>(null);
+  const [policy, setPolicy] = useState<UploadPolicy | null>(null);
   const [state, setState] = useState<LoadState>("idle");
   const [error, setError] = useState<string | null>(null);
   const [reloadKey, setReloadKey] = useState(0);
   const busy = state === "loading" || state === "uploading";
+  const uploadBlocked = policy !== null && !policy.canUpload;
+
+  useEffect(() => {
+    let cancelled = false;
+    void loadUploadPolicy().then((next) => {
+      if (!cancelled) setPolicy(next);
+    });
+    return () => { cancelled = true; };
+  }, []);
 
   useEffect(() => {
     if (!value) {
@@ -109,6 +141,14 @@ export function MediaPicker({ value, onChange, label = "Media (opsional)", disab
 
   const pick = async (file: File | undefined) => {
     if (!file || disabled) return;
+    if (uploadBlocked) {
+      setError("Paket Anda belum aktif. Pilih paket di halaman Billing untuk mengunggah media.");
+      return;
+    }
+    if (policy && file.size > policy.maxUploadBytes) {
+      setError(`Ukuran file ${formatBytes(String(file.size))} melebihi batas paket ${formatBytes(String(policy.maxUploadBytes))}.`);
+      return;
+    }
     setState("uploading");
     setError(null);
     try {
@@ -151,7 +191,7 @@ export function MediaPicker({ value, onChange, label = "Media (opsional)", disab
         accept={ACCEPT}
         className="sr-only"
         aria-label={label}
-        disabled={disabled || busy}
+        disabled={disabled || busy || uploadBlocked}
         onChange={(event) => {
           void pick(event.target.files?.[0]);
           event.target.value = "";
@@ -173,7 +213,7 @@ export function MediaPicker({ value, onChange, label = "Media (opsional)", disab
               {[bytes, meta.mediaType.toLowerCase()].filter(Boolean).join(" · ")}
             </p>
           </div>
-          <Button type="button" variant="outline" size="sm" className="min-h-11" disabled={disabled || busy} onClick={openFile}>
+          <Button type="button" variant="outline" size="sm" className="min-h-11" disabled={disabled || busy || uploadBlocked} onClick={openFile}>
             {state === "uploading" ? <Loader2 className="mr-1.5 size-4 animate-spin" aria-hidden="true" /> : null}
             Ganti
           </Button>
@@ -193,7 +233,7 @@ export function MediaPicker({ value, onChange, label = "Media (opsional)", disab
           <Button type="button" variant="outline" size="sm" className="min-h-11" disabled={disabled || busy} onClick={() => setReloadKey((key) => key + 1)}>
             <RefreshCw className="mr-1.5 size-4" aria-hidden="true" /> Coba lagi
           </Button>
-          <Button type="button" variant="outline" size="sm" className="min-h-11" disabled={disabled || busy} onClick={openFile}>
+          <Button type="button" variant="outline" size="sm" className="min-h-11" disabled={disabled || busy || uploadBlocked} onClick={openFile}>
             <FileUp className="mr-1.5 size-4" aria-hidden="true" /> Ganti
           </Button>
           <Button type="button" variant="ghost" size="sm" className="min-h-11 text-[var(--pp-danger)]" disabled={disabled || busy} onClick={clear}>
@@ -202,12 +242,16 @@ export function MediaPicker({ value, onChange, label = "Media (opsional)", disab
         </div>
       ) : (
         <div className="flex flex-wrap items-center gap-3 rounded-lg border border-dashed border-[var(--pp-line)] bg-white p-3">
-          <Button type="button" variant="outline" className="min-h-11" disabled={disabled || busy} onClick={openFile}>
+          <Button type="button" variant="outline" className="min-h-11" disabled={disabled || busy || uploadBlocked} onClick={openFile}>
             {state === "uploading" ? <Loader2 className="mr-1.5 size-4 animate-spin" aria-hidden="true" /> : <FileUp className="mr-1.5 size-4" aria-hidden="true" />}
             {state === "uploading" ? "Mengunggah..." : "Pilih file"}
           </Button>
           <p className="min-w-0 flex-1 text-xs text-[var(--pp-muted)]">
-            Gambar (JPEG, PNG, WebP), video MP4, audio, atau dokumen PDF dan Office.
+            {uploadBlocked
+              ? "Paket Anda belum aktif. Pilih paket di halaman Billing untuk mengunggah media."
+              : policy
+                ? `Gambar, video MP4, audio, atau dokumen. Maksimal ${formatBytes(String(policy.maxUploadBytes))} per file${policy.planName ? ` (paket ${policy.planName})` : ""}. Video WhatsApp maksimal 16 MB.`
+                : "Gambar (JPEG, PNG, WebP), video MP4, audio, atau dokumen PDF dan Office."}
           </p>
         </div>
       )}

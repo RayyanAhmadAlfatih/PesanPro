@@ -40,7 +40,9 @@ const envSchema = z.object({
   // absolute cap does not, so a session can never be renewed without end.
   SESSION_TIMEOUT_HOURS: z.coerce.number().int().min(SESSION_TIMEOUT_HOURS_MIN).max(SESSION_TIMEOUT_HOURS_MAX).default(DEFAULT_SESSION_TIMEOUT_HOURS),
   SESSION_ABSOLUTE_MAX_HOURS: z.coerce.number().int().min(SESSION_ABSOLUTE_MAX_HOURS_MIN).max(SESSION_ABSOLUTE_MAX_HOURS_MAX).default(DEFAULT_SESSION_ABSOLUTE_MAX_HOURS),
-  MAX_UPLOAD_SIZE_MB: z.coerce.number().int().positive().default(50),
+  // Platform ceiling. Each plan sets its own smaller MEDIA_MAX_UPLOAD_BYTES;
+  // this value only protects the server. Keep it at or above the largest plan.
+  MAX_UPLOAD_SIZE_MB: z.coerce.number().int().positive().default(100),
   MAX_CONCURRENT_MEDIA_UPLOADS: z.coerce.number().int().min(1).max(16).default(2),
   MEDIA_STORAGE_DRIVER: z.enum(["local", "b2"]).default("local"),
   PRIVATE_MEDIA_PATH: z.string().min(1).default("data/private-media"),

@@ -7,6 +7,7 @@ import { getEnv } from "./env";
 import { logger } from "./logger";
 import { MessageJobError } from "./message-job-errors";
 import { prepareMediaForStorage } from "./media-optimization";
+import { getMediaUploadPolicy, mediaTooLargeError } from "./media-upload-policy";
 import { prisma } from "./prisma";
 import { releaseStorageQuota, runWithStorageQuota } from "./storage-quota";
 import { activePrivateMediaReferenceCounts, hasActivePrivateMediaReferences } from "./private-media-lifecycle";
@@ -45,10 +46,10 @@ export async function storePrivateMedia(input: {
   buffer: Buffer;
 }) {
   const env = getEnv();
-  const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
-  if (input.buffer.length > maxBytes) throw new MessageJobError("MEDIA_TOO_LARGE", `Media exceeds the ${env.MAX_UPLOAD_SIZE_MB} MB limit`, 413, false);
+  const policy = await getMediaUploadPolicy(input.actor.id);
+  if (input.buffer.length > policy.maxUploadBytes) throw mediaTooLargeError(policy.maxUploadBytes);
   const prepared = await prepareMediaForStorage(input.buffer, input.declaredMimeType);
-  if (prepared.buffer.length > maxBytes) throw new MessageJobError("MEDIA_TOO_LARGE", `Media exceeds the ${env.MAX_UPLOAD_SIZE_MB} MB limit`, 413, false);
+  if (prepared.buffer.length > policy.maxUploadBytes) throw mediaTooLargeError(policy.maxUploadBytes);
   const { inspection } = prepared;
   const tenantId = await resolveTenantId(input.actor.id);
   if (!tenantId) throw new MessageJobError("TENANT_NOT_FOUND", "Billing tenant was not found", 403, false);

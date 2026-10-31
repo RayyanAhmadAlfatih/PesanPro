@@ -138,7 +138,6 @@ type LimitKind = "flag" | "count" | "seconds" | "bytes";
 const FEATURE_ROWS: Array<{ feature: string; label: string; kind: LimitKind }> = [
   { feature: "API_ACCESS", label: "Akses REST API", kind: "flag" },
   { feature: "DEVICES", label: "Perangkat WhatsApp", kind: "count" },
-  { feature: "STAFF", label: "Anggota tim", kind: "count" },
   { feature: "MESSAGES_MONTHLY", label: "Pesan terkirim per bulan", kind: "count" },
   { feature: "SCHEDULED_MESSAGES", label: "Pesan terjadwal", kind: "count" },
   { feature: "BROADCASTS_MONTHLY", label: "Broadcast per bulan", kind: "count" },
@@ -149,6 +148,7 @@ const FEATURE_ROWS: Array<{ feature: string; label: string; kind: LimitKind }> =
   { feature: "API_KEYS", label: "Kunci API", kind: "count" },
   { feature: "API_REQUESTS_PER_MINUTE", label: "Permintaan API per menit", kind: "count" },
   { feature: "API_REQUESTS_MONTHLY", label: "Permintaan API per bulan", kind: "count" },
+  { feature: "MEDIA_MAX_UPLOAD_BYTES", label: "Ukuran maksimal per file", kind: "bytes" },
   { feature: "MEDIA_STORAGE_BYTES", label: "Penyimpanan media", kind: "bytes" },
 ];
 
@@ -166,9 +166,8 @@ function formatLimit(kind: LimitKind, limitValue: bigint | null): string {
   return value.toLocaleString("id-ID");
 }
 
-// The yearly rate is a stored price, never monthly x 12. Deriving it here used
-// to advertise Rp 900.000 for Starter while the plan is actually sold at
-// Rp 750.000, so the page now reads the same column the billing flow charges.
+// The yearly rate is a stored price, never monthly x 12, so the page reads the
+// same column the billing flow charges instead of advertising a derived number.
 function yearlySaving(monthly: unknown, yearly: unknown) {
   const monthlyAmount = Number(monthly ?? 0);
   const yearlyAmount = Number(yearly ?? 0);
@@ -183,9 +182,9 @@ function yearlySaving(monthly: unknown, yearly: unknown) {
 async function loadPlans() {
   try {
     return await prisma.plan.findMany({
-      // Paid plans only. The trial plan is an internal default handed to new
-      // accounts, not a package a visitor can buy, so listing it here would
-      // advertise a free tier the product does not sell.
+      // Paid plans only. The default plan is an internal placeholder handed to
+      // new accounts before payment, not a package a visitor can buy, so
+      // listing it here would advertise a free tier the product does not sell.
       where: { isActive: true, priceMonthly: { gt: 0 } },
       select: {
         id: true,
@@ -544,7 +543,7 @@ export default async function Home() {
               </div>
 
               <p className="mt-4 text-xs text-[var(--pp-muted)]">
-                Harga tahunan adalah harga tersendiri, bukan tarif bulanan dikali dua belas. Akun baru bisa mencoba gratis satu minggu.
+                Harga tahunan adalah harga tersendiri, bukan tarif bulanan dikali dua belas. Akun baru memilih paket dan membayar sebelum pengiriman aktif.
               </p>
             </div>
           </section>

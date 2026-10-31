@@ -2,6 +2,7 @@ import crypto from "node:crypto";
 import { NextResponse, NextRequest } from "next/server";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
 import { commercialErrorResponse } from "@/lib/commercial-errors";
+import { formatMegabytes, getMediaUploadPolicy } from "@/lib/media-upload-policy";
 import { enqueueMessage } from "@/lib/message-job-service";
 import { storePrivateMedia } from "@/lib/private-media";
 
@@ -45,7 +46,28 @@ export async function POST(
                 { status: 400 }
             );
         }
+        const policy = await getMediaUploadPolicy(user.id);
+        if (file.size > policy.maxUploadBytes) {
+            return NextResponse.json(
+                {
+                    status: false,
+                    message: `Ukuran file melebihi batas paket Anda (${formatMegabytes(policy.maxUploadBytes)}).`,
+                    error: "MEDIA_TOO_LARGE",
+                },
+                { status: 413 },
+            );
+        }
         const buffer = Buffer.from(await file.arrayBuffer());
+        if (buffer.length > policy.maxUploadBytes) {
+            return NextResponse.json(
+                {
+                    status: false,
+                    message: `Ukuran file melebihi batas paket Anda (${formatMegabytes(policy.maxUploadBytes)}).`,
+                    error: "MEDIA_TOO_LARGE",
+                },
+                { status: 413 },
+            );
+        }
 
         const typeMap = { image: "IMAGE", video: "VIDEO", audio: "AUDIO", document: "DOCUMENT" } as const;
         const messageType = typeMap[type as keyof typeof typeMap];

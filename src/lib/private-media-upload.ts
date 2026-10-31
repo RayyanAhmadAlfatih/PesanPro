@@ -33,13 +33,17 @@ async function withUploadSlot<T>(operation: () => Promise<T>) {
   }
 }
 
-export async function parsePrivateMediaUpload(request: Request): Promise<ParsedPrivateMediaUpload> {
+export async function parsePrivateMediaUpload(
+  request: Request,
+  options: { maxBytes?: number } = {},
+): Promise<ParsedPrivateMediaUpload> {
   return withUploadSlot(async () => {
     const env = getEnv();
-    const maxBytes = env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+    const maxBytes = options.maxBytes ?? env.MAX_UPLOAD_SIZE_MB * 1024 * 1024;
+    const maxLabel = Math.max(1, Math.round(maxBytes / (1024 * 1024)));
     const declaredLength = contentLength(request);
     if (declaredLength !== null && declaredLength > maxBytes + MULTIPART_OVERHEAD_BYTES) {
-      throw new MessageJobError("MEDIA_TOO_LARGE", `Media exceeds the ${env.MAX_UPLOAD_SIZE_MB} MB limit`, 413, false);
+      throw new MessageJobError("MEDIA_TOO_LARGE", `Media exceeds your plan's ${maxLabel} MB upload limit`, 413, false);
     }
     if (!request.body) throw new MessageJobError("VALIDATION_ERROR", "A media file is required", 422, false);
     const contentType = request.headers.get("content-type") ?? "";
@@ -103,7 +107,7 @@ export async function parsePrivateMediaUpload(request: Request): Promise<ParsedP
       parser.on("close", () => {
         if (settled) return;
         if (tooLarge) {
-          fail(new MessageJobError("MEDIA_TOO_LARGE", `Media exceeds the ${env.MAX_UPLOAD_SIZE_MB} MB limit`, 413, false));
+          fail(new MessageJobError("MEDIA_TOO_LARGE", `Media exceeds your plan's ${maxLabel} MB upload limit`, 413, false));
           return;
         }
         if (!fileResult) {

@@ -52,6 +52,7 @@ enum EntitlementFeature {
   WEBHOOKS
   API_REQUESTS_PER_MINUTE
   MEDIA_STORAGE_BYTES
+  MEDIA_MAX_UPLOAD_BYTES
 }
 
 enum UsageOperation {
@@ -384,7 +385,6 @@ model Plan {
   description  String?  @db.Text
   isActive     Boolean  @default(true)
   isDefault    Boolean  @default(false)
-  trialDays    Int      @default(0)
   priceMonthly Decimal? @db.Decimal(18, 2)
   // The yearly rate is its own stored price, never a multiple of the monthly
   // one: the marketing page used to derive it as monthly x 12, which advertised
@@ -441,7 +441,7 @@ model Subscription {
   id          String             @id @default(cuid())
   userId      String             @unique
   planId      String
-  status      SubscriptionStatus @default(TRIAL)
+  status      SubscriptionStatus @default(ACTIVE)
   billingCycle BillingCycle      @default(MONTHLY)
   startsAt    DateTime           @default(now())
   trialEndsAt DateTime?

@@ -8,7 +8,12 @@ import { getClientIp } from "@/lib/rate-limit";
 
 const updateSchema = z.object({
   planId: z.string().min(1),
-  status: z.nativeEnum(SubscriptionStatus),
+  // TRIAL stays in the enum so historical rows remain readable, but it can no
+  // longer be granted: PesanPro has no free tier.
+  status: z.nativeEnum(SubscriptionStatus).refine(
+    (value) => value !== "TRIAL",
+    "Trial subscriptions are no longer offered",
+  ),
   endsAt: z.string().datetime().optional().nullable(),
   graceEndsAt: z.string().datetime().optional().nullable(),
   reason: z.string().trim().min(3).max(200),
@@ -50,7 +55,7 @@ export async function PATCH(
           planId: plan.id,
           status: parsed.data.status,
           startsAt,
-          trialEndsAt: parsed.data.status === "TRIAL" ? endsAt : null,
+          trialEndsAt: null,
           endsAt,
           graceEndsAt,
         },
@@ -59,7 +64,7 @@ export async function PATCH(
           planId: plan.id,
           status: parsed.data.status,
           startsAt,
-          trialEndsAt: parsed.data.status === "TRIAL" ? endsAt : null,
+          trialEndsAt: null,
           endsAt,
           graceEndsAt,
         },

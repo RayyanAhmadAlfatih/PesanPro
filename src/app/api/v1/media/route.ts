@@ -1,6 +1,7 @@
 import { NextRequest } from "next/server";
 import { getAuthenticatedUser } from "@/lib/api-auth";
 import { apiV1Error, apiV1Exception, apiV1Success, getRequestId } from "@/lib/api-v1";
+import { getMediaUploadPolicy } from "@/lib/media-upload-policy";
 import { listPrivateMedia, storePrivateMedia } from "@/lib/private-media";
 import { parsePrivateMediaUpload } from "@/lib/private-media-upload";
 
@@ -21,7 +22,8 @@ export async function POST(request: NextRequest) {
   try {
     const user = await getAuthenticatedUser(request);
     if (!user) return apiV1Error(requestId, "UNAUTHORIZED", "Authentication is required", 401);
-    const upload = await parsePrivateMediaUpload(request);
+    const policy = await getMediaUploadPolicy(user.id);
+    const upload = await parsePrivateMediaUpload(request, { maxBytes: policy.maxUploadBytes });
     const data = await storePrivateMedia({
       actor: { id: user.id, role: user.role, ownerId: user.ownerId },
       ...upload,

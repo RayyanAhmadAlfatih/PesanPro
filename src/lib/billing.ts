@@ -7,8 +7,6 @@ import {
 import { prisma } from "./prisma";
 import { isCommercialFeatureVisible } from "./access-policy";
 
-export const DEFAULT_TRIAL_PLAN_ID = "plan_trial";
-
 type BillingClient = Prisma.TransactionClient;
 
 export class EntitlementDeniedError extends Error {
@@ -69,6 +67,7 @@ const GRACE_RESTRICTED_FEATURES = new Set<EntitlementFeature>([
   "AUTOREPLY_RULES",
   "WEBHOOKS",
   "MEDIA_STORAGE_BYTES",
+  "MEDIA_MAX_UPLOAD_BYTES",
 ]);
 
 async function getTenant(client: BillingClient, userId: string) {
@@ -163,30 +162,29 @@ export async function provisionDefaultSubscriptionInTransaction(tx: BillingClien
   });
   if (!plan) throw new Error("No active default plan is configured");
 
+  // PesanPro sells no free tier. A new account is provisioned onto the
+  // inactive default plan so it has a real subscription row, a readable plan
+  // name, and a complete set of denied entitlements. Nothing becomes usable
+  // until a payment is approved and replaces this plan.
   const startsAt = new Date();
-  const trialEndsAt = plan.trialDays > 0
-    ? new Date(startsAt.getTime() + plan.trialDays * 24 * 60 * 60 * 1000)
-    : null;
-  const status: SubscriptionStatus = trialEndsAt ? "TRIAL" : "ACTIVE";
-
   const subscription = await tx.subscription.create({
     data: {
       userId,
       planId: plan.id,
-      status,
+      status: "ACTIVE",
       startsAt,
-      trialEndsAt,
-      endsAt: trialEndsAt,
+      trialEndsAt: null,
+      endsAt: null,
     },
   });
   await tx.subscriptionHistory.create({
     data: {
       userId,
       planId: plan.id,
-      status,
+      status: "ACTIVE",
       reason: "default_provisioning",
       startsAt,
-      endsAt: trialEndsAt,
+      endsAt: null,
     },
   });
   return subscription;

@@ -14,7 +14,6 @@ export async function GET() {
       code: true,
       name: true,
       description: true,
-      trialDays: true,
       priceMonthly: true,
       priceYearly: true,
       currency: true,

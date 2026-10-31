@@ -5,6 +5,7 @@ import { useForm } from 'react-hook-form';
 import { zodResolver } from '@hookform/resolvers/zod';
 import { z } from 'zod';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { Button } from "@/components/ui/button"
 import {
     Form,
@@ -15,8 +16,7 @@ import {
     FormMessage,
 } from "@/components/ui/form"
 import { Input } from "@/components/ui/input"
-import { Bot, ArrowRight, Loader2 } from "lucide-react";
-import Link from 'next/link';
+import { Loader2 } from "lucide-react";
 import { getErrorMessage } from '@/lib/error-utils';
 
 const formSchema = z.object({
@@ -33,6 +33,18 @@ const formSchema = z.object({
     message: "Passwords do not match",
     path: ["confirmPassword"],
 });
+
+function ErrorNotice({ message }: { message: string | null }) {
+    if (!message) return null;
+    return (
+        <div
+            role="alert"
+            className="rounded-md border border-[var(--pp-danger)] bg-[var(--pp-white)] px-3 py-2 text-sm font-medium text-[var(--pp-danger)]"
+        >
+            {message}
+        </div>
+    );
+}
 
 export default function RegisterPage() {
     const router = useRouter();
@@ -85,57 +97,50 @@ export default function RegisterPage() {
 
     if (success) {
         return (
-            <div className="flex flex-col items-center justify-center min-h-screen bg-background relative overflow-hidden">
-                <div className="absolute top-0 left-0 -translate-x-1/2 -translate-y-1/2 w-[40rem] h-[40rem] bg-primary/20 rounded-full blur-[120px] pointer-events-none" />
-                <div className="glass-panel p-10 rounded-3xl flex flex-col items-center text-center max-w-sm animate-in zoom-in duration-500">
-                    <div className="h-16 w-16 bg-emerald-500 rounded-full flex items-center justify-center mb-6 shadow-lg shadow-emerald-500/30">
-                        <Bot className="h-8 w-8 text-white" />
+            <div className="flex min-h-screen items-center justify-center bg-[var(--pp-paper)] px-4 py-10">
+                <div className="w-full max-w-md">
+                    <div className="rounded-xl border border-[var(--pp-ink)] bg-[var(--pp-white)] p-6">
+                        <h1 className="text-2xl font-bold">Account created</h1>
+                        <p className="mt-2 text-sm text-muted-foreground">
+                            Your PesanPro workspace is ready. Redirecting you to the sign-in page...
+                        </p>
+                        <p className="mt-4 text-sm text-muted-foreground">
+                            Next step: choose a package and submit your payment proof. Messaging stays locked until the payment is approved.
+                        </p>
                     </div>
-                    <h2 className="text-2xl font-bold text-foreground mb-2">Registration Successful!</h2>
-                    <p className="text-muted-foreground">Redirecting you to the login page...</p>
+                    <p className="mt-6 text-center text-sm text-muted-foreground">
+                        <Link href="/auth/login" className="font-semibold underline-offset-4 hover:underline">
+                            Go to sign in now
+                        </Link>
+                    </p>
                 </div>
             </div>
         );
     }
 
     return (
-        <div className="flex items-center justify-center min-h-screen relative overflow-hidden bg-background py-12">
-            {/* Background Orbs */}
-            <div className="absolute top-0 left-0 w-full h-full overflow-hidden -z-10 pointer-events-none">
-                <div className="absolute top-0 right-0 translate-x-1/3 -translate-y-1/4 w-[40rem] h-[40rem] bg-emerald-500/10 rounded-full blur-[120px]" />
-                <div className="absolute bottom-0 left-0 -translate-x-1/4 translate-y-1/4 w-[30rem] h-[30rem] bg-primary/20 rounded-full blur-[100px]" />
-            </div>
-
-            <div className="relative z-10 w-full max-w-md p-4 animate-in fade-in zoom-in-95 duration-500">
-                <div className="flex flex-col items-center mb-8">
-                    <div className="relative flex h-16 w-16 mb-4 items-center justify-center rounded-2xl bg-gradient-to-br from-emerald-400 to-primary text-white shadow-lg shadow-primary/30">
-                        <Bot className="h-8 w-8" />
-                    </div>
-                    <h1 className="text-3xl font-bold tracking-tight text-foreground">Create Account</h1>
-                    <p className="text-muted-foreground mt-2">Create your PesanPro workspace</p>
+        <div className="flex min-h-screen items-center justify-center bg-[var(--pp-paper)] px-4 py-10">
+            <div className="w-full max-w-md">
+                <div className="mb-6">
+                    <h1 className="text-2xl font-bold">Create an account</h1>
+                    <p className="mt-2 text-sm text-muted-foreground">
+                        Create your PesanPro workspace to connect WhatsApp and send messages through the dashboard or API.
+                    </p>
                 </div>
 
-                <div className="glass-panel rounded-3xl p-8 shadow-2xl shadow-black/5 dark:shadow-black/40">
-                    {error && (
-                        <div className="mb-6 p-4 rounded-xl bg-destructive/10 border border-destructive/20 text-destructive text-sm text-center font-medium animate-in shake duration-300">
-                            {error}
-                        </div>
-                    )}
-
+                <div className="rounded-xl border border-[var(--pp-ink)] bg-[var(--pp-white)] p-6">
                     <Form {...form}>
                         <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
+                            <ErrorNotice message={error} />
+
                             <FormField
                                 control={form.control}
                                 name="name"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-foreground/80">Full Name</FormLabel>
+                                        <FormLabel>Full name</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                placeholder="John Doe"
-                                                className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
-                                                {...field}
-                                            />
+                                            <Input autoComplete="name" placeholder="Nama lengkap" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -146,13 +151,9 @@ export default function RegisterPage() {
                                 name="email"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-foreground/80">Email</FormLabel>
+                                        <FormLabel>Email</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                placeholder="name@example.com"
-                                                className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
-                                                {...field}
-                                            />
+                                            <Input type="email" autoComplete="email" placeholder="name@example.com" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
@@ -163,15 +164,13 @@ export default function RegisterPage() {
                                 name="password"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-foreground/80">Password</FormLabel>
+                                        <FormLabel>Password</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="password"
-                                                placeholder="••••••••"
-                                                className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
-                                                {...field}
-                                            />
+                                            <Input type="password" autoComplete="new-password" placeholder="At least 10 characters" {...field} />
                                         </FormControl>
+                                        <p className="text-xs text-muted-foreground">
+                                            Use 10+ characters with an uppercase letter, a lowercase letter, and a number.
+                                        </p>
                                         <FormMessage />
                                     </FormItem>
                                 )}
@@ -181,46 +180,36 @@ export default function RegisterPage() {
                                 name="confirmPassword"
                                 render={({ field }) => (
                                     <FormItem>
-                                        <FormLabel className="text-foreground/80">Confirm Password</FormLabel>
+                                        <FormLabel>Confirm password</FormLabel>
                                         <FormControl>
-                                            <Input
-                                                type="password"
-                                                placeholder="••••••••"
-                                                className="h-12 px-4 rounded-xl bg-background/50 border-white/20 dark:border-white/10 focus-visible:ring-primary/50 transition-all font-medium"
-                                                {...field}
-                                            />
+                                            <Input type="password" autoComplete="new-password" placeholder="Repeat your password" {...field} />
                                         </FormControl>
                                         <FormMessage />
                                     </FormItem>
                                 )}
                             />
 
-                            <Button
-                                type="submit"
-                                size="lg"
-                                className="w-full h-12 rounded-xl text-base shadow-lg shadow-primary/20 hover:shadow-primary/30 mt-4"
-                                disabled={loading}
-                            >
-                                {loading ? (
-                                    <><Loader2 className="mr-2 h-5 w-5 animate-spin" /> Creating Account...</>
-                                ) : (
-                                    <>Register <ArrowRight className="ml-2 h-5 w-5" /></>
-                                )}
+                            <Button type="submit" className="w-full" disabled={loading}>
+                                {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
+                                {loading ? "Creating account..." : "Create account"}
                             </Button>
                         </form>
                     </Form>
 
-                    <div className="mt-6 text-xs text-center text-muted-foreground leading-relaxed">
-                        By registering, you agree to our <Link href="/terms" className="underline hover:text-foreground">Terms of Service</Link> and <Link href="/privacy" className="underline hover:text-foreground">Privacy Policy</Link>.
-                    </div>
+                    <p className="mt-4 text-xs leading-relaxed text-muted-foreground">
+                        By registering, you agree to our{" "}
+                        <Link href="/terms" className="underline underline-offset-4 hover:text-foreground">Terms of Service</Link>{" "}
+                        and{" "}
+                        <Link href="/privacy" className="underline underline-offset-4 hover:text-foreground">Privacy Policy</Link>.
+                    </p>
                 </div>
 
-                <div className="mt-8 text-center text-sm text-muted-foreground">
+                <p className="mt-6 text-center text-sm text-muted-foreground">
                     Already have an account?{" "}
-                    <Link href="/auth/login" className="font-semibold text-primary hover:text-primary/80 transition-colors">
+                    <Link href="/auth/login" className="font-semibold underline-offset-4 hover:underline">
                         Sign in
                     </Link>
-                </div>
+                </p>
             </div>
         </div>
     );

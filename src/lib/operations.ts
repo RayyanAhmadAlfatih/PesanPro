@@ -138,9 +138,12 @@ export async function collectBusinessSnapshot(now = new Date()) {
     prisma.session.count(),
     prisma.session.count({ where: { status: "CONNECTED" } }),
     prisma.privateMedia.aggregate({ where: { status: "ACTIVE" }, _sum: { sizeBytes: true } }),
-    prisma.subscription.groupBy({ by: ["status"], _count: { _all: true } }),
+    // Unpaid accounts sit on the zero-price "Belum aktif" plan with status
+    // ACTIVE so they can still open the dashboard. Exclude zero-price plans so
+    // those accounts are not counted as paying subscribers or revenue.
+    prisma.subscription.groupBy({ by: ["status"], where: { plan: { priceMonthly: { gt: 0 } } }, _count: { _all: true } }),
     prisma.paymentVerification.aggregate({ where: { status: "APPROVED", reviewedAt: { gte: monthStart } }, _sum: { amount: true }, _count: { _all: true } }),
-    prisma.subscription.findMany({ where: { status: { in: ["TRIAL", "ACTIVE", "GRACE_PERIOD"] } }, include: { plan: { select: { priceMonthly: true } } } }),
+    prisma.subscription.findMany({ where: { status: { in: ["TRIAL", "ACTIVE", "GRACE_PERIOD"] }, plan: { priceMonthly: { gt: 0 } } }, include: { plan: { select: { priceMonthly: true } } } }),
   ]);
   const recurringRevenue = subscriptions.reduce((sum, item) => sum.add(item.plan.priceMonthly ?? 0), new Prisma.Decimal(0));
   const realizedRevenue = approvedPayments._sum.amount ?? new Prisma.Decimal(0);
