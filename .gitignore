@@ -87,7 +87,7 @@ authstate-*
 /ws*.txt
 /wh-raw.json
 /qa-cookie-*.txt
-/l13-*
+/l13*
 /qa-pesanpro-contact-form-7.zip
 
 # Local notes and duplicate QA copies. Keep the repository focused on source.

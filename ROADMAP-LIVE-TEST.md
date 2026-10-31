@@ -252,15 +252,15 @@ Repository mempunyai Login, Register, Forgot Password, Reset Password, account s
 | L1-49   | Keyboard saja (Tab, Enter)                                 | Fokus terlihat, form bisa disubmit                                    |
 | L1-50   | Ganti tab bolak-balik setelah kode terkirim                | Tidak ada error konsol, kode tetap bisa diverifikasi                  |
 
-### Harga tahunan dan free trial
+### Harga tahunan dan paket premium
 
 | ID      | Test                                                      | Expected                                                             |
 | ------- | --------------------------------------------------------- | -------------------------------------------------------------------- |
-| L1-51   | Buka halaman harga publik                                  | Tampil 3 paket: Starter, Bisnis, Pro. Paket trial tidak muncul        |
-| L1-52   | Baris "Bayar 12 bulan"                                     | Angka dari kolom harga tahunan: 750.000 / 1.490.000 / 2.990.000       |
-| L1-53   | Baris "Hemat dibanding bayar bulanan"                      | Selisih harga bulanan x 12 dikurangi harga tahunan (±17%), ada persen |
-| L1-54   | Daftar akun baru                                           | Subscription `TRIAL` pada paket trial, `trialEndsAt` = 7 hari         |
-| L1-55   | Lewati 7 hari trial tanpa bayar                            | Login masih bisa, tapi fitur komersial ditolak (status `EXPIRED`)     |
+| L1-51   | Buka halaman harga publik                                  | Tampil 3 paket: Starter, Bisnis, Pro. Paket trial/belum aktif tidak muncul |
+| L1-52   | Baris "Bayar 12 bulan"                                     | Angka dari kolom harga tahunan: 200.000 / 490.000 / 990.000           |
+| L1-53   | Baris "Hemat dibanding bayar bulanan"                      | Tahunan = 10× bulanan; hemat 2 bulan (±17%), ada persen               |
+| L1-54   | Daftar akun baru                                           | Subscription `ACTIVE` pada paket `PENDING`, `trialEndsAt` = null      |
+| L1-55   | Akun baru belum membayar                                   | Login/dashboard/baca bisa, tetapi kirim, auto-reply, webhook, dan upload ditolak `403 ENTITLEMENT_DENIED` |
 | L1-56   | Kirim bukti bayar periode Bulanan                          | Nominal = harga bulanan paket, tidak bisa diubah dari sisi klien      |
 | L1-57   | Kirim bukti bayar periode Tahunan                          | Nominal = harga tahunan paket                                         |
 | L1-58   | Paket tanpa harga tahunan, pilih Tahunan                   | Tombol kirim nonaktif + pesan jelas; API balas 422                    |
@@ -269,6 +269,9 @@ Repository mempunyai Login, Register, Forgot Password, Reset Password, account s
 | L1-61   | Riwayat pembayaran di dashboard billing                    | Menampilkan label BULANAN / TAHUNAN per baris                         |
 | L1-62   | Halaman Operasi Komersial                                  | Kartu paket menampilkan harga bulanan dan harga tahunan               |
 | L1-63   | Ubah harga tahunan lewat editor paket superadmin           | Halaman harga publik ikut berubah, tanpa deploy ulang                 |
+| L1-64   | Upload file melebihi batas paket                           | Ditolak `413 MEDIA_TOO_LARGE` dengan batas paket yang terbaca         |
+| L1-65   | Upload di paket `PENDING`                                  | Tombol upload nonaktif; API menolak `403 ENTITLEMENT_DENIED`          |
+| L1-66   | Akun `GRACE_PERIOD` upload media                           | Ditolak; fitur tulis tetap dibekukan sampai paket diperpanjang        |
 
 ---
 
@@ -780,7 +783,7 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L16-03                                | Usage consumed                        | Bertambah sesuai penggunaan           |
 | L16-04                                | Limit tercapai                        | Operasi berikutnya ditolak            |
 | L16-05                                | Unlimited plan                        | Commercial quota unlimited            |
-| L16-06                                | Trial                                 | End date benar                        |
+| L16-06                                | Pendaftaran baru                      | `ACTIVE` di paket `PENDING`, tanpa trial (`trialEndsAt` null) |
 | L16-07                                | Grace period                          | Behaviour benar                       |
 | L16-08                                | List plan                             | Benar                                 |
 | L16-09                                | Submit payment proof HTTPS **PASS 29 Okt 2026** — `201`, status `PENDING`, nominal diambil dari plan (149.000), bukan dari klien | PENDING                               |
@@ -796,7 +799,7 @@ Kemudian kita test route integration **WordPress** dan **WooCommerce** juga apab
 | L16-19                                | Override disable **PASS (API) 29 Okt 2026** — `200`, `enabled=false` | Efektif                               |
 | L16-20                                | Override limit **PASS (API) 29 Okt 2026** — `200`, limit 42 tersimpan | Efektif                               |
 | L16-21                                | Expiring override **PASS 29 Okt 2026** — override limit 42 berlaku, lalu setelah `expiresAt` lewat efektif kembali ke plan (limit 1, sumber `PLAN`); barisnya tetap tersimpan untuk audit | Kembali plan default                  |
-| L16-22                                | Set default plan **PASS 29 Okt 2026** — `STARTER` jadi default, `TRIAL` otomatis dilepas | Benar                                 |
+| L16-22                                | Set default plan **PASS 29 Okt 2026** — `STARTER` jadi default, `TRIAL` otomatis dilepas. Sejak 31 Okt 2026 default adalah `PENDING`; `TRIAL` sudah dihentikan | Benar                                 |
 | L16-23                                | Disable plan **PASS 29 Okt 2026** — `BISNIS` nonaktif hilang dari `/api/plans`, aktif lagi muncul kembali | Tidak ditawarkan ke user              |
 
 ---

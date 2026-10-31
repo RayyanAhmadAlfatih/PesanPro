@@ -185,6 +185,7 @@ Isi `[POSE]` dengan salah satu:
 | senang | eyes closed in a smile, both wings raised open in welcome |
 | bingung | head tilted, one wing raised to its chin, a single small question mark above its head |
 | membawa amplop | holding a small sealed envelope crosswise in its beak, proud upright posture |
+| terbang | flying cheerfully upward, both wings spread wide and raised mid-flap, body tilted diagonally as if gliding up to the right, short legs tucked back under the tail, a sealed envelope held crosswise in its beak, eyes closed in a happy smile, mint scarf trailing behind in the wind |
 | 400 | looking down at a crumpled torn note on the ground, one eyebrow raised, mildly annoyed |
 | 401 | holding up a small key that clearly does not fit, apologetic half-smile, one wing scratching its head |
 | 403 | standing squarely in front of a plain low barrier, wings folded, firm and polite |
@@ -219,6 +220,11 @@ Simpan tiap pose sebagai PNG terpisah di `public/brand/` dengan nama
 - `maskot-2-senang.png`
 - `maskot-3-bingung.png`
 - `maskot-4-kirim.png`
+
+Pose tambahan yang sudah ada di `public/brand/`:
+
+- `maskot-terbang.png` — pose terbang membawa amplop, dipakai untuk header banner.
+  Banner 1280x288 dibuat ulang lewat `node scripts/build-header-1280x288.mjs`.
 
 Kalau tool Anda hanya menghasilkan satu sheet, potong dengan `sharp` dalam **dua
 tahap**. Memanggil `.extract().trim()` dalam satu rantai akan gagal dengan pesan
