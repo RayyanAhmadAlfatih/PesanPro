@@ -18,6 +18,23 @@ history sync, or retired chat-list endpoints unless a current requirement asks
 for them. Current messaging entry points are the versioned APIs, the developer
 dashboard, and the durable message queue.
 
+## Website domains and deployment boundaries
+
+- Marketing website: `https://pesanpro.kingofcoding.my.id`. Use this domain when working on the public landing page, product introduction, marketing copy, SEO/GEO, and public pricing or feature explanations.
+- Released gateway application: `https://wagateway.kingofcoding.my.id`. This is the public URL for the actual PesanPro gateway product used by customers.
+- Keep these purposes distinct. Do not swap the domains in links, redirects, API examples, callbacks, webhooks, CORS rules, cookie settings, or configuration just to make them look consistent.
+- Do not assume both domains use the same codebase, hosting, deployment pipeline, or environment. Inspect the project and its configuration before changing anything domain-related.
+- When a request says “marketing website”, apply the change to the marketing site. When it refers to the released gateway, application, or customer dashboard, work on the gateway project. If the requested scope is genuinely unclear and could affect the wrong live site, make the safest non-destructive progress and clearly state the assumption.
+- Do not deploy changes, alter DNS, change production secrets, run destructive production commands, or modify live customer data unless the user explicitly asks for that action.
+- Before changing domain or deployment settings, check all relevant references so login, API calls, redirects, webhooks, and customer-facing links continue to point to the intended service.
+- Reuse the project's existing environment/configuration pattern for domain-specific values. Avoid scattering production URLs through application code, and never change environment variable names or production defaults without checking how deployment depends on them.
+
+## Marketing and public claims
+
+- Do not invent features, integrations, prices, message limits, uptime promises, security guarantees, or privacy claims. Verify them against the current implementation or an authoritative project source before publishing them.
+- If a claim cannot be verified, mark it for review instead of presenting it as a fact.
+- Keep marketing content consistent with the released product, but do not imply that a feature is available in production just because its code or design exists in the repository.
+
 ## Non-negotiable invariants
 
 - Enforce tenant ownership on every resource lookup. Cross-tenant IDs return a
@@ -32,6 +49,9 @@ dashboard, and the durable message queue.
   compare-and-set state changes.
 - Use safe public errors. Store operational detail only where existing logging
   and privacy policy permit it.
+- Preserve existing API behavior and customer workflows unless the request requires a change; document and test any intentional breaking change.
+- During tests, use mocks, test accounts, or test numbers where possible. Never send real WhatsApp messages, launch a live broadcast/campaign, or trigger other external customer-facing actions unless the user explicitly authorizes it.
+- Treat data deletion, schema changes, and migrations carefully. Preserve existing customer data and provide a clear migration path for data-shape changes; do not silently discard data to make a change easier.
 
 ## Working method
 
@@ -44,6 +64,17 @@ dashboard, and the durable message queue.
 
 Do not rewrite working code merely for preference. A rename or refactor must be
 needed for the requested fix and remain inside the files involved.
+
+## Reports and communication
+
+- Write reports in plain, everyday language that a non-technical user can understand.
+- Explain the result first: what was wrong, what changed, what the user will notice, and whether anything still needs attention.
+- Avoid unnecessary jargon and lengthy explanations of internal implementation details.
+- Do not routinely mention line numbers, function names, variable names, class names, or file paths in the main report. Include them only when they help the user find something, take an action, reproduce a problem, or when the user asks for technical detail.
+- When describing a bug, explain its cause in simple terms only when the cause has been verified. Do not present guesses as facts.
+- Clearly distinguish what was actually tested and confirmed from what was not tested, remains uncertain, or needs the user's action.
+- Keep the report concise but specific. State test results plainly, and never claim a check passed if it was not run successfully.
+- Put necessary commands or deeper technical notes in a short optional section at the end rather than letting them overwhelm the main explanation.
 
 ## Required gates
 
