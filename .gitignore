@@ -78,3 +78,14 @@ authstate-*
 
 # Intermediate SVG from render-preview.mjs. LANDING-PREVIEW.png is the deliverable.
 /landing-preview.svg
+
+# Local build attempts and QA scratch files. These are generated, not source.
+/.next.*/
+/.qa-tmp/
+/pure/
+/brand/
+/ws*.txt
+/wh-raw.json
+/qa-cookie-*.txt
+/l13-*
+/qa-pesanpro-contact-form-7.zip
