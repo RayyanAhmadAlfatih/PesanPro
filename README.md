@@ -136,7 +136,7 @@ Panduan lengkap ada di [`docs/panduan`](docs/panduan/README.md):
 
 Panduan yang sama juga tersedia di dalam aplikasi pada halaman [`/docs`](https://wagateway.kingofcoding.my.id/docs), dan bisa dibuka dari menu **Dokumentasi** di dashboard.
 
-Aturan kerja untuk agen AI ada di [`docs/AGENT-PLAYBOOK.md`](docs/AGENT-PLAYBOOK.md).
+Aturan kerja untuk agen AI ada di [`docs/AGENT-PLAYBOOK.md`](docs/AGENT-PLAYBOOK.md). Draf materi marketing v0.2.0 ada di [`docs/marketing`](docs/marketing/README.md).
 
 ## Deploy
 
