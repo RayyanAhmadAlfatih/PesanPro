@@ -59,6 +59,13 @@ export async function proxy(request: NextRequest) {
             return NextResponse.next();
         }
 
+        // Public onboarding payload for the sign-up screen. It cannot require
+        // a session or API key, and the publicRoutes list below does not help
+        // API paths because this API branch runs first.
+        if (pathname === "/api/public/onboarding") {
+            return NextResponse.next();
+        }
+
         // Skip auth endpoints
         if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/test")) {
             return NextResponse.next();
