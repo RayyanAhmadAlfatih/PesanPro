@@ -174,4 +174,4 @@ Daftar → Masuk → Pilih paket → Transfer → Unggah bukti
    → Atur Auto-reply untuk pesan masuk
 ```
 
-Kalau ada langkah yang macet, lihat [08 — Troubleshooting dan FAQ](08-troubleshooting-faq.md).
+Kalau ada langkah yang macet, lihat [08 — Troubleshooting dan FAQ](08-troubleshooting-faq.md). Untuk bertanya langsung, buka menu **Bantuan** di dashboard dan chat admin lewat WhatsApp.

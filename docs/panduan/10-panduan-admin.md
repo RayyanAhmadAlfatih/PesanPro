@@ -30,6 +30,16 @@ Selama ketiga kolom wajib masih kosong:
 
 Untuk menutup pendaftaran sepenuhnya, matikan **Enable User Registration** di kartu **App Configuration**.
 
+### Nomor WhatsApp bantuan
+
+1. Buka **Settings**.
+2. Pada kartu **Support contact**, isi **Admin WhatsApp number**. Format bebas: `0812...`, `+62 812...`, atau `62812...`.
+3. Klik **Save Support Contact**.
+
+Nomor ini muncul di menu **Bantuan** pada dashboard pelanggan sebagai tombol **Chat lewat WhatsApp**. Kalau dikosongkan, halaman Bantuan mengatakan nomor belum diatur, bukan menampilkan tombol mati.
+
+Nomor dipakai untuk semua paket. Tidak ada pembedaan kanal support per paket.
+
 ## Alur kerja harian
 
 ```

@@ -30,6 +30,7 @@ Rilis pra-launch pertama. Fokus: paket premium tanpa trial, harga kompetitif, da
 - Kredit pembuat **wa-akg** di README, footer aplikasi, halaman masuk, dan metadata paket.
 - Halaman dokumentasi publik `/docs` yang membaca panduan `.md` yang sama dengan repositori, plus menu **Dokumentasi** di landing page dan dashboard.
 - `docs/AGENT-PLAYBOOK.md`: aturan berpikir, diagnosis, testing lewat `browser-skill`, coding, struktur repo, dan format laporan.
+- Kontak WhatsApp admin di `SystemConfig` dan halaman **Bantuan** di dashboard, dengan tombol chat langsung ke nomor yang diatur superadmin.
 
 ### Diubah
 

@@ -14,6 +14,7 @@ const systemSettingsSchema = z.object({
     bankAccountNumber: z.string().trim().max(60).default(""),
     bankAccountHolder: z.string().trim().max(160).default(""),
     paymentNote: z.string().trim().max(500).nullish(),
+    supportWhatsapp: z.string().trim().max(40).regex(/^[0-9+\-()\s]*$/, "Invalid WhatsApp number").default(""),
 });
 
 export async function GET(request: NextRequest) {
@@ -27,7 +28,7 @@ export async function GET(request: NextRequest) {
             where: { id: "default" }
         });
 
-        return NextResponse.json({ status: true, message: "System config fetched", data: config || { appName: "PesanPro", faviconUrl: "/favicon.ico", timezone: "Asia/Jakarta", enableRegistration: true, bankName: "", bankAccountNumber: "", bankAccountHolder: "", paymentNote: "" } });
+        return NextResponse.json({ status: true, message: "System config fetched", data: config || { appName: "PesanPro", faviconUrl: "/favicon.ico", timezone: "Asia/Jakarta", enableRegistration: true, bankName: "", bankAccountNumber: "", bankAccountHolder: "", paymentNote: "", supportWhatsapp: "" } });
     } catch {
         return NextResponse.json({ status: false, message: "Failed to fetch settings", error: "Failed to fetch settings" }, { status: 500 });
     }
@@ -44,12 +45,12 @@ export async function POST(req: NextRequest) {
         if (!parsed.success) {
             return NextResponse.json({ status: false, message: "Invalid system settings", error: parsed.error.flatten() }, { status: 400 });
         }
-        const { appName, logoUrl, faviconUrl, timezone, enableRegistration, bankName, bankAccountNumber, bankAccountHolder, paymentNote } = parsed.data;
+        const { appName, logoUrl, faviconUrl, timezone, enableRegistration, bankName, bankAccountNumber, bankAccountHolder, paymentNote, supportWhatsapp } = parsed.data;
 
         const config = await prisma.systemConfig.upsert({
             where: { id: "default" },
-            update: { appName, logoUrl, faviconUrl, timezone, enableRegistration, bankName, bankAccountNumber, bankAccountHolder, paymentNote: paymentNote || null },
-            create: { id: "default", appName, logoUrl: logoUrl || "", faviconUrl: faviconUrl || "/favicon.ico", timezone, enableRegistration, bankName, bankAccountNumber, bankAccountHolder, paymentNote: paymentNote || null }
+            update: { appName, logoUrl, faviconUrl, timezone, enableRegistration, bankName, bankAccountNumber, bankAccountHolder, paymentNote: paymentNote || null, supportWhatsapp },
+            create: { id: "default", appName, logoUrl: logoUrl || "", faviconUrl: faviconUrl || "/favicon.ico", timezone, enableRegistration, bankName, bankAccountNumber, bankAccountHolder, paymentNote: paymentNote || null, supportWhatsapp }
         });
 
         return NextResponse.json({ status: true, message: "System settings updated", data: config });

@@ -133,6 +133,16 @@ Panduan tidak lagi hanya berupa file `.md` di repositori.
 
 Aturan kerja agen ada di `docs/AGENT-PLAYBOOK.md` dan dirujuk dari `AGENTS.md`. Isinya: cara berpikir, alur diagnosis, testing lewat `browser-skill` (`bsk`), aturan coding, peta struktur repo, gate sebelum handoff, dan format laporan.
 
+## 9. Kontak bantuan WhatsApp
+
+Belum ada sistem tiket. Yang ditambahkan adalah kanal bantuan langsung:
+
+- Superadmin mengisi **Settings → Support contact** dengan nomor WhatsApp admin.
+- Dashboard pelanggan punya menu **Bantuan** (`/dashboard/support`) berisi nomor dan tombol **Chat lewat WhatsApp**.
+- Nomor dinormalisasi otomatis: `0812...`, `+62 812...`, dan `62812...` menghasilkan tautan `wa.me` yang sama.
+- Kalau nomor kosong, halaman Bantuan menjelaskan bahwa admin belum mengatur kontak, bukan menampilkan tombol yang tidak berfungsi.
+- Berlaku untuk semua paket. Tidak ada entitlement atau SLA khusus per paket.
+
 ## Yang perlu dilakukan saat deploy
 
 1. Backup database.

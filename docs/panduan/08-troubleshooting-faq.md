@@ -406,3 +406,9 @@ Sertakan:
 - `requestId` atau ID pesan.
 - Tangkapan layar.
 - Langkah yang sudah dicoba.
+
+## Cara menghubungi admin
+
+Buka menu **Bantuan** di dashboard. Halaman itu menampilkan tombol **Chat lewat WhatsApp** ke nomor yang diatur superadmin.
+
+Kalau tombolnya tidak muncul, admin belum mengisi nomor bantuan. Sampaikan kendala lewat email yang dipakai saat mendaftar, atau minta admin mengisi **Settings → Support contact**.

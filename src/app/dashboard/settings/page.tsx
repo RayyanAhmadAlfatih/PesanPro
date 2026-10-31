@@ -8,6 +8,7 @@ import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { RefreshCw, Save } from "lucide-react";
 import { toast } from "sonner";
+import { formatWhatsappDisplay, whatsappHref } from "@/lib/support-contact";
 
 export default function SettingsPage() {
     const { data: authSession } = useSession();
@@ -22,7 +23,8 @@ export default function SettingsPage() {
         bankName: "",
         bankAccountNumber: "",
         bankAccountHolder: "",
-        paymentNote: ""
+        paymentNote: "",
+        supportWhatsapp: ""
     });
     const [systemLoading, setSystemLoading] = useState(false);
     const [timezones, setTimezones] = useState<string[]>(["UTC", "Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"]);
@@ -57,7 +59,8 @@ export default function SettingsPage() {
                         bankName: data.bankName || "",
                         bankAccountNumber: data.bankAccountNumber || "",
                         bankAccountHolder: data.bankAccountHolder || "",
-                        paymentNote: data.paymentNote || ""
+                        paymentNote: data.paymentNote || "",
+                        supportWhatsapp: data.supportWhatsapp || ""
                     });
                 }
             })
@@ -92,6 +95,9 @@ export default function SettingsPage() {
         systemConfig.bankAccountNumber.trim() &&
         systemConfig.bankAccountHolder.trim()
     );
+    const supportHref = whatsappHref(systemConfig.supportWhatsapp, "Halo admin PesanPro, saya butuh bantuan.");
+    const supportDisplay = formatWhatsappDisplay(systemConfig.supportWhatsapp);
+    const supportInvalid = systemConfig.supportWhatsapp.trim().length > 0 && !supportHref;
 
     return (
         <div className="space-y-6">
@@ -253,6 +259,52 @@ export default function SettingsPage() {
                         <Button onClick={handleSaveSystem} disabled={systemLoading || !isSuperAdmin}>
                             {systemLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                             Save Payment Destination
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* WhatsApp contact shown on the dashboard Help page */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-xl">Support contact</CardTitle>
+                    <CardDescription>
+                        Shown on the dashboard Help page. Leave it empty to hide the WhatsApp button and tell customers that no contact is configured yet.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid max-w-md gap-2">
+                        <Label>Admin WhatsApp number</Label>
+                        <input
+                            className={inputClass}
+                            placeholder="0812-3456-7890"
+                            value={systemConfig.supportWhatsapp}
+                            onChange={(e) => setSystemConfig(prev => ({ ...prev, supportWhatsapp: e.target.value }))}
+                            disabled={!isSuperAdmin}
+                            maxLength={40}
+                        />
+                        <p className="text-xs text-muted-foreground">
+                            Any format works: 0812..., +62 812..., or 62812.... The number is converted to the international form automatically.
+                        </p>
+                        {supportInvalid ? (
+                            <p className="text-xs text-[var(--pp-danger)]">That number cannot be converted. Use digits, spaces, +, -, or parentheses.</p>
+                        ) : null}
+                        {supportHref ? (
+                            <a
+                                href={supportHref}
+                                target="_blank"
+                                rel="noreferrer"
+                                className="text-sm font-semibold underline underline-offset-4"
+                            >
+                                Preview: chat {supportDisplay}
+                            </a>
+                        ) : null}
+                    </div>
+
+                    <div className="pt-2">
+                        <Button onClick={handleSaveSystem} disabled={systemLoading || !isSuperAdmin}>
+                            {systemLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                            Save Support Contact
                         </Button>
                     </div>
                 </CardContent>

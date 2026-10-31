@@ -23,6 +23,7 @@ import {
     ListRestart,
     Code2,
     BookOpen,
+    LifeBuoy,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -65,6 +66,7 @@ const navGroups: NavGroup[] = [
             { href: "/dashboard/settings", label: "Pengaturan", icon: Settings },
             { href: "/dashboard/inbox", label: "Notifikasi", icon: Inbox },
             { href: "/docs", label: "Dokumentasi", icon: BookOpen },
+            { href: "/dashboard/support", label: "Bantuan", icon: LifeBuoy },
         ],
     },
     {
