@@ -3,7 +3,6 @@ import { Readable } from "node:stream";
 import Busboy from "busboy";
 import { MessageJobError } from "./message-job-errors";
 import { prepareMediaForStorage } from "./media-optimization";
-import { releaseStorageQuota, runWithStorageQuota } from "./storage-quota";
 import {
   deletePrivateMediaObject,
   loadPrivateMediaObject,
@@ -162,18 +161,11 @@ export async function storePaymentProof(input: {
     throw new MessageJobError("UNSUPPORTED_PAYMENT_PROOF", "Use a JPG, PNG, WebP, or PDF payment proof", 415, false);
   }
   const storagePath = proofStoragePath(input.userId, input.verificationId, inspection.extension);
-  // Payment proofs are object storage too, so they must be counted against the
-  // tenant's MEDIA_STORAGE_BYTES entitlement exactly like private media; without
-  // this they grew unbilled and unbounded.
-  await runWithStorageQuota(
-    {
-      userId: input.userId,
-      bytes: prepared.buffer.length,
-      sessionId: "payment-proofs",
-      filename: `${input.verificationId}.${inspection.extension}`,
-    },
-    () => storePrivateMediaObject({ storagePath, buffer: prepared.buffer, mimeType: inspection.mimeType }),
-  );
+  // Payment proofs are onboarding artifacts, not tenant media. A new account is
+  // still on the PENDING plan, which has no storage allowance by design, so
+  // charging this upload to MEDIA_STORAGE_BYTES made it impossible to pay. The
+  // 5 MB cap and the per-IP/per-user rate limit bound the space instead.
+  await storePrivateMediaObject({ storagePath, buffer: prepared.buffer, mimeType: inspection.mimeType });
   return {
     storagePath,
     mimeType: inspection.mimeType,
@@ -185,18 +177,10 @@ export async function storePaymentProof(input: {
 export async function deleteStoredPaymentProof(
   storagePath: string,
   verificationId: string,
-  userId: string,
-  sizeBytes: bigint | number,
 ) {
+  // Proofs no longer reserve MEDIA_STORAGE_BYTES, so deleting one must not
+  // decrement a counter it never incremented.
   await deletePrivateMediaObject({ cacheKey: `payment-proof:${verificationId}`, storagePath });
-  // Release the storage bytes that `storePaymentProof` reserved, otherwise the
-  // tenant's MEDIA_STORAGE_BYTES quota is permanently reduced for a deleted proof.
-  await releaseStorageQuota({
-    userId,
-    bytes: Number(sizeBytes),
-    sessionId: "payment-proofs",
-    filename: verificationId,
-  });
 }
 
 export async function loadPaymentProof(input: {

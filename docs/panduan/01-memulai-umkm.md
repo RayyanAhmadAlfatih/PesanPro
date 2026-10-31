@@ -11,34 +11,35 @@ Panduan ini untuk pemilik usaha yang ingin memakai PesanPro lewat dashboard, tan
 3. Ponsel dengan WhatsApp aktif untuk memindai QR.
 4. Bukti transfer pembayaran (JPG, PNG, WebP, atau PDF, maksimal 5 MB).
 
-## Langkah 1 — Daftar akun
+## Langkah 1 — Daftar, pilih paket, dan bayar
+
+Pendaftaran dan pembayaran dilakukan sekaligus. Form daftar tidak bisa dikirim sebelum paket dipilih dan bukti transfer dilampirkan.
 
 1. Buka `https://wagateway.kingofcoding.my.id/auth/register`.
-2. Isi nama lengkap, email, dan kata sandi.
+2. Isi nama lengkap, email, kata sandi, dan ulangi kata sandi.
 3. Kata sandi minimal 10 karakter dan harus mengandung huruf besar, huruf kecil, dan angka.
-4. Klik **Create account**.
-5. Anda akan diarahkan ke halaman masuk. Masuk dengan email dan kata sandi tadi.
-
-Setelah masuk, dashboard menampilkan paket **Belum aktif**. Ini normal: akun sudah jadi, tetapi belum ada paket berbayar.
-
-## Langkah 2 — Pilih paket dan bayar
-
-1. Buka menu **Billing**.
-2. Pada bagian **Available plans**, pilih paket:
+4. Pilih paket:
    - **Starter** — 1 perangkat, 3.000 pesan/bulan.
    - **Bisnis** — 3 perangkat, 12.000 pesan/bulan.
    - **Pro** — 5 perangkat, 40.000 pesan/bulan.
-3. Pilih periode **Bulanan** atau **Tahunan**. Harga tahunan = 10× harga bulanan, jadi Anda membayar 10 bulan untuk 12 bulan pemakaian.
-4. Nominal muncul otomatis dan **tidak bisa diubah**. Ini disengaja supaya jumlah yang Anda transfer selalu sama dengan harga paket.
-5. Isi **Payment reference**, misalnya nama Anda atau nomor invoice.
-6. Unggah **bukti pembayaran**.
-7. Klik **Kirim untuk diverifikasi**.
+5. Pilih periode **1 bulan** atau **12 bulan**. Harga tahunan = 10× harga bulanan, jadi Anda membayar 10 bulan untuk 12 bulan pemakaian.
+6. Rekening tujuan tampil otomatis di halaman daftar. Transfer **tepat sebesar nominal** yang tertera ke rekening itu.
+7. Isi nama pengirim atau kode referensi, misalnya nama yang muncul di mutasi bank.
+8. Unggah bukti transfer (JPG, PNG, WebP, atau PDF, maksimal 5 MB).
+9. Klik **Buat akun dan kirim bukti bayar**.
 
-Admin akan memeriksa bukti tersebut. Setelah disetujui:
+Kalau rekening tujuan tidak muncul, admin belum mengisi data pembayaran. Hubungi admin sebelum transfer.
+
+## Langkah 2 — Tunggu persetujuan
+
+Admin memeriksa bukti transfer. Setelah disetujui:
 
 - Status paket berubah dari **Belum aktif** menjadi **ACTIVE**.
 - Hak paket langsung berlaku.
 - Anda menerima email konfirmasi pembayaran.
+- Masuk dengan email dan kata sandi yang Anda daftarkan.
+
+Kalau akun sudah terlanjur dibuat tetapi pembayaran belum dikirim, buka menu **Tagihan** dan kirim bukti dari sana.
 
 > **Belum tahu paket mana?** Mulai dari Starter kalau hanya satu nomor dan volume pesan di bawah 3.000/bulan. Naik ke Bisnis kalau butuh 2–3 nomor atau broadcast lebih sering. Lihat perbandingan lengkap di [09 — Paket, harga, dan margin](09-paket-dan-margin.md).
 

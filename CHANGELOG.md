@@ -21,9 +21,13 @@ Rilis pra-launch pertama. Fokus: paket premium tanpa trial, harga kompetitif, da
 - Panduan lengkap `docs/panduan/01` sampai `10`: memulai untuk UMKM, broadcast, auto-reply, media, API developer, webhook, integrasi tanpa kode, troubleshooting, paket dan margin, serta panduan admin.
 - Contoh kode cURL, Node.js, dan PHP, plus SDK mini untuk Node.js dan PHP.
 - Entitlement `MEDIA_MAX_UPLOAD_BYTES` agar batas unggah bisa diatur per paket.
+- Kolom rekening pembayaran di `SystemConfig` dan kartu **Payment destination** di halaman Settings superadmin.
+- Endpoint publik `/api/public/onboarding` yang mengirim daftar paket dan rekening tujuan ke halaman daftar.
+- Registrasi onboarding: paket, nominal, rekening tujuan, dan bukti transfer diisi saat membuat akun.
 - Batas unggah per paket: Starter 50 MB, Bisnis 75 MB, Pro 100 MB.
 - Halaman Tagihan baru: kartu paket berbahasa awam, nominal yang bisa disalin, langkah pengiriman bukti, checklist sebelum kirim, dan riwayat berstatus Indonesia.
 - `README.md`, `CHANGELOG.md`, dan indeks panduan.
+- Kredit pembuat **wa-akg** di README, footer aplikasi, halaman masuk, dan metadata paket.
 
 ### Diubah
 
@@ -43,6 +47,7 @@ Rilis pra-launch pertama. Fokus: paket premium tanpa trial, harga kompetitif, da
 ### Diperbaiki
 
 - Persetujuan dan penolakan pembayaran tidak lagi mengembalikan `500` karena nilai `BigInt` pada entitlement.
+- Bukti pembayaran tidak lagi dihitung ke kuota `MEDIA_STORAGE_BYTES`, sehingga akun `PENDING` bisa mengunggah bukti sebelum punya paket.
 - Watchdog koneksi WhatsApp memutus sesi yang menggantung lebih dari 60 detik.
 - Reaksi dari nomor sendiri tidak lagi tercatat sebagai pesan masuk.
 - Notifikasi `LOGGED_OUT` dan `STOPPED` dikirim lewat saluran peringatan sesi.

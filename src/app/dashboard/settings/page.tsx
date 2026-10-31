@@ -18,7 +18,11 @@ export default function SettingsPage() {
         logoUrl: "",
         faviconUrl: "/favicon.ico",
         timezone: "Asia/Jakarta",
-        enableRegistration: true
+        enableRegistration: true,
+        bankName: "",
+        bankAccountNumber: "",
+        bankAccountHolder: "",
+        paymentNote: ""
     });
     const [systemLoading, setSystemLoading] = useState(false);
     const [timezones, setTimezones] = useState<string[]>(["UTC", "Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"]);
@@ -49,7 +53,11 @@ export default function SettingsPage() {
                         logoUrl: data.logoUrl || "",
                         faviconUrl: data.faviconUrl || "/favicon.ico",
                         timezone: data.timezone || "Asia/Jakarta",
-                        enableRegistration: data.enableRegistration !== undefined ? data.enableRegistration : true
+                        enableRegistration: data.enableRegistration !== undefined ? data.enableRegistration : true,
+                        bankName: data.bankName || "",
+                        bankAccountNumber: data.bankAccountNumber || "",
+                        bankAccountHolder: data.bankAccountHolder || "",
+                        paymentNote: data.paymentNote || ""
                     });
                 }
             })
@@ -79,6 +87,11 @@ export default function SettingsPage() {
     };
 
     const inputClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+    const bankReady = Boolean(
+        systemConfig.bankName.trim() &&
+        systemConfig.bankAccountNumber.trim() &&
+        systemConfig.bankAccountHolder.trim()
+    );
 
     return (
         <div className="space-y-6">
@@ -167,6 +180,79 @@ export default function SettingsPage() {
                         <Button onClick={handleSaveSystem} disabled={systemLoading || !isSuperAdmin}>
                             {systemLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
                             Save Configuration
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Payment destination used by the registration onboarding */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-xl">Payment destination</CardTitle>
+                    <CardDescription>
+                        Shown on the sign-up screen. New accounts choose a plan, transfer to this account, and upload the proof before they can finish registering.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    <div className="grid gap-4 sm:grid-cols-3">
+                        <div className="grid gap-2">
+                            <Label>Bank name</Label>
+                            <input
+                                className={inputClass}
+                                placeholder="BCA"
+                                value={systemConfig.bankName}
+                                onChange={(e) => setSystemConfig(prev => ({ ...prev, bankName: e.target.value }))}
+                                disabled={!isSuperAdmin}
+                                maxLength={120}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Account number</Label>
+                            <input
+                                className={inputClass}
+                                placeholder="1234567890"
+                                value={systemConfig.bankAccountNumber}
+                                onChange={(e) => setSystemConfig(prev => ({ ...prev, bankAccountNumber: e.target.value }))}
+                                disabled={!isSuperAdmin}
+                                maxLength={60}
+                            />
+                        </div>
+                        <div className="grid gap-2">
+                            <Label>Account holder</Label>
+                            <input
+                                className={inputClass}
+                                placeholder="Nama pemilik rekening"
+                                value={systemConfig.bankAccountHolder}
+                                onChange={(e) => setSystemConfig(prev => ({ ...prev, bankAccountHolder: e.target.value }))}
+                                disabled={!isSuperAdmin}
+                                maxLength={160}
+                            />
+                        </div>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label>Payment note (optional)</Label>
+                        <textarea
+                            className={`${inputClass} h-auto min-h-24 py-2`}
+                            placeholder="Transfer only to this account. We never ask you to pay a different one."
+                            value={systemConfig.paymentNote}
+                            onChange={(e) => setSystemConfig(prev => ({ ...prev, paymentNote: e.target.value }))}
+                            disabled={!isSuperAdmin}
+                            maxLength={500}
+                        />
+                        <p className="text-xs text-muted-foreground">Extra instruction shown under the account number on the sign-up screen.</p>
+                    </div>
+
+                    {!bankReady ? (
+                        <p className="rounded-md border border-[var(--pp-danger)] bg-[var(--pp-paper)] px-3 py-2 text-sm text-[var(--pp-danger)]">
+                            Registrations are blocked until bank name, account number, and account holder are filled in.
+                        </p>
+                    ) : null}
+
+                    <div className="pt-2">
+                        <Button onClick={handleSaveSystem} disabled={systemLoading || !isSuperAdmin}>
+                            {systemLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                            Save Payment Destination
                         </Button>
                     </div>
                 </CardContent>

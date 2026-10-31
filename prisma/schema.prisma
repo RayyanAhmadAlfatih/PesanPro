@@ -1433,6 +1433,14 @@ model SystemConfig {
   timezone           String  @default("Asia/Jakarta")
   enableRegistration Boolean @default(true)
 
+  // Payment destination shown on the registration onboarding screen. Empty
+  // values mean the operator has not configured a destination yet, and new
+  // registrations are refused instead of sending money nowhere.
+  bankName           String  @default("") @db.VarChar(120)
+  bankAccountNumber  String  @default("") @db.VarChar(60)
+  bankAccountHolder  String  @default("") @db.VarChar(160)
+  paymentNote        String? @db.Text
+
   updatedAt DateTime @updatedAt
 }
 

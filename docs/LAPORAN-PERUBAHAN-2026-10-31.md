@@ -108,6 +108,20 @@ Halaman Tagihan ditulis ulang dengan bahasa yang lebih mudah dipahami:
 
 Catatan: angka 75.000/149.000/299.000 di screenshot berasal dari data lama di database. Setelah `prisma migrate deploy`, kartu otomatis menampilkan 20.000/49.000/99.000.
 
+## 7. Onboarding saat daftar
+
+Pendaftaran tidak lagi berhenti di pembuatan akun. Form daftar sekarang tiga langkah dalam satu halaman:
+
+1. **Data akun**: nama, email, kata sandi.
+2. **Pilih paket**: kartu paket, periode 1 atau 12 bulan, nominal otomatis.
+3. **Transfer dan bukti**: rekening tujuan dari Settings, nama pengirim, unggah bukti maksimal 5 MB.
+
+Tombol **Buat akun dan kirim bukti bayar** terkunci sampai paket dipilih dan bukti dilampirkan. Server juga menolak registrasi tanpa bukti, jadi aturan ini tidak bisa dilewati lewat API.
+
+Rekening diisi superadmin di **Settings → Payment destination** (`bankName`, `bankAccountNumber`, `bankAccountHolder`, `paymentNote`). Kalau belum lengkap, pendaftaran ditolak dengan `PAYMENT_NOT_CONFIGURED`.
+
+Bukti pembayaran tidak lagi dibebankan ke kuota `MEDIA_STORAGE_BYTES`, karena akun baru masih di paket `PENDING` yang tidak punya jatah penyimpanan. Batas 5 MB per file dan rate limit 5 percobaan per jam menjadi pengendalinya.
+
 ## Yang perlu dilakukan saat deploy
 
 1. Backup database.

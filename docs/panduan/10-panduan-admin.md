@@ -10,6 +10,26 @@ Panduan ini untuk **SUPERADMIN** yang mengelola platform: menyetujui pembayaran,
 
 Akun `USER` tidak bisa membuka menu tersebut. Kalau muncul 403, periksa role akun di database.
 
+## 0. Atur rekening pembayaran sebelum membuka pendaftaran
+
+Pendaftaran sekarang sekaligus memilih paket dan mengunggah bukti transfer. Karena itu rekening tujuan harus diisi lebih dulu.
+
+1. Buka **Settings**.
+2. Pada kartu **Payment destination**, isi:
+   - **Bank name**, misalnya BCA.
+   - **Account number**, nomor rekening tujuan.
+   - **Account holder**, nama pemilik rekening.
+   - **Payment note** (opsional), misalnya "Transfer hanya ke rekening ini".
+3. Klik **Save Payment Destination**.
+
+Selama ketiga kolom wajib masih kosong:
+
+- Halaman daftar menampilkan **Pembayaran belum siap**.
+- Endpoint registrasi menolak dengan kode `PAYMENT_NOT_CONFIGURED`.
+- Tidak ada akun baru yang bisa dibuat.
+
+Untuk menutup pendaftaran sepenuhnya, matikan **Enable User Registration** di kartu **App Configuration**.
+
 ## Alur kerja harian
 
 ```
