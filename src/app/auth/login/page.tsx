@@ -335,6 +335,7 @@ function LoginScreen() {
             Create an account
           </Link>
         </p>
+        <p className="mt-3 text-center text-xs text-muted-foreground">Built by wa-akg</p>
       </div>
     </div>
   );

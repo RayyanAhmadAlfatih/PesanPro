@@ -4,6 +4,8 @@ Gateway WhatsApp untuk UMKM. Satu dashboard untuk menghubungkan nomor WhatsApp, 
 
 Status: pra-rilis `0.1.0` (31 Oktober 2026). Tidak ada paket trial. Akun baru bisa masuk dashboard, tetapi pengiriman, auto-reply, webhook, dan unggah media aktif setelah pembayaran disetujui admin.
 
+Dibuat dan dikembangkan oleh **wa-akg**.
+
 ## Fitur
 
 - **Multi-tenant.** Setiap akun punya perangkat, kontak, kuota, dan kunci API sendiri.
@@ -155,3 +157,7 @@ Penting: runtime membaca kode dari `src/`, bukan dari `.next`. Deploy yang hanya
 ## Lisensi
 
 MIT. Lihat [`LICENSE`](LICENSE).
+
+## Kredit
+
+PesanPro dibuat dan dikembangkan oleh **wa-akg**.

@@ -5,7 +5,7 @@
   "private": false,
   "license": "MIT",
   "description": "PesanPro — WhatsApp Gateway SaaS multi-tenant.",
-  "author": "PesanPro",
+  "author": "wa-akg",
   "scripts": {
     "dev": "node --max-old-space-size=512 node_modules/tsx/dist/cli.mjs src/server/index.ts",
     "build": "node --max-old-space-size=2048 node_modules/next/dist/bin/next build --webpack",
