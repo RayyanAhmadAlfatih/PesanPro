@@ -89,3 +89,9 @@ authstate-*
 /qa-cookie-*.txt
 /l13-*
 /qa-pesanpro-contact-form-7.zip
+
+# Local notes and duplicate QA copies. Keep the repository focused on source.
+/ANALISA-FITUR-DAN-HARGA-PESANPRO-2026-10-14.md
+/JANGAN DIBACA!.md
+/anti-slop/
+/docs/qa/*- Copy.md
