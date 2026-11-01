@@ -2,13 +2,20 @@ import path from "node:path";
 import type { MessageJobType, Prisma } from "@prisma/client";
 import type { AnyMessageContent } from "@whiskeysockets/baileys";
 import { MessageJobError } from "./message-job-errors";
-import { validatePublicUrl } from "./ssrf";
+import { SSRFError, safeFetchBuffer, validatePublicUrl } from "./ssrf";
 
 export type RemoteMediaPayload = {
   mediaUrl: string;
   fileName?: string;
   mimeType?: string;
 };
+
+/**
+ * Upper bound for downloading remote media at dispatch time. It matches the
+ * largest per-file upload cap of any plan, so a URL is never allowed to pull
+ * in more bytes than a direct upload would accept.
+ */
+export const REMOTE_MEDIA_MAX_BYTES = 100 * 1024 * 1024;
 
 export async function validateRemoteMediaUrl(rawUrl: string) {
   if (rawUrl.length > 2048) {
@@ -18,6 +25,31 @@ export async function validateRemoteMediaUrl(rawUrl: string) {
     return (await validatePublicUrl(rawUrl)).toString();
   } catch {
     throw new MessageJobError("INVALID_MEDIA_URL", "Media URL must point to a public HTTP or HTTPS resource", 422, false);
+  }
+}
+
+/**
+ * Download remote media through the SSRF-guarded fetcher.
+ *
+ * Baileys fetches `{ url }` sources itself: it follows redirects and
+ * re-resolves DNS without re-validation, so a URL that passed validation at
+ * enqueue time could still land on an internal host (redirect to
+ * 169.254.169.254, DNS rebinding while the job waits in the queue). Downloading
+ * here keeps every hop validated and caps the buffered size.
+ */
+export async function fetchRemoteMediaBuffer(remote: RemoteMediaPayload): Promise<Buffer> {
+  await validateRemoteMediaUrl(remote.mediaUrl);
+  try {
+    return await safeFetchBuffer(remote.mediaUrl, {
+      timeoutMs: 60_000,
+      maxBytes: REMOTE_MEDIA_MAX_BYTES,
+      maxRedirects: 3,
+    });
+  } catch (error) {
+    if (error instanceof SSRFError) {
+      throw new MessageJobError("INVALID_MEDIA_URL", "Media URL must point to a public HTTP or HTTPS resource", 422, false);
+    }
+    throw new MessageJobError("REMOTE_MEDIA_FETCH_FAILED", "Media URL could not be downloaded", 503, true);
   }
 }
 
@@ -44,18 +76,18 @@ function remoteFileName(remote: RemoteMediaPayload) {
 export function buildRemoteMediaContent(
   type: Exclude<MessageJobType, "TEXT">,
   remote: RemoteMediaPayload,
+  buffer: Buffer,
   caption?: string | null,
 ): AnyMessageContent {
-  const source = { url: remote.mediaUrl };
   const common = {
     caption: caption || undefined,
     ...(remote.mimeType ? { mimetype: remote.mimeType } : {}),
   };
-  if (type === "IMAGE") return { image: source, ...common };
-  if (type === "VIDEO") return { video: source, ...common };
-  if (type === "AUDIO") return { audio: source, mimetype: remote.mimeType, ptt: false };
+  if (type === "IMAGE") return { image: buffer, ...common };
+  if (type === "VIDEO") return { video: buffer, ...common };
+  if (type === "AUDIO") return { audio: buffer, mimetype: remote.mimeType, ptt: false };
   return {
-    document: source,
+    document: buffer,
     fileName: remoteFileName(remote),
     ...common,
     mimetype: remote.mimeType || "application/octet-stream",

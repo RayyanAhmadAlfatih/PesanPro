@@ -1,6 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { normalizeRecipient } from "@/lib/message-recipient";
+import { commercialErrorResponse } from "@/lib/commercial-errors";
 
 // POST: Send reaction to message
 export async function POST(
@@ -41,7 +43,8 @@ export async function POST(
             return NextResponse.json({ status: false, message: "Session not ready", error: "Session not ready" }, { status: 503 });
         }
 
-        const decodedJid = decodeURIComponent(jid);
+        // Same normalization as the queue-based /send endpoint.
+        const decodedJid = normalizeRecipient(decodeURIComponent(jid));
 
         // Send reaction (empty string removes reaction)
         await instance.socket.sendMessage(decodedJid, {
@@ -61,6 +64,8 @@ export async function POST(
         });
 
     } catch (error) {
+        const commercialError = commercialErrorResponse(error);
+        if (commercialError) return commercialError;
         console.error("Send reaction error:", error);
         return NextResponse.json({ status: false, message: "Failed to send reaction", error: "Failed to send reaction" }, { status: 500 });
     }

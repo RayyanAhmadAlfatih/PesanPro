@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { normalizeRecipient } from "@/lib/message-recipient";
 import { fireSentWebhook } from "@/lib/webhook";
 import { runWithMessageQuota } from "@/lib/message-quota";
 import { commercialErrorResponse } from "@/lib/commercial-errors";
@@ -54,7 +55,8 @@ export async function POST(
         }
         const socket = instance.socket;
 
-        const decodedJid = decodeURIComponent(jid);
+        // Same normalization as the queue-based /send endpoint.
+        const decodedJid = normalizeRecipient(decodeURIComponent(jid));
 
         // Send contact message
         const sendResult = await runWithMessageQuota({ userId: user.id, sessionId, endpoint: "message.contact" }, () => socket.sendMessage(decodedJid, {

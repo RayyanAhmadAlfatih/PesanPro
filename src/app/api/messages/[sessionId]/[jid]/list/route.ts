@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { normalizeRecipient } from "@/lib/message-recipient";
 import { runWithMessageQuota } from "@/lib/message-quota";
 import { commercialErrorResponse } from "@/lib/commercial-errors";
 
@@ -11,7 +12,9 @@ export async function POST(
 ) {
     try {
         const { sessionId, jid: rawJid } = await params;
-        const jid = decodeURIComponent(rawJid);
+        // Same normalization as the queue-based /send endpoint, so a bare or
+        // formatted phone number cannot become a silent no-delivery JID here.
+        const jid = normalizeRecipient(decodeURIComponent(rawJid));
 
         const user = await getAuthenticatedUser(request);
         if (!user) {

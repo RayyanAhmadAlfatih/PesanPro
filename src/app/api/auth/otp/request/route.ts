@@ -44,9 +44,13 @@ export async function POST(request: NextRequest) {
         { status: 503 },
       );
     default:
-      return NextResponse.json(
-        { error: "This email cannot be used to sign in. Check it again or contact the administrator." },
-        { status: 404 },
-      );
+      // "undeliverable" covers unknown and suspended addresses alike. It must
+      // answer with the same generic success as a real send, otherwise the
+      // status code itself would reveal which emails have accounts.
+      return NextResponse.json({
+        status: true,
+        message: "Code sent.",
+        data: { resendAfterMs: 0 },
+      });
   }
 }

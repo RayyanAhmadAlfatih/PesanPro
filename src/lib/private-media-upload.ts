@@ -102,6 +102,7 @@ export async function parsePrivateMediaUpload(
         });
       });
       parser.on("filesLimit", () => fail(new MessageJobError("VALIDATION_ERROR", "Exactly one media file is required", 422, false)));
+      parser.on("fieldsLimit", () => fail(new MessageJobError("INVALID_MULTIPART_BODY", "Media upload contains an unexpected extra field", 400, false)));
       parser.on("partsLimit", () => fail(new MessageJobError("INVALID_MULTIPART_BODY", "Media upload contains too many parts", 400, false)));
       parser.on("error", () => fail(new MessageJobError("INVALID_MULTIPART_BODY", "Media upload body is invalid", 400, false)));
       parser.on("close", () => {

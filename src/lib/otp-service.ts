@@ -58,10 +58,6 @@ export async function requestLoginOtp(input: OtpActor & { email: string }): Prom
     return { ok: false, reason: "email_unavailable" };
   }
 
-  const emailLimit = await checkPersistentRateLimit(`otp-email:${input.email}`, OTP_EMAIL_SEND_LIMIT, OTP_EMAIL_SEND_WINDOW_MS);
-  if (!emailLimit.success) {
-    return { ok: false, reason: "rate_limited", retryAfterMs: emailLimit.retryAfterMs ?? OTP_EMAIL_SEND_WINDOW_MS };
-  }
   const ipLimit = await checkPersistentRateLimit(`otp-ip:${input.ip}`, OTP_IP_SEND_LIMIT, OTP_IP_SEND_WINDOW_MS);
   if (!ipLimit.success) {
     return { ok: false, reason: "rate_limited", retryAfterMs: ipLimit.retryAfterMs ?? OTP_IP_SEND_WINDOW_MS };
@@ -77,6 +73,14 @@ export async function requestLoginOtp(input: OtpActor & { email: string }): Prom
   // above already cap that probing.
   if (!user || user.status !== "ACTIVE") {
     return { ok: false, reason: "undeliverable" };
+  }
+
+  // The per-email limit is checked only for real, active accounts: if it ran
+  // before the existence check, three anonymous requests could burn a known
+  // user's quota and lock them out of OTP login for the whole window.
+  const emailLimit = await checkPersistentRateLimit(`otp-email:${input.email}`, OTP_EMAIL_SEND_LIMIT, OTP_EMAIL_SEND_WINDOW_MS);
+  if (!emailLimit.success) {
+    return { ok: false, reason: "rate_limited", retryAfterMs: emailLimit.retryAfterMs ?? OTP_EMAIL_SEND_WINDOW_MS };
   }
 
   const lastChallenge = await prisma.otpChallenge.findFirst({

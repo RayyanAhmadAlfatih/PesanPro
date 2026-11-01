@@ -17,6 +17,23 @@ export async function POST(
         }
 
         const { sessionId, jid } = await params;
+
+        // Reject oversized uploads from the Content-Length header BEFORE the
+        // body is buffered: request.formData() would otherwise allocate the
+        // whole multipart body in memory first.
+        const policy = await getMediaUploadPolicy(user.id);
+        const declaredLength = Number(request.headers.get("content-length") ?? "");
+        if (Number.isSafeInteger(declaredLength) && declaredLength > policy.maxUploadBytes + 1024 * 1024) {
+            return NextResponse.json(
+                {
+                    status: false,
+                    message: `Ukuran file melebihi batas paket Anda (${formatMegabytes(policy.maxUploadBytes)}).`,
+                    error: "MEDIA_TOO_LARGE",
+                },
+                { status: 413 },
+            );
+        }
+
         const formData = await request.formData();
         const file = formData.get("file");
         const type = formData.get("type") as string; // image, video, audio, document
@@ -44,17 +61,6 @@ export async function POST(
                     error: "Unsupported media format for Newsletter" 
                 }, 
                 { status: 400 }
-            );
-        }
-        const policy = await getMediaUploadPolicy(user.id);
-        if (file.size > policy.maxUploadBytes) {
-            return NextResponse.json(
-                {
-                    status: false,
-                    message: `Ukuran file melebihi batas paket Anda (${formatMegabytes(policy.maxUploadBytes)}).`,
-                    error: "MEDIA_TOO_LARGE",
-                },
-                { status: 413 },
             );
         }
         const buffer = Buffer.from(await file.arrayBuffer());

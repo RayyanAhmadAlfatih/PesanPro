@@ -13,11 +13,12 @@ export function buildApiKeyPreview(apiKey: string): string {
 }
 
 export function generateApiKey(): string {
-  const bytes = crypto.randomBytes(API_KEY_SECRET_LENGTH);
   let result = API_KEY_PREFIX;
 
   for (let i = 0; i < API_KEY_SECRET_LENGTH; i++) {
-    result += API_KEY_ALPHABET.charAt(bytes[i] % API_KEY_ALPHABET.length);
+    // randomInt samples uniformly (rejection sampling); `bytes[i] % length`
+    // biased the first 8 alphabet characters because 256 % 62 != 0.
+    result += API_KEY_ALPHABET.charAt(crypto.randomInt(API_KEY_ALPHABET.length));
   }
 
   return result;

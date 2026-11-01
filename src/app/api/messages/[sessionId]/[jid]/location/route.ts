@@ -1,6 +1,7 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { normalizeRecipient } from "@/lib/message-recipient";
 import { fireSentWebhook } from "@/lib/webhook";
 import { runWithMessageQuota } from "@/lib/message-quota";
 import { commercialErrorResponse } from "@/lib/commercial-errors";
@@ -12,7 +13,8 @@ export async function POST(
 ) {
     try {
         const { sessionId, jid: rawJid } = await params;
-        const jid = decodeURIComponent(rawJid);
+        // Same normalization as the queue-based /send endpoint.
+        const jid = normalizeRecipient(decodeURIComponent(rawJid));
 
         const user = await getAuthenticatedUser(request);
         if (!user) {

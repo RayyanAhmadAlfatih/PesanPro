@@ -35,6 +35,9 @@ export function normalizeRecipient(value: string): string {
     const international = LOCAL_INDONESIAN_MOBILE.test(digits) ? `62${digits.slice(1)}` : digits;
     return `${international}@s.whatsapp.net`;
   }
-  if (/^[A-Za-z0-9._:-]{3,80}@(s\.whatsapp\.net|g\.us|lid)$/.test(trimmed)) return trimmed;
+  // "newsletter" is WhatsApp Channels: the legacy media endpoint has
+  // newsletter-specific handling, so channels must be accepted here too —
+  // rejecting them made that handling dead code.
+  if (/^[A-Za-z0-9._:-]{3,80}@(s\.whatsapp\.net|g\.us|lid|newsletter)$/.test(trimmed)) return trimmed;
   throw new MessageJobError("INVALID_RECIPIENT", "Recipient must be a phone number or supported WhatsApp JID", 422, false);
 }

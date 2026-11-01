@@ -85,6 +85,7 @@ authstate-*
 
 # Local build attempts and QA scratch files. These are generated, not source.
 /.next.*/
+/.next-*/
 /.qa-tmp/
 /pure/
 /brand/

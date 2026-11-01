@@ -40,7 +40,10 @@ export async function lockPrivateMediaForUse(tx: PrivateMediaTransaction, tenant
 export async function purgeExpiredPrivateMedia(now = new Date(), batchSize = 100) {
   const expired = await prisma.privateMedia.findMany({
     where: {
-      status: "ACTIVE",
+      // QUARANTINED rows failed integrity validation and no code path can read
+      // them again (every load filters status = ACTIVE). Without including them
+      // here their storage quota would be held until the end of time.
+      status: { in: ["ACTIVE", "QUARANTINED"] },
       expiresAt: { lte: now },
       messageJobs: { none: { status: { in: [...PRIVATE_MEDIA_ACTIVE_REFERENCE_STATUSES.messageJobs] } } },
       scheduledMessages: { none: { status: { in: [...PRIVATE_MEDIA_ACTIVE_REFERENCE_STATUSES.scheduledMessages] } } },
@@ -55,11 +58,11 @@ export async function purgeExpiredPrivateMedia(now = new Date(), batchSize = 100
   for (const candidate of expired) {
     const claimed = await prisma.$transaction(async (tx) => {
       const current = await tx.privateMedia.findFirst({
-        where: { id: candidate.id, status: "ACTIVE", expiresAt: { lte: now } },
+        where: { id: candidate.id, status: { in: ["ACTIVE", "QUARANTINED"] }, expiresAt: { lte: now } },
       });
       if (!current || hasActivePrivateMediaReferences(await activePrivateMediaReferenceCounts(tx, current.id))) return null;
       const changed = await tx.privateMedia.updateMany({
-        where: { id: current.id, status: "ACTIVE", expiresAt: { lte: now } },
+        where: { id: current.id, status: { in: ["ACTIVE", "QUARANTINED"] }, expiresAt: { lte: now } },
         data: { status: "DELETED", deletedAt: now },
       });
       return changed.count === 1 ? current : null;

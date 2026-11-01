@@ -53,6 +53,21 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
           });
           return null;
         }
+        // The per-email key above is attacker-chosen: rotating victim emails
+        // would otherwise give every guess a fresh bucket. A per-IP cap bounds
+        // how many credential guesses one address can make in the window.
+        const ipRl = await checkPersistentRateLimit(`login-ip:${ip}`, 30, 15 * 60 * 1000);
+        if (!ipRl.success) {
+          await recordAudit({
+            userEmail: email,
+            action: "user.login_failed",
+            resource: "user",
+            ip,
+            userAgent: headers?.get("user-agent"),
+            meta: { reason: "rate_limited_ip" },
+          });
+          return null;
+        }
 
         const user = await prisma.user.findUnique({ where: { email } });
         if (!user || user.status !== "ACTIVE") {
@@ -140,6 +155,12 @@ export const { handlers, signIn, signOut, auth } = NextAuth({
     async signOut(message) {
       const userId = "token" in message ? message.token?.id : message.session?.userId;
       if (typeof userId === "string") {
+        // Sessions are JWTs, so a copied cookie would stay valid until its
+        // idle window ran out. Bumping the version makes every remaining copy
+        // of the token fail the accountActive recheck immediately.
+        await prisma.user
+          .update({ where: { id: userId }, data: { sessionVersion: { increment: 1 } } })
+          .catch(() => undefined);
         await recordAudit({
           userId,
           action: "user.logout",

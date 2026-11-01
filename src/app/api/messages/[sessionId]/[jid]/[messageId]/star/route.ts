@@ -1,6 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { normalizeRecipient } from "@/lib/message-recipient";
+import { commercialErrorResponse } from "@/lib/commercial-errors";
 
 /**
  * POST /api/messages/{sessionId}/{jid}/{messageId}/star
@@ -17,7 +19,8 @@ export async function POST(
         }
 
         const { sessionId, jid: rawJid, messageId } = await params;
-        const jid = decodeURIComponent(rawJid);
+        // Same normalization as the queue-based /send endpoint.
+        const jid = normalizeRecipient(decodeURIComponent(rawJid));
 
         const body: unknown = await request.json();
         const rawStar = typeof body === "object" && body !== null && "star" in body ? body.star : true;
@@ -52,6 +55,8 @@ export async function POST(
         });
 
     } catch (error) {
+        const commercialError = commercialErrorResponse(error);
+        if (commercialError) return commercialError;
         console.error("Star message error:", error);
         return NextResponse.json({ status: false, message: "Failed to star/unstar message", error: "Failed to star/unstar message" }, { status: 500 });
     }

@@ -90,8 +90,11 @@ export async function validateApiKey(request: NextRequest) {
     try {
         return await getUserByApiKey(apiKey, getClientIp(request.headers));
     } catch (error) {
+        // A database failure must not masquerade as a bad key: a valid key
+        // would receive a misleading 401 and the outage would hide behind
+        // client-side retries. Re-throw so routes answer 500 with a request id.
         logger.error("Auth", "API key validation error:", error);
-        return null;
+        throw error;
     }
 }
 

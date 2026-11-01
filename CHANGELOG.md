@@ -9,10 +9,55 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), da
 ### Akan datang
 
 - Deploy migrasi paket, onboarding, dan support ke produksi.
-- GitHub Release untuk `v0.2.1` dan `v0.2.2` serta pembersihan branch lama.
+- GitHub Release untuk `v0.2.1`, `v0.2.2`, dan `v0.2.3` serta pembersihan branch lama.
 - Halaman status layanan dan dokumentasi pemulihan bencana.
 - Tindak lanjut `npm audit`: 52 temuan lama dari rantai `jimp`, Baileys rc, dan
   `vite`. Perbaikannya butuh penurunan versi besar, jadi direncanakan terpisah.
+- Keputusan produk: kunci API legacy tinggal pengguna (full-scope, tanpa
+  kedaluwarsa/IP allowlist) kapan dimigrasi ke kunci terkelola.
+
+## [0.2.3] - 2026-11-01
+
+Ronde kedua audit bug senyap: autentikasi, OTP, webhook, media, dan route pesan
+langsung. Laporan lengkap: `docs/qa/AUDIT-REPORT-R2-2026-11-01.md`.
+
+### Keamanan
+
+- Media via URL kini diunduh lewat fetcher yang tervalidasi SSRF di setiap
+  redirect dan dibatasi 100 MB, bukan diteruskan mentah ke Baileys.
+- Permintaan kode OTP menjawab sukses generik untuk email yang tidak bisa
+  diproses — status 404/200 tidak lagi membocorkan akun mana yang terdaftar.
+- Login kini punya batas per-IP (30 percobaan/15 menit) selain batas per-email.
+- Kuota OTP per-email hanya dihitung untuk akun aktif, jadi pihak lain tidak
+  bisa mengunci korban dari login OTP.
+- Logout menaikkan `sessionVersion`: semua salinan token langsung mati
+  (perilaku baru: logout di satu perangkat mengakhiri sesi semua perangkat).
+
+### Diubah
+
+- Endpoint pesan langsung (list, poll, contact, location, hapus/edit, reaksi,
+  bintang) kini menormalkan nomor seperti /send; penerima tidak valid dijawab
+  422 dengan alasan jelas, bukan 500 generik.
+- JID `@newsletter` (Channel WhatsApp) diterima di semua jalur pengiriman.
+- Error database saat validasi API key dijawab 500 dengan request id, bukan 401
+  yang menyesatkan.
+- Kirim media legacy menolak unggahan raksasa dari header Content-Length
+  sebelum body dibuffer.
+- Hash kanonik webhook/integrasi diurutkan per codepoint, kebal perubahan ICU.
+
+### Diperbaiki
+
+- Pesan yang kehabisan percobaan tidak lagi terjebak "queued" selamanya saat
+  pekerja berhenti; recovery langsung dead-letter dengan kuota kembali.
+- Pembersih dead-letter memberi jeda aman 60 detik agar pekerja yang hanya
+  lambat tidak dihukum FAILED.
+- Percobaan pengiriman webhook milik pekerja yang mati kini ditutup sebagai
+  gagal; log tidak lagi menampilkan baris "berjalan" hantu.
+- Media terkarantina ikut dibersihkan retensi dan kuota penyimpanannya kembali.
+- Parser unggah menolak field berlebih dengan pesan jelas.
+- Event `message.sent` yang gagal dibuat kini tercatat di log, bukan hilang
+  tanpa jejak.
+- Pembuatan kunci API bebas bias modulo.
 
 ## [0.2.2] - 2026-11-01
 

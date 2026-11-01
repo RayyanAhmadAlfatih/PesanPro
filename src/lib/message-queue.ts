@@ -201,7 +201,18 @@ export async function failMessageJob(job: ClaimedMessageJob, error: unknown) {
 export async function recoverMessageJobsForWorker(workerId: string) {
   const claims = await prisma.messageJob.findMany({
     where: { status: "PROCESSING", lockedBy: { startsWith: `${workerId}:` } },
-    select: { id: true, attempts: true },
+    select: {
+      id: true,
+      attempts: true,
+      maxAttempts: true,
+      requestedById: true,
+      quotaReservationKey: true,
+      tenantId: true,
+      sessionId: true,
+      recipient: true,
+      whatsappMessageId: true,
+      session: { select: { sessionId: true } },
+    },
   });
   if (claims.length === 0) return 0;
   const now = new Date();
@@ -217,20 +228,99 @@ export async function recoverMessageJobsForWorker(workerId: string) {
         },
       });
     }
-    await tx.messageJob.updateMany({
-      where: { id: { in: claims.map((job) => job.id) }, status: "PROCESSING", lockedBy: { startsWith: `${workerId}:` } },
-      data: {
-        status: "QUEUED",
-        availableAt: now,
-        lockedBy: null,
-        leaseExpiresAt: null,
-        heartbeatAt: null,
-        safeErrorCode: "WORKER_SHUTDOWN",
-        safeErrorMessage: "Worker stopped before delivery completed",
-        lastErrorAt: now,
-      },
-    });
+    // Only jobs with attempts left may go back to QUEUED. The claim query
+    // requires attempts < maxAttempts, so requeueing an exhausted job would
+    // strand it in QUEUED forever while its quota reservation stays held.
+    // Exhausted jobs are dead-lettered below instead.
+    const recoverableIds = claims.filter((job) => job.attempts < job.maxAttempts).map((job) => job.id);
+    if (recoverableIds.length > 0) {
+      await tx.messageJob.updateMany({
+        where: { id: { in: recoverableIds }, status: "PROCESSING", lockedBy: { startsWith: `${workerId}:` } },
+        data: {
+          status: "QUEUED",
+          availableAt: now,
+          lockedBy: null,
+          leaseExpiresAt: null,
+          heartbeatAt: null,
+          safeErrorCode: "WORKER_SHUTDOWN",
+          safeErrorMessage: "Worker stopped before delivery completed",
+          lastErrorAt: now,
+        },
+      });
+    }
   });
+
+  const exhausted = claims.filter((job) => job.attempts >= job.maxAttempts);
+  for (const job of exhausted) {
+    await settleMessageQuota(job, "RELEASE").catch((error) => {
+      logger.error("MessageQueue", `Failed to release quota for dead-lettered job ${job.id}`, error);
+    });
+  }
+  if (exhausted.length > 0) {
+    await prisma.$transaction(async (tx) => {
+      for (const job of exhausted) {
+        const changed = await tx.messageJob.updateMany({
+          where: { id: job.id, status: "PROCESSING", lockedBy: { startsWith: `${workerId}:` } },
+          data: {
+            status: "FAILED",
+            failedAt: now,
+            deadLetteredAt: now,
+            safeErrorCode: "ATTEMPTS_EXHAUSTED",
+            safeErrorMessage: "Delivery attempts were exhausted",
+            lastErrorAt: now,
+            lockedBy: null,
+            leaseExpiresAt: null,
+            heartbeatAt: null,
+          },
+        });
+        if (changed.count === 0) continue;
+        await tx.broadcastRecipient.updateMany({
+          where: { messageJobId: job.id, status: "ENQUEUED" },
+          data: {
+            status: "FAILED",
+            failedAt: now,
+            safeErrorCode: "ATTEMPTS_EXHAUSTED",
+            safeErrorMessage: "Delivery attempts were exhausted",
+          },
+        });
+        if (job.whatsappMessageId) {
+          await tx.messageDeliveryEvent.upsert({
+            where: {
+              jobId_type_whatsappMessageId: {
+                jobId: job.id,
+                type: "FAILED",
+                whatsappMessageId: job.whatsappMessageId,
+              },
+            },
+            create: {
+              jobId: job.id,
+              type: "FAILED",
+              whatsappMessageId: job.whatsappMessageId,
+              occurredAt: now,
+            },
+            update: {},
+          });
+        }
+        if (job.session.sessionId) {
+          await createWebhookOutboxEvent(tx, {
+            tenantId: job.tenantId,
+            sessionDbId: job.sessionId,
+            sessionPublicId: job.session.sessionId,
+            eventType: "message.status",
+            eventKey: `message-job:${job.id}:FAILED`,
+            data: {
+              jobId: job.id,
+              messageId: job.whatsappMessageId,
+              recipient: job.recipient,
+              status: "FAILED",
+              errorCode: "ATTEMPTS_EXHAUSTED",
+            },
+            now,
+          });
+        }
+      }
+    });
+  }
   return claims.length;
 }
 
@@ -242,6 +332,11 @@ export async function recoverMessageJobsForWorker(workerId: string) {
  */
 export async function deadLetterExhaustedMessageJobs(limit = 200) {
   const now = new Date();
+  // A merely-stalled worker that later finishes its send must not find its job
+  // already reported FAILED. Exhausted jobs cannot be claimed by anyone (the
+  // claim query requires attempts < maxAttempts), so waiting one extra minute
+  // only delays cleanup of truly-dead claims; it never blocks new work.
+  const graceCutoff = new Date(now.getTime() - 60_000);
   const exhausted = await prisma.$queryRaw<Array<{
     id: string;
     attempts: number;
@@ -259,7 +354,7 @@ export async function deadLetterExhaustedMessageJobs(limit = 200) {
     FROM MessageJob AS job
     LEFT JOIN Session AS session ON session.id = job.sessionId
     WHERE job.status = 'PROCESSING'
-      AND job.leaseExpiresAt < ${now}
+      AND job.leaseExpiresAt < ${graceCutoff}
       AND job.attempts >= job.maxAttempts
     LIMIT ${Math.min(1000, Math.max(1, limit))}
   `);

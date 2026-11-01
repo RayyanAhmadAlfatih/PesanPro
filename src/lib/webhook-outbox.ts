@@ -291,6 +291,20 @@ export async function claimNextWebhookDelivery(workerId: string, leaseMs = DEFAU
       finishedAt: now,
     },
   });
+  // Attempt rows of deliveries that were re-claimed by a different worker
+  // (crash recovery, expired lease) can only be closed by the worker that owns
+  // the delivery — and that worker is gone. Finalise them here so the delivery
+  // log never shows a phantom "running" attempt next to the real result.
+  await prisma.$executeRaw(Prisma.sql`
+    UPDATE WebhookDeliveryAttempt AS attempt
+    INNER JOIN WebhookDelivery AS delivery ON delivery.id = attempt.deliveryId
+    SET attempt.status = 'FAILED',
+        attempt.safeErrorCode = 'WORKER_SHUTDOWN',
+        attempt.safeErrorMessage = 'Worker stopped before the delivery finished',
+        attempt.finishedAt = ${now}
+    WHERE attempt.status = 'PROCESSING'
+      AND (delivery.status <> 'PROCESSING' OR delivery.lockedBy IS NULL OR delivery.lockedBy <> attempt.workerId)
+  `);
   const claimToken = `${workerId}:${crypto.randomUUID()}`;
   const leaseExpiresAt = new Date(now.getTime() + leaseMs);
   const claimed = await prisma.$executeRaw(Prisma.sql`
@@ -336,6 +350,15 @@ type WebhookDeliverer = (input: Parameters<typeof deliverWebhookHttp>[0]) => Pro
 
 export async function executeClaimedWebhookDelivery(claim: ClaimedWebhookDelivery, deliverer: WebhookDeliverer = deliverWebhookHttp) {
   const attemptNumber = claim.delivery.attempts;
+  // A stalled worker can wake up after its lease expired and another worker
+  // took over. Creating or re-arming the attempt row here would leave an
+  // orphaned PROCESSING row nobody will ever finalise, so verify the claim is
+  // still ours before touching it.
+  const stillOwned = await prisma.webhookDelivery.findFirst({
+    where: { id: claim.delivery.id, status: "PROCESSING", lockedBy: claim.claimToken },
+    select: { id: true },
+  });
+  if (!stillOwned) return { action: "CLAIM_LOST" as const };
   await prisma.webhookDeliveryAttempt.upsert({
     where: { deliveryId_attemptNumber: { deliveryId: claim.delivery.id, attemptNumber } },
     create: { deliveryId: claim.delivery.id, attemptNumber, workerId: claim.claimToken },

@@ -228,8 +228,10 @@ export async function fireSentWebhook(
         webhookMsg.message = messageContent;
 
         await onMessageSent(sessionId, webhookMsg);
-    } catch {
-        // Non-blocking
+    } catch (error) {
+        // Non-blocking, but never silent: a dropped message.sent event must be
+        // traceable in the logs instead of vanishing without a trace.
+        logger.error("Webhook", "Failed to emit message.sent event:", error);
     }
 }
 

@@ -12,4 +12,11 @@ describe("canonical request hashing", () => {
   it("produces a different hash for a materially different payload", () => {
     expect(hashCanonicalJson({ text: "one" })).not.toBe(hashCanonicalJson({ text: "two" }));
   });
+
+  it("sorts keys by codepoint, independent of ICU collation", () => {
+    // localeCompare is ICU-dependent: some collations order "a" before "B".
+    // The hash must be stable across Node ICU upgrades, so "B" (66) sorts
+    // before "a" (97) by codepoint.
+    expect(canonicalJson({ a: 1, B: 2 })).toBe('{"B":2,"a":1}');
+  });
 });

@@ -1,6 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession } from "@/lib/api-auth";
+import { normalizeRecipient } from "@/lib/message-recipient";
+import { commercialErrorResponse } from "@/lib/commercial-errors";
 import { getErrorMessage } from "@/lib/error-utils";
 
 // DELETE: Delete message for everyone
@@ -27,7 +29,8 @@ export async function DELETE(
             return NextResponse.json({ status: false, message: "Session not ready", error: "Session not ready" }, { status: 503 });
         }
 
-        const decodedJid = decodeURIComponent(jid);
+        // Same normalization as the queue-based /send endpoint.
+        const decodedJid = normalizeRecipient(decodeURIComponent(jid));
 
         // Delete message for everyone
         await instance.socket.sendMessage(decodedJid, { delete: {
@@ -40,6 +43,8 @@ export async function DELETE(
         return NextResponse.json({ status: true, message: "Message deleted for everyone" });
 
     } catch (error: unknown) {
+        const commercialError = commercialErrorResponse(error);
+        if (commercialError) return commercialError;
         console.error("Delete message error:", error);
         const errorMessage = getErrorMessage(error);
         
@@ -80,7 +85,8 @@ export async function PATCH(
             return NextResponse.json({ status: false, message: "Session not ready", error: "Session not ready" }, { status: 503 });
         }
 
-        const decodedJid = decodeURIComponent(jid);
+        // Same normalization as the queue-based /send endpoint.
+        const decodedJid = normalizeRecipient(decodeURIComponent(jid));
 
         await instance.socket.sendMessage(decodedJid, {
             text: text.trim(),
@@ -93,6 +99,8 @@ export async function PATCH(
 
         return NextResponse.json({ status: true, message: "Message edited successfully" });
     } catch (error: unknown) {
+        const commercialError = commercialErrorResponse(error);
+        if (commercialError) return commercialError;
         console.error("Edit message error:", error);
         return NextResponse.json({ status: false, message: "Failed to edit message", error: "Failed to edit message" }, { status: 500 });
     }
