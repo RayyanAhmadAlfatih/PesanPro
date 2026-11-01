@@ -16,6 +16,18 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), da
 - Keputusan produk: kunci API legacy tinggal pengguna (full-scope, tanpa
   kedaluwarsa/IP allowlist) kapan dimigrasi ke kunci terkelola.
 
+## [0.2.4] - 2026-11-01
+
+Perbaikan dari temuan QA live setelah deploy v0.2.3.
+
+### Diperbaiki
+
+- Pembaruan grup (`group.update`) kini terkirim di setiap kejadian. Sebelumnya
+  JID grup dipakai sebagai kunci dedup, jadi hanya pembaruan pertama per grup
+  yang pernah dikirim dan sisanya hilang senyap.
+- Event webhook duplikat tidak lagi membanjiri log error Prisma; pemeriksaan
+  duplikat dilakukan sebelum pembuatan, penanganan balapan tetap dipertahankan.
+
 ## [0.2.3] - 2026-11-01
 
 Ronde kedua audit bug senyap: autentikasi, OTP, webhook, media, dan route pesan
