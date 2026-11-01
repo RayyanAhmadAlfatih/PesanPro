@@ -2,6 +2,8 @@ import { describe, expect, it } from "vitest";
 import {
   canCreateDevice,
   canPerformDeviceAction,
+  describeDeviceActionFailure,
+  EPHEMERAL_PAIRING_STATUSES,
   isWithinDeviceLimit,
   shouldRecoverDevice,
 } from "./device-policy";
@@ -20,6 +22,10 @@ describe("device policy", () => {
     expect(shouldRecoverDevice("CONNECTED", false)).toBe(false);
   });
 
+  it("resets QR and pairing states that cannot survive a restart", () => {
+    expect(EPHEMERAL_PAIRING_STATUSES).toEqual(["QR_REQUIRED", "PAIRING_REQUIRED"]);
+  });
+
   it("applies device limits to both account roles", () => {
     expect(isWithinDeviceLimit("USER", 0, 1)).toBe(true);
     expect(isWithinDeviceLimit("USER", 1, 1)).toBe(false);
@@ -34,5 +40,13 @@ describe("device policy", () => {
     expect(canPerformDeviceAction("USER", false, "logout")).toBe(false);
     expect(canPerformDeviceAction("SUPERADMIN", true, "delete")).toBe(true);
     expect(canPerformDeviceAction("SUPERADMIN", false, "delete")).toBe(false);
+  });
+
+  it("explains the common device action failures instead of one generic sentence", () => {
+    expect(describeDeviceActionFailure(new Error("Session is already active on another worker")).status).toBe(409);
+    expect(describeDeviceActionFailure(new Error("Instance not found or not running")).message).toContain("Tekan Start");
+    expect(describeDeviceActionFailure(new Error("Socket not initialized")).status).toBe(503);
+    expect(describeDeviceActionFailure(new Error("Phone number must contain 8-15 digits")).status).toBe(422);
+    expect(describeDeviceActionFailure(new Error("unexpected")).status).toBe(500);
   });
 });

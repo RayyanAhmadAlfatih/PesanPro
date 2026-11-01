@@ -21,6 +21,7 @@ import { antispam } from "./antispam";
 import { logger } from "@/lib/logger";
 import { notifySessionOwner } from "@/lib/session-alerts";
 import { onConnectionUpdate } from "@/lib/webhook";
+import { normalizePhoneNumber } from "@/lib/message-recipient";
 import { Prisma, type DeviceStatus } from "@prisma/client";
 
 const MAX_RECONNECT_ATTEMPTS = 3;
@@ -418,8 +419,9 @@ export class WhatsAppInstance {
         }
 
         try {
-            const cleanNumber = phoneNumber.replace(/[^0-9]/g, '');
-            if (!cleanNumber) throw new Error("Invalid phone number");
+            // Pairing expects the international form without a plus sign.
+            // Normalising here also covers numbers typed as 08… in the UI.
+            const cleanNumber = normalizePhoneNumber(phoneNumber);
 
             const code = await this.socket.requestPairingCode(cleanNumber);
             this.pairingCode = code;

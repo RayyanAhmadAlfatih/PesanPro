@@ -9,8 +9,55 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), da
 ### Akan datang
 
 - Deploy migrasi paket, onboarding, dan support ke produksi.
-- GitHub Release untuk `v0.2.0` dan pembersihan branch lama.
+- GitHub Release untuk `v0.2.1` dan pembersihan branch lama.
 - Halaman status layanan dan dokumentasi pemulihan bencana.
+- Tindak lanjut `npm audit`: 52 temuan lama dari rantai `jimp`, Baileys rc, dan
+  `vite`. Perbaikannya butuh penurunan versi besar, jadi direncanakan terpisah.
+
+## [0.2.1] - 2026-11-01
+
+Rilis hasil audit bug senyap di seluruh fitur. Laporan lengkap:
+`docs/qa/AUDIT-REPORT-2026-11-01.md`.
+
+### Ditambahkan
+
+- Halaman Tagihan menampilkan rekening tujuan beserta tombol salin untuk
+  pelanggan yang memperpanjang, dengan status jujur saat admin belum mengisi
+  rekening.
+
+### Diubah
+
+- Perpanjangan paket yang sama kini melanjutkan masa aktif dari tanggal
+  berakhirnya paket sekarang, bukan dihitung ulang dari hari persetujuan.
+  `startsAt` tidak digeser agar kuota bulanan tidak ter-reset di tengah periode.
+- Pesan error aksi perangkat menampilkan penyebab umum dan langkah berikutnya
+  dalam Bahasa Indonesia, bukan satu kalimat generik untuk semua kegagalan.
+- Error 500 pada API kini tercatat di log bersama request id.
+
+### Diperbaiki
+
+- Pesan yang gagal total setelah pekerja mati kini mengembalikan kuota bulanan,
+  memperbarui status penerima broadcast, dan mengirim event webhook gagal.
+- Hasil retry pesan broadcast kini memulihkan status penerima yang tadinya gagal.
+- Hanya paket tanpa harga bulanan yang boleh dijadikan paket default, sehingga
+  pendaftar baru tidak bisa mendapat paket berbayar gratis.
+- Satu pengguna hanya boleh punya satu bukti pembayaran yang sedang diperiksa;
+  form Tagihan ikut terkunci saat ada bukti yang belum diputuskan.
+- Jadwal yang sewanya kedaluwarsa kini bisa dibatalkan dan diedit tanpa harus
+  menunggu pekerja melepasnya.
+- Status QR dan kode pairing yang tidak mungkin bertahan setelah restart server
+  direset menjadi STOPPED, jadi tombol Start aktif lagi.
+- Nomor telepon dengan spasi, strip, titik, atau tanda kurung, termasuk format
+  lokal `08…`, kini dinormalisasi untuk pairing dan pengiriman pesan.
+- Status kampanye mengikuti broadcast miliknya yang dijeda dari halaman
+  Broadcast.
+- Header CSV penerima mengenali nama kolom Indonesia seperti "Nomor WhatsApp"
+  dan "No WA".
+- Daftar perangkat menampilkan pesan galat dan tombol coba lagi saat API gagal,
+  bukan daftar kosong.
+- Percobaan terakhir pengiriman webhook yang mati total tidak lagi tampak
+  "memproses" selamanya.
+- Kebocoran kecil kuota saat retry balapan dengan pemulihan pekerja ditutup.
 
 ## [0.2.0] - 2026-10-31
 

@@ -1,5 +1,5 @@
 import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
-import { billingPeriodEnd, reviewPaymentVerificationInTransaction, serializeReviewResponse } from "./payment-verification-service";
+import { billingPeriodEnd, resolveSubscriptionPeriod, reviewPaymentVerificationInTransaction, serializeReviewResponse } from "./payment-verification-service";
 import { _resetEnvCache } from "./env";
 
 const reviewedAt = new Date("2026-09-23T10:00:00.000Z");
@@ -57,6 +57,53 @@ describe("billing period", () => {
   it("falls back to a month when the cycle is unrecognised", () => {
     expect(billingPeriodEnd(new Date("2026-01-15T00:00:00.000Z"), undefined as never).toISOString())
       .toBe("2026-02-15T00:00:00.000Z");
+  });
+});
+
+describe("renewal period", () => {
+  const now = new Date("2026-09-23T10:00:00.000Z");
+
+  it("extends a same-plan renewal from the current end date", () => {
+    const currentEndsAt = new Date("2026-10-10T10:00:00.000Z");
+    const period = resolveSubscriptionPeriod({
+      now,
+      newPlanId: "plan-pro",
+      cycle: "MONTHLY",
+      current: { planId: "plan-pro", startsAt: new Date("2026-09-10T10:00:00.000Z"), endsAt: currentEndsAt },
+      currentUsable: true,
+    });
+
+    expect(period.extendedExistingPeriod).toBe(true);
+    expect(period.startsAt).toEqual(new Date("2026-09-10T10:00:00.000Z"));
+    expect(period.endsAt).toEqual(new Date("2026-11-10T10:00:00.000Z"));
+  });
+
+  it("starts a plan change now instead of carrying the old plan forward", () => {
+    const period = resolveSubscriptionPeriod({
+      now,
+      newPlanId: "plan-bisnis",
+      cycle: "MONTHLY",
+      current: { planId: "plan-starter", startsAt: new Date("2026-09-10T10:00:00.000Z"), endsAt: new Date("2026-10-10T10:00:00.000Z") },
+      currentUsable: true,
+    });
+
+    expect(period.extendedExistingPeriod).toBe(false);
+    expect(period.startsAt).toEqual(now);
+    expect(period.endsAt).toEqual(new Date("2026-10-23T10:00:00.000Z"));
+  });
+
+  it("starts now when the current subscription is no longer usable", () => {
+    const period = resolveSubscriptionPeriod({
+      now,
+      newPlanId: "plan-pro",
+      cycle: "YEARLY",
+      current: { planId: "plan-pro", startsAt: new Date("2025-01-01T00:00:00.000Z"), endsAt: new Date("2026-01-01T00:00:00.000Z") },
+      currentUsable: false,
+    });
+
+    expect(period.extendedExistingPeriod).toBe(false);
+    expect(period.startsAt).toEqual(now);
+    expect(period.endsAt).toEqual(new Date("2027-09-23T10:00:00.000Z"));
   });
 });
 
@@ -150,6 +197,41 @@ describe("manual payment verification", () => {
       })],
       skipDuplicates: true,
     }));
+  });
+
+  it("extends a same-plan renewal instead of discarding the remaining paid days", async () => {
+    const tx = client();
+    tx.subscription.findUnique.mockResolvedValue({
+      id: "subscription-1",
+      userId: "user-1",
+      planId: "plan-pro",
+      status: "ACTIVE",
+      startsAt: new Date("2026-09-10T10:00:00.000Z"),
+      endsAt: new Date("2026-10-10T10:00:00.000Z"),
+      trialEndsAt: null,
+      graceEndsAt: null,
+    });
+
+    await reviewPaymentVerificationInTransaction(tx as never, {
+      verificationId: "payment-1",
+      status: "APPROVED",
+      reviewNote: "Early renewal verified",
+      reviewerEmail: "admin@example.com",
+      reviewedAt,
+    });
+
+    expect(tx.subscription.upsert).toHaveBeenCalledWith(expect.objectContaining({
+      update: expect.objectContaining({
+        startsAt: new Date("2026-09-10T10:00:00.000Z"),
+        endsAt: new Date("2026-11-10T10:00:00.000Z"),
+      }),
+    }));
+    expect(tx.subscriptionHistory.create).toHaveBeenCalledWith({
+      data: expect.objectContaining({
+        startsAt: new Date("2026-09-10T10:00:00.000Z"),
+        endsAt: new Date("2026-11-10T10:00:00.000Z"),
+      }),
+    });
   });
 
   it("does not change a subscription when a proof is rejected", async () => {

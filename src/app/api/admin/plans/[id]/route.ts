@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { recordAudit } from "@/lib/audit";
 import { getClientIp } from "@/lib/rate-limit";
 import { isCommercialFeatureVisible } from "@/lib/access-policy";
+import { isPlanEligibleAsDefault } from "@/lib/package-policy";
 
 const commercialFeatureSchema = z.nativeEnum(EntitlementFeature).refine(
   isCommercialFeatureVisible,
@@ -47,7 +48,13 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
       if (!current) throw new Error("PLAN_NOT_FOUND");
       const nextActive = parsed.data.isActive ?? current.isActive;
       const nextDefault = parsed.data.isDefault ?? current.isDefault;
+      const nextPrice = parsed.data.priceMonthly !== undefined
+        ? parsed.data.priceMonthly
+        : current.priceMonthly?.toString() ?? null;
       if (nextDefault && !nextActive) throw new Error("DEFAULT_MUST_BE_ACTIVE");
+      // New accounts receive the default plan without paying. A paid plan in
+      // that slot would create a free, never-expiring subscription.
+      if (nextDefault && !isPlanEligibleAsDefault(nextPrice)) throw new Error("DEFAULT_MUST_BE_FREE");
       if (current.isDefault && parsed.data.isDefault === false) throw new Error("DEFAULT_REPLACEMENT_REQUIRED");
       if (parsed.data.isDefault === true) await tx.plan.updateMany({ where: { id: { not: id } }, data: { isDefault: false } });
 
@@ -96,6 +103,7 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
   } catch (error) {
     if (error instanceof Error && error.message === "PLAN_NOT_FOUND") return NextResponse.json({ error: "Plan not found" }, { status: 404 });
     if (error instanceof Error && error.message === "DEFAULT_MUST_BE_ACTIVE") return NextResponse.json({ error: "Default plan must remain active" }, { status: 400 });
+    if (error instanceof Error && error.message === "DEFAULT_MUST_BE_FREE") return NextResponse.json({ error: "Only a plan without a monthly price can be the default plan" }, { status: 400 });
     if (error instanceof Error && error.message === "DEFAULT_REPLACEMENT_REQUIRED") return NextResponse.json({ error: "Set another plan as default before removing this default" }, { status: 409 });
     throw error;
   }

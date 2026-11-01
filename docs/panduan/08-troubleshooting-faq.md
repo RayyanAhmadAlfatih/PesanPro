@@ -36,6 +36,12 @@ Pembayaran diverifikasi **manual**. Kalau lebih dari 1×24 jam kerja, hubungi ad
 - Referensi pembayaran.
 - Tangkapan layar bukti.
 
+Saat satu bukti masih diperiksa, form pengiriman bukti terkunci. Kirim bukti baru setelah bukti sebelumnya mendapat keputusan, supaya tidak ada pembayaran ganda.
+
+### Kalau saya perpanjang lebih awal, apakah sisa hari hilang?
+
+Tidak. Perpanjangan untuk paket yang sama dihitung dari tanggal berakhirnya paket sekarang. Contoh: paket aktif sampai 10 November, Anda bayar perpanjangan pada 5 November, maka paket berlanjut sampai 10 Desember. Ganti ke paket lain baru dimulai pada hari pembayaran disetujui.
+
 ### Apakah ada refund?
 
 Kebijakan refund mengikuti ketentuan layanan. Hubungi admin sebelum melakukan pembayaran ulang.
@@ -53,6 +59,8 @@ Kebijakan refund mengikuti ketentuan layanan. Hubungi admin sebelum melakukan pe
 5. Kalau tetap kosong, hubungi admin.
 
 QR berlaku sekitar **1 jam**. Kalau kedaluwarsa, minta QR baru.
+
+Pakai kode pairing (tautan dengan nomor HP)? Tulis nomor dengan kode negara, contoh `6281234567890`. Format `08…` dan tanda baca seperti strip otomatis dirapikan, tapi paling aman pakai format `62…`. Kalau server baru saja di-restart saat Anda sedang memasangkan, status perangkat kembali ke STOPPED dan QR lama dibatalkan; tekan **Start** lagi untuk QR baru.
 
 ### QR sudah dipindai, tetapi status tidak menjadi CONNECTED
 

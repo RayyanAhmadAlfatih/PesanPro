@@ -276,6 +276,21 @@ export async function claimNextWebhookDelivery(workerId: string, leaseMs = DEFAU
       AND leaseExpiresAt < ${now}
       AND attempts >= maxAttempts
   `);
+  // The sweep above terminalises the delivery, but the attempt row created by
+  // the killed worker would otherwise stay PROCESSING forever and make the
+  // delivery log look like it is still running.
+  await prisma.webhookDeliveryAttempt.updateMany({
+    where: {
+      status: "PROCESSING",
+      delivery: { status: "DEAD_LETTER", deadLetteredAt: now },
+    },
+    data: {
+      status: "FAILED",
+      safeErrorCode: "MAX_ATTEMPTS_EXCEEDED",
+      safeErrorMessage: "Webhook delivery exceeded the retry limit",
+      finishedAt: now,
+    },
+  });
   const claimToken = `${workerId}:${crypto.randomUUID()}`;
   const leaseExpiresAt = new Date(now.getTime() + leaseMs);
   const claimed = await prisma.$executeRaw(Prisma.sql`

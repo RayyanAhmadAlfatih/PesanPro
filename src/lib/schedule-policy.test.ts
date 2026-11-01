@@ -4,6 +4,7 @@ import {
   nextCronOccurrence,
   occurrenceKey,
   parseScheduleLocalDateTime,
+  scheduleLockIsActive,
   validateCronExpression,
   validateScheduleTimezone,
 } from "./schedule-policy";
@@ -34,5 +35,13 @@ describe("schedule timezone and recurrence policy", () => {
     const scheduled = new Date("2026-08-31T00:00:00.000Z");
     expect(isMissedRun(scheduled, new Date("2026-08-31T00:04:59.000Z"), 300)).toBe(false);
     expect(isMissedRun(scheduled, new Date("2026-08-31T00:05:01.000Z"), 300)).toBe(true);
+  });
+
+  it("treats a lock with an expired lease as stale so cancel and edit still work", () => {
+    const now = new Date("2026-08-31T00:10:00.000Z");
+    expect(scheduleLockIsActive(null, null, now)).toBe(false);
+    expect(scheduleLockIsActive("worker:claim", new Date("2026-08-31T00:10:30.000Z"), now)).toBe(true);
+    expect(scheduleLockIsActive("worker:claim", new Date("2026-08-31T00:09:59.000Z"), now)).toBe(false);
+    expect(scheduleLockIsActive("worker:claim", null, now)).toBe(true);
   });
 });

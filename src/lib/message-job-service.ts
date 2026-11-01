@@ -268,7 +268,19 @@ export async function retryMessageJob(actor: MessageJobActor, jobId: string) {
     });
     if (updated.count === 0) {
       const current = await prisma.messageJob.findUniqueOrThrow({ where: { id: job.id } });
-      if (current.status === "QUEUED") return publicJob(current);
+      if (current.status === "QUEUED") {
+        // A concurrent retry or the worker recovery path already queued the
+        // job. If that path uses a different reservation key, this attempt's
+        // reservation would otherwise stay in `reserved` forever.
+        if (current.quotaReservationKey !== quotaReservationKey) {
+          await releaseReservedUsage({
+            userId: actor.id,
+            feature: "MESSAGES_MONTHLY",
+            idempotencyKey: quotaReservationKey,
+          }).catch(() => undefined);
+        }
+        return publicJob(current);
+      }
       throw new MessageJobStateError("Message state changed before retry could start");
     }
   } catch (error) {

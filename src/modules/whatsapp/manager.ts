@@ -5,7 +5,7 @@ import { logger } from "@/lib/logger";
 import crypto from "crypto";
 import type { Role } from "@prisma/client";
 import { createOwnedSession } from "@/lib/session-service";
-import { shouldRecoverDevice } from "@/lib/device-policy";
+import { shouldRecoverDevice, EPHEMERAL_PAIRING_STATUSES } from "@/lib/device-policy";
 import { notifySessionOwner } from "@/lib/session-alerts";
 import {
     acquireSessionRuntimeLock,
@@ -47,6 +47,15 @@ export class WhatsAppManager {
 
     async loadSessions() {
         if (!this.io) throw new Error("Socket.IO not initialized in WhatsAppManager");
+        // A QR or pairing code cannot survive a restart. Leaving the row in
+        // QR_REQUIRED/PAIRING_REQUIRED shows an expired code and disables the
+        // Start button, so the device looks broken until the owner discovers
+        // Stop first. Reset those ephemeral states before loading.
+        await prisma.session.updateMany({
+            where: { status: { in: EPHEMERAL_PAIRING_STATUSES } },
+            data: { status: "STOPPED", qr: null },
+        }).catch((error) => logger.error("Manager", "Failed to reset stale pairing states", error));
+
         const sessions = await prisma.session.findMany({
             where: {
                 status: { in: ["CONNECTED", "CONNECTING", "RECONNECTING", "DISCONNECTED"] }

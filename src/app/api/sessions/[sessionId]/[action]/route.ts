@@ -3,7 +3,8 @@ import { waManager } from "@/modules/whatsapp/manager";
 import { getAuthenticatedUser, canAccessSession, isSessionOwner } from "@/lib/api-auth";
 import { checkPersistentRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { recordAudit } from "@/lib/audit";
-import { canPerformDeviceAction } from "@/lib/device-policy";
+import { canPerformDeviceAction, describeDeviceActionFailure } from "@/lib/device-policy";
+import { logger } from "@/lib/logger";
 import { z } from "zod";
 
 const actionSchema = z.enum(["start", "stop", "restart", "logout", "pair"]);
@@ -97,7 +98,12 @@ export async function POST(
 
         return NextResponse.json({ status: true, message: `Session ${action}ed successfully` });
 
-    } catch {
-        return NextResponse.json({ error: "Failed to perform device action" }, { status: 500 });
+    } catch (error) {
+        logger.error("SessionAction", "Device action failed", error);
+        const failure = describeDeviceActionFailure(error);
+        return NextResponse.json(
+            { status: false, message: failure.message, error: failure.message },
+            { status: failure.status },
+        );
     }
 }

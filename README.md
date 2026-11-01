@@ -2,7 +2,9 @@
 
 Gateway WhatsApp untuk UMKM. Satu dashboard untuk menghubungkan nomor WhatsApp, mengirim broadcast, membalas otomatis, menjadwalkan pesan, dan memanggil REST API.
 
-Status: pra-rilis `0.2.0` (31 Oktober 2026). Tidak ada paket trial. Akun baru bisa masuk dashboard, tetapi pengiriman, auto-reply, webhook, dan unggah media aktif setelah pembayaran disetujui admin.
+Status: pra-rilis `0.2.1` (1 November 2026). Tidak ada paket trial. Akun baru bisa masuk dashboard, tetapi pengiriman, auto-reply, webhook, dan unggah media aktif setelah pembayaran disetujui admin.
+
+Rilis 0.2.1 adalah hasil audit bug senyap: kuota dikembalikan saat pesan gagal total, perpanjangan paket yang sama tidak lagi menghanguskan sisa hari, dan alur pemasangan perangkat jauh lebih ramah pengguna baru. Rincian perbaikan ada di [`CHANGELOG.md`](CHANGELOG.md) dan [`docs/qa/AUDIT-REPORT-2026-11-01.md`](docs/qa/AUDIT-REPORT-2026-11-01.md).
 
 Dibuat dan dikembangkan oleh **wa-akg**.
 
@@ -136,7 +138,7 @@ Panduan lengkap ada di [`docs/panduan`](docs/panduan/README.md):
 
 Panduan yang sama juga tersedia di dalam aplikasi pada halaman [`/docs`](https://wagateway.kingofcoding.my.id/docs), dan bisa dibuka dari menu **Dokumentasi** di dashboard.
 
-Aturan kerja untuk agen AI ada di [`docs/AGENT-PLAYBOOK.md`](docs/AGENT-PLAYBOOK.md). Draf materi marketing v0.2.0 ada di [`docs/marketing`](docs/marketing/README.md).
+Aturan kerja untuk agen AI ada di [`docs/AGENT-PLAYBOOK.md`](docs/AGENT-PLAYBOOK.md). Draf materi marketing ada di [`docs/marketing`](docs/marketing/README.md).
 
 ## Deploy
 

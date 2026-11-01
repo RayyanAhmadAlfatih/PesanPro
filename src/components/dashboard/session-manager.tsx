@@ -44,6 +44,7 @@ export function SessionManager({ user }: { user?: AuthUser }) {
     const [newSessionName, setNewSessionName] = useState("");
     const [newSessionId, setNewSessionId] = useState("");
     const [loading, setLoading] = useState(false);
+    const [loadError, setLoadError] = useState<string | null>(null);
     const router = useRouter();
 
     useEffect(() => {
@@ -79,9 +80,16 @@ export function SessionManager({ user }: { user?: AuthUser }) {
     }, []);
 
     const fetchSessions = () => {
-        fetch('/api/sessions').then(res => res.json()).then(responseData => {
+        fetch('/api/sessions').then(async res => {
+            const responseData = await res.json().catch(() => null);
+            if (!res.ok) {
+                throw new Error(responseData?.message || "Gagal memuat daftar perangkat");
+            }
             const data = responseData?.data || [];
             if (Array.isArray(data)) setSessions(data);
+            setLoadError(null);
+        }).catch((error: unknown) => {
+            setLoadError(getErrorMessage(error) || "Gagal memuat daftar perangkat");
         });
     }
 
@@ -116,7 +124,12 @@ export function SessionManager({ user }: { user?: AuthUser }) {
             const responseData = await res.json();
             const session = responseData?.data;
 
-            if (!res.ok || !session) throw new Error(responseData.error || responseData.message || "Failed to create");
+            if (!res.ok || !session) {
+                const message = typeof responseData?.error === "string"
+                    ? responseData.error
+                    : responseData?.message;
+                throw new Error(message || "Gagal membuat perangkat");
+            }
 
             setSessions([...sessions, session]);
             setNewSessionName("");
@@ -179,7 +192,15 @@ export function SessionManager({ user }: { user?: AuthUser }) {
 
             {/* Sessions Table Card */}
             <div>
-                {sessions.length === 0 ? (
+                {loadError && sessions.length === 0 ? (
+                    <div className="rounded-lg border border-red-200 bg-red-50 p-6 text-center">
+                        <p className="font-semibold text-red-800">Daftar perangkat tidak bisa dimuat</p>
+                        <p className="mt-1 text-sm text-red-700">{loadError}</p>
+                        <Button variant="outline" className="mt-4" onClick={fetchSessions}>
+                            Coba lagi
+                        </Button>
+                    </div>
+                ) : sessions.length === 0 ? (
                     <div className="text-center py-10 text-muted-foreground bg-slate-50 dark:bg-slate-900 rounded-lg border border-border/50">
                         No sessions found. Create one above to get started.
                     </div>

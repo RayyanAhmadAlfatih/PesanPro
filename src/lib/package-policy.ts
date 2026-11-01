@@ -26,3 +26,15 @@ export function validateBroadcastPackageLimits(
   }
   return null;
 }
+
+/**
+ * New accounts are provisioned on the default plan without paying. Marking a
+ * paid plan as default would therefore give every new registration a free,
+ * never-expiring subscription. Only a plan with no monthly price may be the
+ * default.
+ */
+export function isPlanEligibleAsDefault(priceMonthly: string | number | null | undefined): boolean {
+  if (priceMonthly === null || priceMonthly === undefined || priceMonthly === "") return true;
+  const amount = Number(priceMonthly);
+  return Number.isFinite(amount) && amount <= 0;
+}

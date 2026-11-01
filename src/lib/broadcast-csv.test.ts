@@ -34,6 +34,15 @@ describe("broadcast recipient CSV streaming import", () => {
     expect(result.variableHeaders).toEqual([]);
   });
 
+  it("recognises common Indonesian recipient headers", async () => {
+    const result = await parseBroadcastRecipientCsv(chunkedStream([
+      "Nama,Nomor WhatsApp\nAyu,0812-3456-7890\nBudi,628987654321\n",
+    ]));
+    expect(result.recipients).toEqual(["6281234567890@s.whatsapp.net", "628987654321@s.whatsapp.net"]);
+    expect(result.recipientData[0].variables).toEqual({ nama: "Ayu" });
+    expect(result.variableHeaders).toEqual(["nama"]);
+  });
+
   it("rejects duplicate normalized headers", async () => {
     await expect(parseBroadcastRecipientCsv(chunkedStream(["phone,Invoice No,invoice-no\n628123456789,A,B"]))).rejects.toMatchObject({ code: "INVALID_RECIPIENT_CSV" });
   });

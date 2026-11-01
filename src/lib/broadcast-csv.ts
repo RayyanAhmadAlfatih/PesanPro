@@ -11,12 +11,19 @@ const HEADER_NAMES = new Set([
   "jid",
   "nomor",
   "nomor_hp",
+  "nomor_wa",
+  "nomor_whatsapp",
   "no_hp",
+  "no_wa",
+  "no_whatsapp",
   "telepon",
   "telephone",
+  "handphone",
+  "hp",
   "whatsapp",
-  "no_whatsapp",
+  "whatsapp_number",
   "wa",
+  "wa_number",
 ]);
 const MAX_VARIABLE_VALUE_LENGTH = 1000;
 

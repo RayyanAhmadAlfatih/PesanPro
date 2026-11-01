@@ -1,5 +1,5 @@
 import { describe, expect, it } from "vitest";
-import { validateBroadcastPackageLimits } from "./package-policy";
+import { isPlanEligibleAsDefault, validateBroadcastPackageLimits } from "./package-policy";
 
 describe("package broadcast policy", () => {
   it("enforces recipient and delay limits", () => {
@@ -24,5 +24,16 @@ describe("package broadcast policy", () => {
       { recipientCount: 10_000, delayMinMs: 2_000 },
       { recipientLimit: null, minimumDelayMs: null },
     )).toBeNull();
+  });
+});
+
+describe("default plan policy", () => {
+  it("only allows a free plan to be the default for new accounts", () => {
+    expect(isPlanEligibleAsDefault(null)).toBe(true);
+    expect(isPlanEligibleAsDefault("0")).toBe(true);
+    expect(isPlanEligibleAsDefault("0.00")).toBe(true);
+    expect(isPlanEligibleAsDefault("20000")).toBe(false);
+    expect(isPlanEligibleAsDefault("20000.00")).toBe(false);
+    expect(isPlanEligibleAsDefault("not-a-price")).toBe(false);
   });
 });

@@ -60,6 +60,19 @@ export async function POST(request: NextRequest) {
   if (!rateLimit.success) {
     return NextResponse.json({ error: "Too many payment submissions", code: "RATE_LIMITED" }, { status: 429, headers: rateLimitHeaders(rateLimit, 5) });
   }
+  // One proof at a time. Without this guard a double click or a retry after a
+  // slow response could create two pending submissions, and a customer who
+  // paid once might transfer twice while waiting for review.
+  const pending = await prisma.paymentVerification.findFirst({
+    where: { userId: session.user.id, status: "PENDING" },
+    select: { id: true },
+  });
+  if (pending) {
+    return NextResponse.json(
+      { error: "Masih ada bukti pembayaran yang menunggu pemeriksaan admin.", code: "PAYMENT_ALREADY_PENDING" },
+      { status: 409 },
+    );
+  }
   // Parse the multipart body as a stream so an oversized (or chunked) body can
   // never be buffered in full before the size limit is applied.
   let upload: Awaited<ReturnType<typeof parsePaymentProofUpload>>;

@@ -52,3 +52,14 @@ export function isMissedRun(scheduledFor: Date, now: Date, graceSeconds: number)
   const graceMs = Math.max(0, Math.floor(graceSeconds)) * 1000;
   return now.getTime() - scheduledFor.getTime() > graceMs;
 }
+
+/**
+ * A schedule is only "busy" while its worker lease is still valid. A crash can
+ * leave `lockedBy` set with an expired lease; treating that as busy blocks
+ * cancel and edit forever, and the schedule may still fire after the lease
+ * expires. Callers use this to allow cancel/edit once the lease is stale.
+ */
+export function scheduleLockIsActive(lockedBy: string | null | undefined, leaseExpiresAt: Date | null | undefined, now = new Date()) {
+  if (!lockedBy) return false;
+  return !leaseExpiresAt || leaseExpiresAt.getTime() >= now.getTime();
+}

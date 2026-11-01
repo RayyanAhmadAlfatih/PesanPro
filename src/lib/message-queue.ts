@@ -4,6 +4,7 @@ import { classifyMessageDispatchError } from "./message-job-errors";
 import { settleMessageQuota } from "./message-job-service";
 import { calculateMessageRetryDelay } from "./message-queue-policy";
 import { prisma } from "./prisma";
+import { logger } from "./logger";
 import { createWebhookOutboxEvent } from "./webhook-outbox";
 
 export const DEFAULT_MESSAGE_LEASE_MS = 30_000;
@@ -99,7 +100,10 @@ export async function completeMessageJob(job: ClaimedMessageJob, whatsappMessage
     });
     if (updated.count === 0) return false;
     await tx.broadcastRecipient.updateMany({
-      where: { messageJobId: job.id, status: "ENQUEUED" },
+      // A retried broadcast message may still carry the FAILED snapshot from
+      // its previous attempt. Mark it SENT as well, otherwise the broadcast
+      // report keeps showing a failure for a message that did arrive.
+      where: { messageJobId: job.id, status: { in: ["ENQUEUED", "FAILED"] } },
       data: { status: "SENT", sentAt: now, safeErrorCode: null, safeErrorMessage: null },
     });
     await tx.messageJobAttempt.update({
@@ -238,15 +242,37 @@ export async function recoverMessageJobsForWorker(workerId: string) {
  */
 export async function deadLetterExhaustedMessageJobs(limit = 200) {
   const now = new Date();
-  const exhausted = await prisma.$queryRaw<Array<{ id: string; attempts: number }>>(Prisma.sql`
-    SELECT id, attempts
-    FROM MessageJob
-    WHERE status = 'PROCESSING'
-      AND leaseExpiresAt < ${now}
-      AND attempts >= maxAttempts
+  const exhausted = await prisma.$queryRaw<Array<{
+    id: string;
+    attempts: number;
+    requestedById: string;
+    quotaReservationKey: string;
+    tenantId: string;
+    sessionId: string;
+    recipient: string;
+    whatsappMessageId: string | null;
+    sessionPublicId: string | null;
+  }>>(Prisma.sql`
+    SELECT job.id, job.attempts, job.requestedById, job.quotaReservationKey,
+           job.tenantId, job.sessionId, job.recipient, job.whatsappMessageId,
+           session.sessionId AS sessionPublicId
+    FROM MessageJob AS job
+    LEFT JOIN Session AS session ON session.id = job.sessionId
+    WHERE job.status = 'PROCESSING'
+      AND job.leaseExpiresAt < ${now}
+      AND job.attempts >= job.maxAttempts
     LIMIT ${Math.min(1000, Math.max(1, limit))}
   `);
   if (exhausted.length === 0) return 0;
+
+  // A dead-lettered job is terminal, so its reservation must not stay in
+  // `reserved` forever. This sweep runs after a hard kill, which is exactly
+  // the case where the normal failure path never got to settle the quota.
+  for (const job of exhausted) {
+    await settleMessageQuota(job, "RELEASE").catch((error) => {
+      logger.error("MessageQueue", `Failed to release quota for dead-lettered job ${job.id}`, error);
+    });
+  }
 
   await prisma.$transaction(async (tx) => {
     for (const job of exhausted) {
@@ -259,7 +285,7 @@ export async function deadLetterExhaustedMessageJobs(limit = 200) {
           finishedAt: now,
         },
       });
-      await tx.messageJob.updateMany({
+      const changed = await tx.messageJob.updateMany({
         where: { id: job.id, status: "PROCESSING", leaseExpiresAt: { lt: now } },
         data: {
           status: "FAILED",
@@ -273,6 +299,51 @@ export async function deadLetterExhaustedMessageJobs(limit = 200) {
           heartbeatAt: null,
         },
       });
+      if (changed.count === 0) continue;
+      await tx.broadcastRecipient.updateMany({
+        where: { messageJobId: job.id, status: "ENQUEUED" },
+        data: {
+          status: "FAILED",
+          failedAt: now,
+          safeErrorCode: "ATTEMPTS_EXHAUSTED",
+          safeErrorMessage: "Delivery attempts were exhausted",
+        },
+      });
+      if (job.whatsappMessageId) {
+        await tx.messageDeliveryEvent.upsert({
+          where: {
+            jobId_type_whatsappMessageId: {
+              jobId: job.id,
+              type: "FAILED",
+              whatsappMessageId: job.whatsappMessageId,
+            },
+          },
+          create: {
+            jobId: job.id,
+            type: "FAILED",
+            whatsappMessageId: job.whatsappMessageId,
+            occurredAt: now,
+          },
+          update: {},
+        });
+      }
+      if (job.sessionPublicId) {
+        await createWebhookOutboxEvent(tx, {
+          tenantId: job.tenantId,
+          sessionDbId: job.sessionId,
+          sessionPublicId: job.sessionPublicId,
+          eventType: "message.status",
+          eventKey: `message-job:${job.id}:FAILED`,
+          data: {
+            jobId: job.id,
+            messageId: job.whatsappMessageId,
+            recipient: job.recipient,
+            status: "FAILED",
+            errorCode: "ATTEMPTS_EXHAUSTED",
+          },
+          now,
+        });
+      }
     }
   });
   return exhausted.length;

@@ -6,6 +6,7 @@ import { prisma } from "@/lib/prisma";
 import { recordAudit } from "@/lib/audit";
 import { getClientIp } from "@/lib/rate-limit";
 import { isCommercialFeatureVisible } from "@/lib/access-policy";
+import { isPlanEligibleAsDefault } from "@/lib/package-policy";
 
 const commercialFeatureSchema = z.nativeEnum(EntitlementFeature).refine(
   isCommercialFeatureVisible,
@@ -66,6 +67,12 @@ export async function POST(request: NextRequest) {
 
   const parsed = planSchema.safeParse(await request.json().catch(() => null));
   if (!parsed.success) return NextResponse.json({ error: "Invalid plan", details: parsed.error.flatten() }, { status: 400 });
+  if (parsed.data.isDefault && !isPlanEligibleAsDefault(parsed.data.priceMonthly)) {
+    return NextResponse.json(
+      { error: "Only a plan without a monthly price can be the default plan" },
+      { status: 400 },
+    );
+  }
 
   try {
     const plan = await prisma.$transaction(async (tx) => {

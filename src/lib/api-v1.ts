@@ -4,6 +4,7 @@ import { z } from "zod";
 import { EntitlementDeniedError, SubscriptionInactiveError } from "./billing";
 import { MessageJobError } from "./message-job-errors";
 import { QuotaExceededError } from "./usage";
+import { logger } from "./logger";
 
 export function getRequestId(headers: Headers) {
   const provided = headers.get("x-request-id")?.trim();
@@ -33,6 +34,10 @@ export function apiV1Exception(requestId: string, error: unknown) {
   if (error instanceof z.ZodError) {
     return apiV1Error(requestId, "VALIDATION_ERROR", "Request validation failed", 422, error.issues.map((issue) => ({ path: issue.path.join("."), message: issue.message })));
   }
+  // The public response stays generic, but the request id must lead to a
+  // server-side stack trace. Without this line a 500 was impossible to diagnose
+  // from the logs the customer could quote.
+  logger.error("ApiV1", `Unhandled error for request ${requestId}`, error);
   return apiV1Error(requestId, "INTERNAL_ERROR", "An internal error occurred", 500);
 }
 

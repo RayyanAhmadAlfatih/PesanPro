@@ -56,6 +56,14 @@ interface PaymentSubmission {
   plan: { code: string; name: string } | null;
 }
 
+interface PaymentInfo {
+  bankName: string;
+  bankAccountNumber: string;
+  bankAccountHolder: string;
+  note: string;
+  ready: boolean;
+}
+
 const FEATURE_LABELS: Record<string, string> = {
   API_ACCESS: "Akses API untuk developer",
   API_KEYS: "Kunci API untuk developer",
@@ -289,6 +297,7 @@ export default function BillingPage() {
   const [billing, setBilling] = useState<BillingSummary | null>(null);
   const [plans, setPlans] = useState<AvailablePlan[]>([]);
   const [payments, setPayments] = useState<PaymentSubmission[]>([]);
+  const [paymentInfo, setPaymentInfo] = useState<PaymentInfo | null>(null);
   const [loading, setLoading] = useState(true);
   const [submitting, setSubmitting] = useState(false);
   const [paymentPlanId, setPaymentPlanId] = useState("");
@@ -300,10 +309,17 @@ export default function BillingPage() {
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [billingResponse, planResponse, paymentResponse] = await Promise.all([
+      const [billingResponse, planResponse, paymentResponse, nextPaymentInfo] = await Promise.all([
         fetch("/api/billing/summary", { cache: "no-store" }),
         fetch("/api/plans", { cache: "no-store" }),
         fetch("/api/payment-verifications", { cache: "no-store" }),
+        fetch("/api/public/onboarding", { cache: "no-store" })
+          .then(async (response) => {
+            if (!response.ok) return null;
+            const payload = await response.json() as { data?: { payment?: PaymentInfo } };
+            return payload.data?.payment ?? null;
+          })
+          .catch(() => null),
       ]);
       if (!billingResponse.ok && billingResponse.status !== 404) {
         throw new Error("Data tagihan tidak bisa dimuat.");
@@ -316,6 +332,7 @@ export default function BillingPage() {
         entitlements: summary.entitlements.filter((item) => isCommercialFeatureVisible(item.feature)),
         usage: summary.usage.filter((item) => isCommercialFeatureVisible(item.feature)),
       } : null);
+      setPaymentInfo(nextPaymentInfo);
       if (planResponse.ok) setPlans((await planResponse.json()).data ?? []);
       if (paymentResponse.ok) setPayments((await paymentResponse.json()).data ?? []);
     } catch (error) {
@@ -371,6 +388,7 @@ export default function BillingPage() {
 
   const selectedPlan = plans.find((plan) => plan.id === paymentPlanId) ?? null;
   const selectedSaving = selectedPlan ? yearlySaving(selectedPlan) : null;
+  const pendingPayment = payments.find((payment) => payment.status === "PENDING") ?? null;
   let paymentAmount = "";
   if (selectedPlan) {
     paymentAmount = (paymentCycle === "YEARLY" ? selectedPlan.priceYearly : selectedPlan.priceMonthly) ?? "";
@@ -378,7 +396,7 @@ export default function BillingPage() {
   const paymentAmountMissing = selectedPlan !== null && paymentAmount === "";
   const proofTooLarge = paymentProof !== null && paymentProof.size > 5 * 1024 * 1024;
   const referenceReady = paymentReference.trim().length >= 3;
-  const formReady = Boolean(paymentPlanId) && !paymentAmountMissing && referenceReady && Boolean(paymentProof) && !proofTooLarge;
+  const formReady = Boolean(paymentPlanId) && !paymentAmountMissing && referenceReady && Boolean(paymentProof) && !proofTooLarge && !pendingPayment;
 
   const requirements = [
     { done: Boolean(paymentPlanId), label: "Paket sudah dipilih" },
@@ -402,6 +420,16 @@ export default function BillingPage() {
       toast.success("Nominal disalin.");
     } catch {
       toast.error("Nominal tidak bisa disalin. Tulis manual dari angka di atas.");
+    }
+  };
+
+  const copyAccountNumber = async () => {
+    if (!paymentInfo?.bankAccountNumber) return;
+    try {
+      await navigator.clipboard.writeText(paymentInfo.bankAccountNumber);
+      toast.success("Nomor rekening disalin.");
+    } catch {
+      toast.error("Nomor rekening tidak bisa disalin. Tulis manual dari angka di atas.");
     }
   };
 
@@ -634,6 +662,15 @@ export default function BillingPage() {
                 </CardDescription>
               </CardHeader>
               <CardContent className="space-y-6">
+                {pendingPayment ? (
+                  <div className="rounded-lg border border-[var(--pp-line)] bg-[var(--pp-highlight)]/25 p-4">
+                    <p className="font-semibold">Bukti pembayaran sedang diperiksa</p>
+                    <p className="mt-1 text-sm leading-relaxed text-[var(--pp-muted)]">
+                      Admin akan memeriksa bukti yang sudah Anda kirim. Kirim bukti baru setelah ada keputusan.
+                    </p>
+                  </div>
+                ) : null}
+
                 <ol className="grid gap-2 sm:grid-cols-3">
                   {[
                     ["1. Transfer", "Bayar sesuai nominal di bawah."],
@@ -714,7 +751,9 @@ export default function BillingPage() {
                     ) : null}
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-[var(--pp-muted)]">
-                    Transfer tepat sebesar ini. Jangan ditambah atau dikurangi agar admin mudah mencocokkan. Belum tahu nomor rekening tujuan? Tanyakan ke admin sebelum transfer.
+                    {paymentInfo?.ready
+                      ? "Transfer tepat sebesar ini ke rekening di atas. Jangan ditambah atau dikurangi agar admin mudah mencocokkan."
+                      : "Transfer tepat sebesar ini. Nomor rekening belum diatur, jadi tanyakan ke admin sebelum transfer."}
                   </p>
                   {paymentAmountMissing ? (
                     <p className="mt-2 text-xs font-medium text-[var(--pp-danger)]">
@@ -722,6 +761,33 @@ export default function BillingPage() {
                     </p>
                   ) : null}
                 </div>
+
+                {paymentInfo?.ready ? (
+                  <div className="rounded-lg border border-[var(--pp-line)] bg-[var(--pp-paper)] p-4">
+                    <p className="text-xs font-semibold uppercase tracking-wide text-[var(--pp-muted)]">Rekening tujuan</p>
+                    <p className="mt-1 text-lg font-bold">{paymentInfo.bankName}</p>
+                    <div className="mt-1 flex flex-wrap items-center gap-2">
+                      <p className="font-[family-name:var(--font-display)] text-2xl font-extrabold tabular-nums">
+                        {paymentInfo.bankAccountNumber}
+                      </p>
+                      <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={() => void copyAccountNumber()}>
+                        <Copy className="mr-1.5 h-4 w-4" aria-hidden="true" />
+                        Salin
+                      </Button>
+                    </div>
+                    <p className="text-sm text-[var(--pp-muted)]">a.n. {paymentInfo.bankAccountHolder}</p>
+                    {paymentInfo.note ? (
+                      <p className="mt-2 text-xs leading-relaxed text-[var(--pp-muted)]">{paymentInfo.note}</p>
+                    ) : null}
+                  </div>
+                ) : (
+                  <div className="rounded-lg border border-dashed border-[var(--pp-line)] p-4">
+                    <p className="text-sm font-semibold">Rekening tujuan belum diatur</p>
+                    <p className="mt-1 text-xs leading-relaxed text-[var(--pp-muted)]">
+                      Hubungi admin untuk nomor rekening sebelum transfer.
+                    </p>
+                  </div>
+                )}
 
                 <div className="space-y-2">
                   <Label htmlFor="payment-reference">Nama pengirim atau kode referensi</Label>
@@ -802,7 +868,7 @@ export default function BillingPage() {
                   ) : (
                     <FileUp className="mr-2 h-4 w-4" aria-hidden="true" />
                   )}
-                  {submitting ? "Mengirim bukti..." : "Kirim bukti pembayaran"}
+                  {submitting ? "Mengirim bukti..." : pendingPayment ? "Tunggu pemeriksaan admin" : "Kirim bukti pembayaran"}
                 </Button>
                 <p className="text-center text-xs leading-relaxed text-[var(--pp-muted)]">
                   Setelah terkirim, bukti tidak bisa diubah. Kalau ada kesalahan, tunggu keputusan admin lalu kirim ulang.

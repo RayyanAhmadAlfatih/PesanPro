@@ -1,4 +1,5 @@
 import { PaymentVerificationStatus, type BillingCycle, type Prisma } from "@prisma/client";
+import { deriveSubscriptionStatus, isSubscriptionUsable } from "./billing";
 import { queuePaymentApprovedEmail } from "./email-notifications";
 
 type ReviewStatus = Exclude<PaymentVerificationStatus, "PENDING">;
@@ -36,6 +37,42 @@ export function billingPeriodEnd(startsAt: Date, cycle: BillingCycle) {
   // Falls back to a month for an unrecognised value, so a row read before the
   // cycle column existed can never produce an invalid end date.
   return addBillingMonths(startsAt, BILLING_CYCLE_MONTHS[cycle] ?? BILLING_CYCLE_MONTHS.MONTHLY);
+}
+
+/**
+ * Decide the paid window for an approved payment.
+ *
+ * A renewal of the same plan starts where the current paid window ends, so a
+ * customer who pays a few days early keeps the days they already paid for.
+ * A plan change or an expired subscription starts now. `startsAt` is kept for
+ * a renewal because it anchors the monthly usage counter; moving it would
+ * reset the quota in the middle of a period.
+ */
+export function resolveSubscriptionPeriod(input: {
+  now: Date;
+  newPlanId: string;
+  cycle: BillingCycle;
+  current: { planId: string; startsAt: Date; endsAt: Date | null } | null;
+  currentUsable: boolean;
+}) {
+  const months = BILLING_CYCLE_MONTHS[input.cycle] ?? BILLING_CYCLE_MONTHS.MONTHLY;
+  const samePlan = Boolean(
+    input.current
+    && input.currentUsable
+    && input.current.planId === input.newPlanId,
+  );
+  if (samePlan && input.current?.endsAt && input.current.endsAt > input.now) {
+    return {
+      startsAt: input.current.startsAt,
+      endsAt: addBillingMonths(input.current.endsAt, months),
+      extendedExistingPeriod: true,
+    };
+  }
+  return {
+    startsAt: input.now,
+    endsAt: addBillingMonths(input.now, months),
+    extendedExistingPeriod: false,
+  };
 }
 
 export async function reviewPaymentVerificationInTransaction(
@@ -94,17 +131,29 @@ export async function reviewPaymentVerificationInTransaction(
 
   // One approved payment buys one month or one year, whichever the customer
   // actually paid for. The cycle is read from the submission, never inferred
-  // from the amount.
-  const endsAt = billingPeriodEnd(input.reviewedAt, verification.billingCycle);
+  // from the amount. A same-plan renewal extends the current paid window
+  // instead of restarting it, so early renewals do not lose paid days.
+  const currentSubscription = await tx.subscription.findUnique({
+    where: { userId: verification.userId },
+    select: { planId: true, status: true, startsAt: true, endsAt: true, trialEndsAt: true, graceEndsAt: true },
+  });
+  const currentStatus = currentSubscription ? deriveSubscriptionStatus(currentSubscription, input.reviewedAt) : null;
+  const period = resolveSubscriptionPeriod({
+    now: input.reviewedAt,
+    newPlanId: verification.plan.id,
+    cycle: verification.billingCycle,
+    current: currentSubscription,
+    currentUsable: currentStatus ? isSubscriptionUsable(currentStatus) : false,
+  });
   const subscription = await tx.subscription.upsert({
     where: { userId: verification.userId },
     update: {
       planId: verification.plan.id,
       status: "ACTIVE",
       billingCycle: verification.billingCycle,
-      startsAt: input.reviewedAt,
+      startsAt: period.startsAt,
       trialEndsAt: null,
-      endsAt,
+      endsAt: period.endsAt,
       graceEndsAt: null,
     },
     create: {
@@ -112,9 +161,9 @@ export async function reviewPaymentVerificationInTransaction(
       planId: verification.plan.id,
       status: "ACTIVE",
       billingCycle: verification.billingCycle,
-      startsAt: input.reviewedAt,
+      startsAt: period.startsAt,
       trialEndsAt: null,
-      endsAt,
+      endsAt: period.endsAt,
       graceEndsAt: null,
     },
   });
@@ -124,8 +173,8 @@ export async function reviewPaymentVerificationInTransaction(
       planId: verification.plan.id,
       status: "ACTIVE",
       reason: `payment_verification:${verification.id}`,
-      startsAt: input.reviewedAt,
-      endsAt,
+      startsAt: period.startsAt,
+      endsAt: period.endsAt,
       graceEndsAt: null,
     },
   });
@@ -147,7 +196,7 @@ export async function reviewPaymentVerificationInTransaction(
     currency: verification.currency,
     reference: verification.reference ?? verification.id,
     approvedAt: input.reviewedAt,
-    activeUntil: endsAt,
+    activeUntil: period.endsAt,
   });
   return { verification, subscription, idempotent: false };
 }

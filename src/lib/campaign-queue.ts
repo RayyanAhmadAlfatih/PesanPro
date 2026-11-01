@@ -213,7 +213,7 @@ export async function reconcileCampaign(campaignId: string, tenantId?: string) {
     select: { status: true, safeErrorCode: true, messageJob: { select: { status: true } } },
   });
   const progress = calculateCampaignProgress(recipients);
-  const targetStatus = campaign.status === "PAUSED" ? "PAUSED" : broadcast.status === "COMPLETED" ? "COMPLETED" : broadcast.status === "FAILED" ? "FAILED" : broadcast.status === "CANCELLED" ? "CANCELLED" : "RUNNING";
+  const targetStatus = campaign.status === "PAUSED" ? "PAUSED" : broadcast.status === "COMPLETED" ? "COMPLETED" : broadcast.status === "FAILED" ? "FAILED" : broadcast.status === "CANCELLED" ? "CANCELLED" : broadcast.status === "PAUSED" ? "PAUSED" : "RUNNING";
   await prisma.$transaction(async (tx) => {
     await tx.campaign.updateMany({
       where: { id: campaign.id, tenantId: campaign.tenantId },

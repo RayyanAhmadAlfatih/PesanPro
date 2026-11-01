@@ -60,7 +60,8 @@ Duplikat otomatis dihapus. Nomor grup dilewati.
 - Ukuran maksimal **2 MB**.
 - Maksimal **20 kolom**.
 - Baris pertama adalah header.
-- Harus ada kolom nomor. Nama kolom yang dikenali: `phone`, `phone_number`, `mobile`, `number`, `recipient`, `jid`, `nomor`, `nomor_hp`, `no_hp`, `telepon`, `telephone`, `whatsapp`, `no_whatsapp`, `wa`.
+- Harus ada kolom nomor. Nama kolom yang dikenali: `phone`, `phone_number`, `mobile`, `number`, `recipient`, `jid`, `nomor`, `nomor_hp`, `nomor_wa`, `nomor_whatsapp`, `no_hp`, `no_wa`, `no_whatsapp`, `telepon`, `telephone`, `handphone`, `hp`, `whatsapp`, `whatsapp_number`, `wa`, `wa_number`.
+- Nomor boleh ditulis dengan spasi, strip, titik, atau tanda kurung. Format lokal `08…` otomatis diubah ke `62…`.
 - Kolom lain menjadi variabel untuk personalisasi.
 
 Contoh CSV:
