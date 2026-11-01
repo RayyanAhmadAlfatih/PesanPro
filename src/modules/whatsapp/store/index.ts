@@ -284,11 +284,15 @@ export const bindSessionStore = (sock: WASocket, sessionId: string, io: Server |
                     });
                 }
                 
-                // Trigger webhook
+                // Trigger webhook. The key must be unique per occurrence: the
+                // payload carries the group JID in `id`, and the generic
+                // identity fallback would otherwise turn that JID into the
+                // dedup key — silently dropping every update after the first
+                // one for the same group and spamming duplicate-key errors.
                 dispatchWebhook(sessionId, "group.update", {
                     jid: update.id,
                     ...update
-                });
+                }, `group.update:${update.id}:${Date.now()}`);
             } catch (e) {
                 logger.error("Store", "Error in groups.update handling", e);
             }

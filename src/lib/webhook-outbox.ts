@@ -94,6 +94,12 @@ export async function publishWebhookEvent(sessionPublicId: string, eventType: We
   if (!session) return null;
   const identity = eventKey?.trim() || sourceIdentity(data) || crypto.randomUUID();
   const durableEventKey = buildWebhookEventKey(eventType, sessionPublicId, data, identity);
+  // Check before creating: duplicates are normal for recurring events, and
+  // letting the create throw would log a Prisma error for every one of them.
+  const existing = await prisma.webhookOutboxEvent.findUnique({
+    where: { tenantId_eventKey: { tenantId: session.userId, eventKey: durableEventKey } },
+  });
+  if (existing) return existing;
   try {
     return await createWebhookOutboxEvent(prisma, {
       tenantId: session.userId,
