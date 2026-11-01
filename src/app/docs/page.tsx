@@ -2,6 +2,7 @@ import type { Metadata } from "next";
 import Link from "next/link";
 import { ArrowRight, BookOpen } from "lucide-react";
 import { listGuides } from "@/lib/docs";
+import { auth } from "@/lib/auth";
 import pkg from "../../../package.json";
 
 export const dynamic = "force-dynamic";
@@ -13,7 +14,9 @@ export const metadata: Metadata = {
 };
 
 export default async function DocsPage() {
-  const guides = await listGuides();
+  const session = await auth().catch(() => null);
+  const isSuperadmin = session?.user?.role === "SUPERADMIN";
+  const guides = await listGuides({ includeInternal: isSuperadmin });
 
   return (
     <div className="min-h-screen bg-[var(--pp-paper)]">

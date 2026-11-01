@@ -9,10 +9,32 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), da
 ### Akan datang
 
 - Deploy migrasi paket, onboarding, dan support ke produksi.
-- GitHub Release untuk `v0.2.1` dan pembersihan branch lama.
+- GitHub Release untuk `v0.2.1` dan `v0.2.2` serta pembersihan branch lama.
 - Halaman status layanan dan dokumentasi pemulihan bencana.
 - Tindak lanjut `npm audit`: 52 temuan lama dari rantai `jimp`, Baileys rc, dan
   `vite`. Perbaikannya butuh penurunan versi besar, jadi direncanakan terpisah.
+
+## [0.2.2] - 2026-11-01
+
+Rilis perbaikan tampilan panduan, akses halaman publik, dan integrasi plugin
+WordPress.
+
+### Ditambahkan
+
+- Unduhan ZIP plugin WordPress dari dashboard → **Developer**, plus endpoint
+  publik `/api/public/plugin/wordpress`. Superadmin bisa mengunggah ZIP
+  pengganti dari **Settings** agar pembaruan plugin tidak butuh deploy kode.
+- Tombol salin di setiap blok kode halaman panduan, dengan warna blok kode
+  yang kini terbaca (sebelumnya hijau di atas hijau).
+
+### Diubah
+
+- Pengguna yang sudah masuk tetap bisa membuka beranda, `/docs`, `/terms`, dan
+  `/privacy`; sebelumnya beranda selalu dilempar ke dashboard.
+- Panduan 10 (panduan admin) hanya terlihat dan terbaca oleh superadmin di
+  halaman dokumentasi; pengguna lain mendapat halaman tidak ditemukan.
+- Panduan integrasi WordPress kini memakai alur unduh ZIP dari dashboard, bukan
+  menyalin folder dari repositori.
 
 ## [0.2.1] - 2026-11-01
 

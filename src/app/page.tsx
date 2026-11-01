@@ -2,6 +2,7 @@ import Link from "next/link";
 import Image from "next/image";
 import { Check, Minus } from "lucide-react";
 import { Button } from "@/components/ui/button";
+import { auth } from "@/lib/auth";
 import { prisma } from "@/lib/prisma";
 import pkg from "../../package.json";
 
@@ -205,6 +206,8 @@ async function loadPlans() {
 
 export default async function Home() {
   const plans = await loadPlans();
+  const session = await auth().catch(() => null);
+  const signedIn = Boolean(session?.user?.id && session.user.accountActive !== false);
 
   return (
     <div className="flex min-h-screen flex-col bg-[var(--pp-paper)] text-[var(--pp-ink)]">
@@ -236,9 +239,9 @@ export default async function Home() {
             <Link href="/docs" className="hidden text-sm font-medium text-[var(--pp-muted)] transition-colors hover:text-[var(--pp-ink)] md:block">
               Dokumentasi
             </Link>
-            <Link href="/auth/login">
+            <Link href={signedIn ? "/dashboard" : "/auth/login"}>
               <Button size="sm" className="rounded-md px-4">
-                Masuk
+                {signedIn ? "Dashboard" : "Masuk"}
               </Button>
             </Link>
           </nav>

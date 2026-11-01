@@ -66,6 +66,13 @@ export async function proxy(request: NextRequest) {
             return NextResponse.next();
         }
 
+        // Public download of the WordPress integration plugin. Developers read
+        // the public guide before they have an account, and the plugin is an
+        // open integration artifact, not tenant data.
+        if (pathname.startsWith("/api/public/plugin/")) {
+            return NextResponse.next();
+        }
+
         // Skip auth endpoints
         if (pathname.startsWith("/api/auth") || pathname.startsWith("/api/test")) {
             return NextResponse.next();
@@ -162,14 +169,11 @@ export async function proxy(request: NextRequest) {
         return NextResponse.next();
     }
 
-    // Root path — redirect to dashboard if logged in
-    if (pathname === "/") {
-        const session = await auth();
-        if (session?.user && session.user.accountActive !== false) {
-            return NextResponse.redirect(new URL("/dashboard", request.url));
-        }
-        return NextResponse.next();
-    }
+    // The landing page, /docs, /terms, and /privacy stay reachable while
+    // signed in. Forcing "/" to /dashboard hid the marketing page and the
+    // public guides behind a logout, so logged-in users could only reach the
+    // dashboard. The dashboard link in the header is how signed-in users get
+    // back to the app.
 
     // Public routes
     if (isPublicRoute) {

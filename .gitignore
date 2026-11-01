@@ -51,6 +51,10 @@ next-env.d.ts
 /data/private-media/*
 !/data/private-media/.gitkeep
 
+# Superadmin-uploaded WordPress plugin archive
+/data/downloads/*
+!/data/downloads/.gitkeep
+
 /public/media/*
 !/public/media/.gitkeep
 

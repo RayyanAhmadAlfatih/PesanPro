@@ -3,6 +3,8 @@ import Link from "next/link";
 import { notFound } from "next/navigation";
 import { ArrowLeft, BookOpen } from "lucide-react";
 import { readGuide } from "@/lib/docs";
+import { auth } from "@/lib/auth";
+import { CopyableDocsArticle } from "@/components/docs/copyable-docs";
 import pkg from "../../../../package.json";
 
 export const dynamic = "force-dynamic";
@@ -18,7 +20,9 @@ export async function generateMetadata({ params }: { params: Promise<{ slug: str
 
 export default async function GuidePage({ params }: { params: Promise<{ slug: string }> }) {
   const { slug } = await params;
-  const guide = await readGuide(slug);
+  const session = await auth().catch(() => null);
+  const isSuperadmin = session?.user?.role === "SUPERADMIN";
+  const guide = await readGuide(slug, { includeInternal: isSuperadmin });
   if (!guide) notFound();
 
   return (
@@ -37,9 +41,9 @@ export default async function GuidePage({ params }: { params: Promise<{ slug: st
       </header>
 
       <main className="mx-auto w-full max-w-4xl px-4 py-10 sm:px-6">
-        <article
-          className="prose max-w-none prose-headings:font-[family-name:var(--font-display)] prose-headings:text-[var(--pp-ink)] prose-p:text-[var(--pp-ink)]/85 prose-li:text-[var(--pp-ink)]/85 prose-strong:text-[var(--pp-ink)] prose-a:text-[var(--pp-ink)] prose-a:underline prose-a:underline-offset-4 prose-code:text-[var(--pp-ink)] prose-pre:bg-[var(--pp-ink)] prose-pre:text-[var(--pp-paper)] prose-table:text-sm prose-th:text-left prose-blockquote:border-l-[var(--pp-ink)] prose-blockquote:text-[var(--pp-ink)]/80"
-          dangerouslySetInnerHTML={{ __html: guide.html }}
+        <CopyableDocsArticle
+          className="pp-docs prose max-w-none prose-headings:font-[family-name:var(--font-display)] prose-headings:text-[var(--pp-ink)] prose-p:text-[var(--pp-ink)]/85 prose-li:text-[var(--pp-ink)]/85 prose-strong:text-[var(--pp-ink)] prose-a:text-[var(--pp-ink)] prose-a:underline prose-a:underline-offset-4 prose-pre:bg-[var(--pp-ink)] prose-pre:text-[var(--pp-paper)] prose-table:text-sm prose-th:text-left prose-blockquote:border-l-[var(--pp-ink)] prose-blockquote:text-[var(--pp-ink)]/80"
+          html={guide.html}
         />
       </main>
 

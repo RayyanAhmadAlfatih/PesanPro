@@ -2,7 +2,7 @@
 
 import Link from "next/link";
 import { useCallback, useEffect, useState } from "react";
-import { BookOpen, Code2, KeyRound, Loader2, RefreshCw, Trash2, Webhook } from "lucide-react";
+import { BookOpen, Code2, KeyRound, Loader2, Puzzle, RefreshCw, Trash2, Webhook } from "lucide-react";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
@@ -114,6 +114,7 @@ export default function DeveloperPage() {
 
       <div className="grid gap-4 md:grid-cols-2">
         <Card><CardHeader><CardTitle className="flex items-center gap-2"><Webhook className="h-5 w-5 text-[var(--pp-ink)]" />Webhooks</CardTitle><CardDescription>Configure signed outbound events, subscriptions, retries, and delivery history.</CardDescription></CardHeader><CardContent><Button asChild variant="outline"><Link href="/dashboard/webhooks">Open webhook settings</Link></Button></CardContent></Card>
+        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Puzzle className="h-5 w-5 text-[var(--pp-ink)]" />Plugin WordPress</CardTitle><CardDescription>Integrasi Contact Form 7 tanpa kode: setiap pesan form masuk ke antrean PesanPro.</CardDescription></CardHeader><CardContent className="space-y-3"><div className="flex flex-wrap gap-2"><Button asChild variant="outline"><a href="/api/public/plugin/wordpress" download>Unduh ZIP plugin</a></Button><Button asChild variant="ghost"><Link href="/docs/07-integrasi-tanpa-kode">Buka panduan integrasi</Link></Button></div><p className="text-xs text-muted-foreground">Unggah ZIP ini di WordPress lewat menu Plugins, Add New, lalu Upload Plugin.</p></CardContent></Card>
         <Card><CardHeader><CardTitle className="flex items-center gap-2"><BookOpen className="h-5 w-5 text-[var(--pp-ink)]" />Quick API contract</CardTitle><CardDescription>Use the v1 endpoints with least-privilege credentials and idempotent writes.</CardDescription></CardHeader><CardContent className="space-y-3 text-sm"><div><p className="font-semibold">Authentication</p><code className="mt-1 block overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs">x-api-key: wag_••••</code></div><div><p className="font-semibold">Safe retries</p><code className="mt-1 block overflow-x-auto rounded-md bg-muted px-3 py-2 text-xs">Idempotency-Key: your-unique-operation-id</code></div><p className="text-muted-foreground">Start with <code>/api/v1/messages</code>, <code>/api/v1/media</code>, and only the scopes your integration needs.</p></CardContent></Card>
       </div>
 

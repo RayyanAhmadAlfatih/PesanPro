@@ -40,7 +40,11 @@ Authorization: Bearer ppint_xxxxxxxxxxxxxxxx
 
 ## WordPress + Contact Form 7
 
-Plugin tersedia di folder `integrations/wordpress/pesanpro-contact-form-7/`.
+Plugin tersedia sebagai ZIP langsung dari aplikasi. Buka dashboard → **Developer**, cari kartu **Plugin WordPress**, lalu klik **Unduh ZIP plugin**. URL unduhannya juga bisa dipakai langsung:
+
+```
+https://wagateway.kingofcoding.my.id/api/public/plugin/wordpress
+```
 
 ### Yang dibutuhkan
 
@@ -52,10 +56,11 @@ Plugin tersedia di folder `integrations/wordpress/pesanpro-contact-form-7/`.
 ### Langkah instalasi
 
 1. Buat integration token tipe `CONTACT_FORM_7` di PesanPro.
-2. Salin folder `pesanpro-contact-form-7` ke `/wp-content/plugins/`.
-3. Aktifkan plugin di **Plugins**.
-4. Buka **Settings → PesanPro CF7**.
-5. Isi:
+2. Unduh ZIP plugin dari dashboard → **Developer**.
+3. Di WordPress, buka **Plugins → Add New → Upload Plugin**, pilih ZIP-nya, lalu klik **Install Now**.
+4. Aktifkan plugin di **Plugins**.
+5. Buka **Settings → PesanPro CF7**.
+6. Isi:
    - **PesanPro base URL** — `https://wagateway.kingofcoding.my.id` (tanpa slash di akhir).
    - **Form ID** — opsional; kosongkan untuk semua form.
    - **Recipient field** — nama field Contact Form 7 yang berisi nomor WhatsApp, misalnya `whatsapp`.

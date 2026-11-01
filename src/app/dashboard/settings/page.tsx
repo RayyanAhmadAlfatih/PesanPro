@@ -28,6 +28,9 @@ export default function SettingsPage() {
     });
     const [systemLoading, setSystemLoading] = useState(false);
     const [timezones, setTimezones] = useState<string[]>(["UTC", "Asia/Jakarta", "Asia/Makassar", "Asia/Jayapura"]);
+    const [pluginZip, setPluginZip] = useState<{ customUploaded: boolean; sizeBytes: number | null }>({ customUploaded: false, sizeBytes: null });
+    const [pluginZipFile, setPluginZipFile] = useState<File | null>(null);
+    const [pluginUploading, setPluginUploading] = useState(false);
 
     useEffect(() => {
         try {
@@ -67,6 +70,53 @@ export default function SettingsPage() {
             .catch(() => { });
     }, []);
 
+    useEffect(() => {
+        if (!isSuperAdmin) return;
+        fetch("/api/admin/plugin/wordpress")
+            .then(r => { if (!r.ok) throw new Error(); return r.json(); })
+            .then(body => {
+                const data = body?.data;
+                if (data) setPluginZip({ customUploaded: Boolean(data.customUploaded), sizeBytes: data.sizeBytes ?? null });
+            })
+            .catch(() => { });
+    }, [isSuperAdmin]);
+
+    const uploadPluginZip = async () => {
+        if (!pluginZipFile) return;
+        setPluginUploading(true);
+        try {
+            const form = new FormData();
+            form.set("file", pluginZipFile);
+            const response = await fetch("/api/admin/plugin/wordpress", { method: "POST", body: form });
+            const body = await response.json().catch(() => null);
+            if (!response.ok) throw new Error(body?.message || "Upload ZIP gagal.");
+            setPluginZip({ customUploaded: true, sizeBytes: body?.data?.sizeBytes ?? pluginZipFile.size });
+            setPluginZipFile(null);
+            const input = document.getElementById("plugin-zip") as HTMLInputElement | null;
+            if (input) input.value = "";
+            toast.success(body?.message || "Paket plugin baru aktif.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Upload ZIP gagal.");
+        } finally {
+            setPluginUploading(false);
+        }
+    };
+
+    const removePluginZip = async () => {
+        setPluginUploading(true);
+        try {
+            const response = await fetch("/api/admin/plugin/wordpress", { method: "DELETE" });
+            const body = await response.json().catch(() => null);
+            if (!response.ok) throw new Error(body?.message || "Gagal menghapus unggahan.");
+            setPluginZip({ customUploaded: false, sizeBytes: null });
+            toast.success(body?.message || "Kembali ke plugin bawaan.");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Gagal menghapus unggahan.");
+        } finally {
+            setPluginUploading(false);
+        }
+    };
+
     const handleSaveSystem = async () => {
         setSystemLoading(true);
         try {
@@ -90,6 +140,11 @@ export default function SettingsPage() {
     };
 
     const inputClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
+    const formatBytes = (bytes: number) => {
+        if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
+        if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
+        return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
+    };
     const bankReady = Boolean(
         systemConfig.bankName.trim() &&
         systemConfig.bankAccountNumber.trim() &&
@@ -309,6 +364,46 @@ export default function SettingsPage() {
                     </div>
                 </CardContent>
             </Card>
+
+            {/* WordPress plugin archive served to every user download */}
+            {isSuperAdmin ? (
+                <Card>
+                    <CardHeader>
+                        <CardTitle className="text-xl">Plugin WordPress (ZIP)</CardTitle>
+                        <CardDescription>
+                            The archive behind the Unduh ZIP plugin button on the Developer page. Upload a newer build here to ship it without touching the server code; remove the upload to fall back to the plugin bundled with the app.
+                        </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                        <p className="text-sm text-muted-foreground">
+                            {pluginZip.customUploaded
+                                ? `Custom upload aktif (${pluginZip.sizeBytes ? formatBytes(pluginZip.sizeBytes) : "ukuran tidak diketahui"}).`
+                                : "Belum ada unggahan khusus. Unduhan memakai plugin bawaan aplikasi."}
+                        </p>
+                        <div className="grid max-w-md gap-2">
+                            <Label htmlFor="plugin-zip">Berkas ZIP plugin</Label>
+                            <input
+                                id="plugin-zip"
+                                type="file"
+                                accept=".zip,application/zip,application/x-zip-compressed"
+                                className={inputClass}
+                                onChange={(e) => setPluginZipFile(e.target.files?.[0] ?? null)}
+                                disabled={pluginUploading}
+                            />
+                            <p className="text-xs text-muted-foreground">Maksimal 10 MB. Pastikan ZIP berisi folder pesanpro-contact-form-7.</p>
+                        </div>
+                        <div className="flex flex-wrap gap-2">
+                            <Button onClick={() => void uploadPluginZip()} disabled={pluginUploading || !pluginZipFile}>
+                                {pluginUploading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                                Upload ZIP
+                            </Button>
+                            <Button variant="outline" onClick={() => void removePluginZip()} disabled={pluginUploading || !pluginZip.customUploaded}>
+                                Kembalikan ke bawaan
+                            </Button>
+                        </div>
+                    </CardContent>
+                </Card>
+            ) : null}
         </div>
     );
 }

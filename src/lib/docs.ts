@@ -28,14 +28,24 @@ export function isGuideSlug(slug: string) {
   return /^\d{2}-[a-z0-9-]+$/.test(slug);
 }
 
-export async function listGuides(): Promise<GuideSummary[]> {
+/**
+ * Internal guides are operator documentation. They stay in the repository but
+ * are hidden from the public docs list and unreadable there unless the viewer
+ * is a superadmin.
+ */
+export function isInternalGuideSlug(slug: string) {
+  return slug.startsWith("10-");
+}
+
+export async function listGuides(options: { includeInternal?: boolean } = {}): Promise<GuideSummary[]> {
   const entries = await readdir(GUIDES_DIR, { withFileTypes: true });
   const files = entries
     .filter((entry) => entry.isFile() && entry.name.endsWith(".md") && entry.name !== "README.md")
     .map((entry) => entry.name)
     .sort();
 
-  return Promise.all(files.map(async (file) => {
+  const visible = files.filter((file) => options.includeInternal || !isInternalGuideSlug(file.replace(/\.md$/, "")));
+  return Promise.all(visible.map(async (file) => {
     const markdown = await readFile(path.join(GUIDES_DIR, file), "utf8");
     const title = markdown.split("\n").find((line) => line.startsWith("# "))?.replace(/^#\s+/, "") ?? file;
     return {
@@ -57,8 +67,9 @@ function rewriteMarkdownLinks(html: string) {
   });
 }
 
-export async function readGuide(slug: string): Promise<{ title: string; html: string } | null> {
+export async function readGuide(slug: string, options: { includeInternal?: boolean } = {}): Promise<{ title: string; html: string } | null> {
   if (!isGuideSlug(slug)) return null;
+  if (isInternalGuideSlug(slug) && !options.includeInternal) return null;
   try {
     const markdown = await readFile(path.join(GUIDES_DIR, `${slug}.md`), "utf8");
     const title = markdown.split("\n").find((line) => line.startsWith("# "))?.replace(/^#\s+/, "") ?? slug;

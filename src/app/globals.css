@@ -203,3 +203,41 @@
 .pp-dashboard [class~="bg-amber-100"] { background-color: var(--pp-highlight) !important; }
 .pp-dashboard [class~="bg-red-50"],
 .pp-dashboard [class~="bg-red-100"] { background-color: var(--pp-blush) !important; }
+
+/* Docs article. The Tailwind prose `prose-code` utility also matches the code
+   element inside pre, which painted guide code blocks dark-green-on-dark-green
+   (ink on ink). Pin block code to light-on-dark and give inline code a chip. */
+.pp-docs pre {
+  position: relative;
+  overflow-x: auto;
+  padding: 3rem 1rem 1rem;
+}
+.pp-docs pre code {
+  color: var(--pp-paper) !important;
+  background: transparent;
+  padding: 0;
+}
+.pp-docs :not(pre) > code {
+  background: var(--pp-mint);
+  color: var(--pp-ink);
+  border-radius: 6px;
+  padding: 0.125rem 0.375rem;
+  font-weight: 600;
+}
+.pp-copy-button {
+  position: absolute;
+  top: 0.5rem;
+  right: 0.5rem;
+  min-height: 44px;
+  padding: 0 0.75rem;
+  font-family: var(--font-ui);
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--pp-paper);
+  background: transparent;
+  border: 1px solid color-mix(in srgb, var(--pp-paper) 45%, transparent);
+  border-radius: 8px;
+  cursor: pointer;
+}
+.pp-copy-button:hover { border-color: var(--pp-paper); }
+.pp-copy-button:focus-visible { outline: 3px solid var(--pp-highlight); outline-offset: 2px; }
