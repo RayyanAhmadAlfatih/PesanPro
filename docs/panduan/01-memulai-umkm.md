@@ -45,19 +45,24 @@ Kalau akun sudah terlanjur dibuat tetapi pembayaran belum dikirim, buka menu **T
 
 ## Langkah 3 — Hubungkan WhatsApp
 
-1. Buka menu **Sessions** (Perangkat).
-2. Klik **Tambah perangkat**.
-3. Beri nama yang mudah dikenali, misalnya `CS Utama` atau `Toko Bandung`.
-4. Pilih metode koneksi:
+1. Buka menu **Perangkat & QR**.
+2. Pada kartu **Create New Session**, isi **Session Name** dengan nama yang mudah dikenali, misalnya `CS Utama` atau `Toko Bandung`.
+3. **Custom Session ID (Optional)** boleh dikosongkan. Kalau diisi, hanya boleh huruf, angka, tanda hubung, dan garis bawah.
+4. Klik **Create Session**.
+5. Buka perangkat itu lewat tombol **Manage**.
+6. Di halaman perangkat, pilih metode koneksi:
    - **QR** — pindai dengan WhatsApp di ponsel.
-   - **Pairing code** — masukkan kode 8 digit di WhatsApp.
-5. Untuk QR:
+   - **Pairing code** — masukkan kode di WhatsApp.
+7. Untuk QR:
    1. Di ponsel, buka **WhatsApp → Pengaturan → Perangkat tertaut → Tautkan perangkat**.
    2. Arahkan kamera ke QR di layar.
    3. Tunggu sampai status berubah menjadi **CONNECTED**.
-6. Untuk pairing code:
-   1. Buka **Perangkat tertaut → Tautkan dengan nomor telepon**.
-   2. Masukkan kode yang tampil di dashboard.
+8. Untuk pairing code:
+   1. Masukkan nomor dengan format `62...`, lalu minta kode.
+   2. Di ponsel, buka **Perangkat tertaut → Tautkan dengan nomor telepon**.
+   3. Masukkan kode yang tampil di halaman perangkat (bagian **Your Pairing Code**).
+
+Tombol di halaman perangkat: **Start Session**, **Restart Session**, dan **Logout**.
 
 Status perangkat yang perlu Anda kenal:
 
@@ -68,9 +73,9 @@ Status perangkat yang perlu Anda kenal:
 | `CONNECTING` | Sedang menyambung | Tunggu 10–60 detik |
 | `CONNECTED` | Siap dipakai | Tidak ada |
 | `RECONNECTING` | Sambungan terputus, mencoba lagi | Tunggu; kalau lama, restart perangkat |
-| `DISCONNECTED` | Terputus | Klik **Start** atau **Restart** |
+| `DISCONNECTED` | Terputus | Klik **Start Session** atau **Restart Session** |
 | `LOGGED_OUT` | Sesi WhatsApp berakhir | Pindai QR ulang |
-| `STOPPED` | Dihentikan manual | Klik **Start** kalau ingin dipakai |
+| `STOPPED` | Dihentikan manual | Klik **Start Session** kalau ingin dipakai |
 | `FAILED` | Gagal permanen | Lihat pesan error, lalu hubungkan ulang |
 
 > **Satu nomor, satu perangkat.** Jangan menghubungkan nomor yang sama ke dua perangkat PesanPro. WhatsApp akan memutus salah satunya dan pesan bisa hilang.
@@ -81,23 +86,23 @@ Dashboard tidak memakai halaman chat. Untuk mengirim pesan, gunakan salah satu d
 
 ### A. Broadcast ke satu penerima (paling cepat)
 
-1. Buka menu **Broadcast**.
-2. Isi nama kampanye, misalnya `Tes kirim`.
-3. Masukkan nomor tujuan di kolom penerima. Format yang diterima:
+1. Buka menu **Kirim Massal**.
+2. Di tab **Buat**, isi **Nama broadcast**, misalnya `Tes kirim`.
+3. Masukkan nomor tujuan di kolom **Nomor tujuan**. Format yang diterima:
    - `628123456789`
    - `+62 812-3456-789`
    - `0812-3456-789` (akan dinormalisasi)
-4. Tulis pesan. Contoh:
+4. Tulis pesan di **Template pesan**. Contoh:
    ```
    Halo Kak, ini tes dari PesanPro. Terima kasih sudah mencoba layanan kami.
    ```
-5. Atur jeda minimum dan maksimum. Untuk satu penerima, jeda tidak berpengaruh.
-6. Klik **Kirim broadcast**.
-7. Buka **Message Queue** untuk melihat status: `PENDING` → `SENT` → `DELIVERED` → `READ`.
+5. Atur **Delay minimum** dan **Delay maksimum** (detik). Untuk satu penerima, jeda tidak berpengaruh.
+6. Klik **Simpan & antrekan**.
+7. Buka **Antrian Pesan** untuk melihat status: `QUEUED` → `PROCESSING` → `SENT` → `DELIVERED` → `READ`.
 
 ### B. Pesan terjadwal
 
-1. Buka menu **Scheduler**.
+1. Buka menu **Jadwal Kirim**.
 2. Isi penerima, teks, dan waktu kirim.
 3. Pilih zona waktu, biasanya `Asia/Jakarta`.
 4. Pilih **One time**.
@@ -125,28 +130,30 @@ Contoh paling sering dipakai:
 
 Langkah singkat:
 
-1. Buka **Auto-reply**.
+1. Buka **Balasan Otomatis**.
 2. Pilih perangkat.
-3. Klik **Tambah aturan**.
-4. Isi kata kunci, jenis pencocokan, dan balasan.
-5. Simpan, lalu uji dengan **Preview** sebelum dipakai.
+3. Isi formulir **Buat rule aman**: kata kunci, **Match type**, dan **Balasan**.
+4. Klik **Buat rule**.
+5. Uji dengan kartu **Preview tanpa kirim** (tombol **Uji rule**) sebelum dipakai.
 6. Kirim pesan dari ponsel lain untuk memastikan balasan keluar.
 
 Detail semua jenis aturan, prioritas, jadwal, dan contoh siap pakai ada di [03 — Auto-reply](03-auto-reply.md).
 
 ## Langkah 6 — Pantau pengiriman
 
-Menu **Message Queue** menampilkan semua pesan keluar: dari API, broadcast, dan scheduler.
+Menu **Antrian Pesan** menampilkan semua pesan keluar: dari API, broadcast, dan scheduler.
 
 | Status | Arti | Tindakan |
 | --- | --- | --- |
-| `PENDING` | Menunggu diproses | Tunggu |
+| `QUEUED` | Menunggu diproses | Tunggu |
 | `PROCESSING` | Sedang dikirim | Tunggu |
-| `RETRYING` | Gagal sementara, akan dicoba lagi | Tunggu |
 | `SENT` | Sudah dikirim ke WhatsApp | Tidak ada |
 | `DELIVERED` | Sampai ke ponsel penerima | Tidak ada |
 | `READ` | Dibaca penerima | Tidak ada |
-| `FAILED` | Gagal permanen | Lihat kode error, perbaiki nomor/perangkat, lalu **Retry** |
+| `FAILED` | Gagal | Perbaiki penyebabnya, lalu klik **Retry** |
+| `CANCELLED` | Dibatalkan | Tidak ada |
+
+Kalau banyak pesan `FAILED` dengan kode yang sama, periksa:
 
 Kalau banyak pesan `FAILED` dengan kode yang sama, periksa:
 
@@ -160,7 +167,7 @@ Kalau banyak pesan `FAILED` dengan kode yang sama, periksa:
 1. **Hangatkan nomor baru.** Jangan langsung broadcast ke ratusan nomor dengan nomor yang baru dibuat. Kirim ke kontak sendiri dulu selama beberapa hari.
 2. **Pakai jeda wajar.** Jangan kirim 500 pesan dalam 1 menit. Gunakan jeda 10–20 detik seperti pengaturan awal.
 3. **Minta izin.** Broadcast hanya ke pelanggan yang setuju menerima pesan.
-4. **Sediakan cara berhenti.** Contoh: "Balas STOP untuk berhenti menerima promosi." Masukkan nomor yang berhenti ke **Suppression**.
+4. **Sediakan cara berhenti.** Contoh: "Balas STOP untuk berhenti menerima promosi." Nomor yang membalas `STOP`, `UNSUBSCRIBE`, `BERHENTI`, atau `BATAL LANGGANAN` otomatis masuk daftar jangan kirim; Anda juga bisa menambahkannya manual di tab **Jangan kirim** pada menu **Kirim Massal**.
 5. **Jangan kirim pesan identik bertubi-tubi.** Gunakan spintax `{Halo|Hai}` agar variasi pesan lebih alami.
 6. **Pisahkan nomor CS dan nomor promosi.** Kalau satu nomor diblokir, layanan pelanggan tetap jalan.
 
@@ -168,10 +175,10 @@ Kalau banyak pesan `FAILED` dengan kode yang sama, periksa:
 
 ```
 Daftar → Masuk → Pilih paket → Transfer → Unggah bukti
-   → Admin setujui → Hubungkan WhatsApp (QR)
-   → Kirim lewat Broadcast / Scheduler / API
-   → Pantau di Message Queue
-   → Atur Auto-reply untuk pesan masuk
+   → Admin setujui → Hubungkan WhatsApp (QR) di Perangkat & QR
+   → Kirim lewat Kirim Massal / Jadwal Kirim / API
+   → Pantau di Antrian Pesan
+   → Atur Balasan Otomatis untuk pesan masuk
 ```
 
 Kalau ada langkah yang macet, lihat [08 — Troubleshooting dan FAQ](08-troubleshooting-faq.md). Untuk bertanya langsung, buka menu **Bantuan** di dashboard dan chat admin lewat WhatsApp.

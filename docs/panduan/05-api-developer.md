@@ -16,7 +16,7 @@ Setiap request API memakai header `x-api-key`:
 x-api-key: wag_xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx
 ```
 
-API key dibuat di dashboard: **Developer → Create API key**.
+API key dibuat di dashboard: menu **Kunci API** (judul halamannya **Developer**), kartu **Create API key**.
 
 Aturan:
 
@@ -255,12 +255,12 @@ Respons `202 Accepted`:
 }
 ```
 
-Status pesan:
+Status job pesan di **Antrian Pesan**:
 
 ```
-PENDING → PROCESSING → SENT → DELIVERED → READ
-                    ↘ RETRYING → SENT
-                    ↘ FAILED
+QUEUED → PROCESSING → SENT → DELIVERED → READ
+                     ↘ FAILED (bisa di- Retry dari dashboard)
+                     ↘ CANCELLED
 ```
 
 ### Node.js (fetch, Node 18+)

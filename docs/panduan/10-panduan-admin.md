@@ -6,20 +6,22 @@ Panduan ini untuk **SUPERADMIN** yang mengelola platform: menyetujui pembayaran,
 
 1. Buka `https://wagateway.kingofcoding.my.id/auth/login`.
 2. Masuk dengan akun superadmin.
-3. Sidebar menampilkan menu tambahan: **Users**, **Commercial**, **Settings**, **System Monitor**, **Announcements**, **Notifications**.
+3. Sidebar menampilkan grup **Operasi** berisi menu tambahan: **Pengguna**, **Operasi Komersial**, **Monitor Sistem**, **Kirim Pengumuman**, dan **Pengumuman Pop-up**. Grup **Akun** juga menampilkan **Pengaturan**.
 
 Akun `USER` tidak bisa membuka menu tersebut. Kalau muncul 403, periksa role akun di database.
+
+Judul di dalam halaman bisa berbeda dari nama menunya: **Operasi Komersial** membuka halaman "Commercial Operations", **Monitor Sistem** membuka "Operations Command Center", dan **Pengaturan** membuka "Settings".
 
 ## 0. Atur rekening pembayaran sebelum membuka pendaftaran
 
 Pendaftaran sekarang sekaligus memilih paket dan mengunggah bukti transfer. Karena itu rekening tujuan harus diisi lebih dulu.
 
-1. Buka **Settings**.
+1. Buka menu **Pengaturan** (halaman "Settings").
 2. Pada kartu **Payment destination**, isi:
    - **Bank name**, misalnya BCA.
    - **Account number**, nomor rekening tujuan.
    - **Account holder**, nama pemilik rekening.
-   - **Payment note** (opsional), misalnya "Transfer hanya ke rekening ini".
+   - **Payment note (optional)**, misalnya "Transfer hanya ke rekening ini".
 3. Klik **Save Payment Destination**.
 
 Selama ketiga kolom wajib masih kosong:
@@ -32,7 +34,7 @@ Untuk menutup pendaftaran sepenuhnya, matikan **Enable User Registration** di ka
 
 ### Nomor WhatsApp bantuan
 
-1. Buka **Settings**.
+1. Buka menu **Pengaturan**.
 2. Pada kartu **Support contact**, isi **Admin WhatsApp number**. Format bebas: `0812...`, `+62 812...`, atau `62812...`.
 3. Klik **Save Support Contact**.
 
@@ -53,7 +55,7 @@ Cek pembayaran masuk
 
 ## 1. Verifikasi pembayaran
 
-Buka **Commercial** → bagian **Payment verification**.
+Buka menu **Operasi Komersial** (halaman "Commercial Operations") → bagian **Payment verification**.
 
 Setiap baris menampilkan:
 
@@ -105,7 +107,7 @@ Kalau transaksi sudah commit, jangan approve ulang. Periksa subscription pelangg
 
 ## 2. Mengelola paket
 
-Buka **Commercial** → **Create plan** atau daftar **Plans**.
+Buka menu **Operasi Komersial** → **Create plan** atau daftar **Plans**.
 
 Field penting:
 
@@ -157,7 +159,7 @@ Gunakan untuk:
 
 Langkah:
 
-1. Buka **Commercial** → **Assign subscription**.
+1. Buka menu **Operasi Komersial** → **Assign subscription**.
 2. Pilih pelanggan.
 3. Pilih plan.
 4. Pilih status:
@@ -208,7 +210,7 @@ Override yang kedaluwarsa otomatis diabaikan. Override aktif menang atas plan.
 
 ## 5. Memantau operasional
 
-### System Monitor
+### System Monitor (menu **Monitor Sistem**)
 
 Menampilkan:
 
@@ -253,7 +255,7 @@ Isi `MONTHLY_INFRA_COST_IDR` dengan biaya VPS + domain + backup aktual. Kalau di
 
 ## 6. Mengelola pengguna
 
-Menu **Users** menampilkan daftar akun.
+Menu **Pengguna** menampilkan daftar akun.
 
 Yang bisa dilakukan:
 
@@ -269,7 +271,7 @@ Aturan:
 
 ## 7. Pengumuman
 
-Menu **Announcements** mengirim popup ke dashboard pelanggan.
+Menu **Pengumuman Pop-up** mengirim popup ke dashboard pelanggan. Menu **Kirim Pengumuman** untuk mengirim pemberitahuan lain.
 
 Gunakan untuk:
 

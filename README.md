@@ -2,9 +2,9 @@
 
 Gateway WhatsApp untuk UMKM. Satu dashboard untuk menghubungkan nomor WhatsApp, mengirim broadcast, membalas otomatis, menjadwalkan pesan, dan memanggil REST API.
 
-Status: pra-rilis `0.2.2` (1 November 2026). Tidak ada paket trial. Akun baru bisa masuk dashboard, tetapi pengiriman, auto-reply, webhook, dan unggah media aktif setelah pembayaran disetujui admin.
+Status: pra-rilis `0.2.5` (1 November 2026). Tidak ada paket trial. Akun baru bisa masuk dashboard, tetapi pengiriman, auto-reply, webhook, dan unggah media aktif setelah pembayaran disetujui admin.
 
-Rilis 0.2.1 dan 0.2.2 adalah hasil audit bug senyap plus perbaikan pengalaman: kuota dikembalikan saat pesan gagal total, perpanjangan paket yang sama tidak lagi menghanguskan sisa hari, panduan kini punya blok kode yang terbaca dengan tombol salin, dan plugin WordPress bisa diunduh sebagai ZIP langsung dari dashboard. Rincian perbaikan ada di [`CHANGELOG.md`](CHANGELOG.md) dan [`docs/qa/AUDIT-REPORT-2026-11-01.md`](docs/qa/AUDIT-REPORT-2026-11-01.md).
+Rilis terakhir menjalankan dua putaran audit bug senyap (`0.2.1`, `0.2.3`), perbaikan webhook (`0.2.4`), dan sinkronisasi panduan `/docs` dengan kode (`0.2.5`). Rincian perbaikan ada di [`CHANGELOG.md`](CHANGELOG.md); laporan audit di [`docs/qa/AUDIT-REPORT-2026-11-01.md`](docs/qa/AUDIT-REPORT-2026-11-01.md) dan [`docs/qa/AUDIT-REPORT-R2-2026-11-01.md`](docs/qa/AUDIT-REPORT-R2-2026-11-01.md).
 
 Dibuat dan dikembangkan oleh **wa-akg**.
 
@@ -72,7 +72,7 @@ Isi minimal variabel berikut di `.env`:
 | `BASE_URL` | Alamat aplikasi, contoh `http://localhost:3000` |
 | `PORT` | Port server, default `3000` |
 
-Buat secret dengan `openssl rand -base64 32` dan `openssl rand -hex 32`.
+Buat secret dengan `openssl rand -base64 32` dan `openssl rand -hex 32`. Variabel lain yang tersedia (SMTP, storage media, dan seterusnya) ada di `.env.example`.
 
 ```bash
 npx prisma migrate deploy
@@ -92,15 +92,16 @@ npm run make-admin
 
 | Perintah | Fungsi |
 | --- | --- |
-| `npm run dev` | Menjalankan server pengembangan beserta worker |
-| `npm run build` | Build produksi Next.js (webpack, heap 2 GB) |
-| `npm start` | Menjalankan server produksi |
-| `npm run typecheck` | Cek tipe TypeScript |
+| `npm run dev` | Menjalankan server pengembangan (`src/server/index.ts`) beserta worker |
+| `npm run build` | Build produksi Next.js dengan webpack dan heap 2 GB |
+| `npm start` | Menjalankan server produksi (`NODE_ENV=production`) |
+| `npm run typecheck` | `tsc --noEmit` |
 | `npm run lint` | ESLint |
-| `npm test` | Vitest, satu worker |
+| `npm test` | Vitest dengan satu worker |
 | `npm run db:migrate` | `prisma migrate deploy` lalu `prisma generate` |
-| `npm run backup:create` | Backup database |
+| `npm run backup:create` | Backup database lewat `scripts/backup.ts` |
 | `npm run release:preflight` | Pemeriksaan sebelum rilis |
+| `npm run make-admin` | Membuat atau menaikkan akun menjadi superadmin |
 
 ## Struktur repositori
 
@@ -125,20 +126,22 @@ Panduan lengkap ada di [`docs/panduan`](docs/panduan/README.md):
 
 | Panduan | Untuk |
 | --- | --- |
-| [01 Memulai untuk UMKM](docs/panduan/01-memulai-umkm.md) | Daftar, pilih paket, bayar, hubungkan WhatsApp |
-| [02 Broadcast](docs/panduan/02-broadcast.md) | CSV, variabel, spintax, opt-in, batas paket |
-| [03 Auto-reply](docs/panduan/03-auto-reply.md) | Semua jenis aturan dan contoh siap pakai |
-| [04 Media dan batas upload](docs/panduan/04-media-dan-limit-upload.md) | Format, batas per paket, kompresi |
-| [05 API untuk developer](docs/panduan/05-api-developer.md) | cURL, Node.js, PHP, SDK mini |
+| [01 Memulai untuk UMKM](docs/panduan/01-memulai-umkm.md) | Daftar, pilih paket, bayar, hubungkan WhatsApp, kirim pesan pertama |
+| [02 Broadcast](docs/panduan/02-broadcast.md) | Kirim massal, CSV, variabel, spintax, opt-in, daftar jangan kirim |
+| [03 Auto-reply](docs/panduan/03-auto-reply.md) | Semua jenis aturan, prioritas, jadwal, cooldown, kode alasan log, glosarium |
+| [04 Media dan batas upload](docs/panduan/04-media-dan-limit-upload.md) | Format, batas per paket, penyimpanan |
+| [05 API untuk developer](docs/panduan/05-api-developer.md) | Autentikasi, scope, idempotency, endpoint, contoh cURL/Node.js/PHP |
 | [06 Webhook](docs/panduan/06-webhook.md) | Event, payload, signature, retry |
 | [07 Integrasi tanpa kode](docs/panduan/07-integrasi-tanpa-kode.md) | WordPress, WooCommerce, Google Forms |
-| [08 Troubleshooting](docs/panduan/08-troubleshooting-faq.md) | Error umum dan cara memperbaiki |
-| [09 Paket dan margin](docs/panduan/09-paket-dan-margin.md) | Matriks harga dan hitungan margin |
-| [10 Panduan admin](docs/panduan/10-panduan-admin.md) | Verifikasi pembayaran dan operasional |
+| [08 Troubleshooting](docs/panduan/08-troubleshooting-faq.md) | Error umum, status antrean, kuota, FAQ auto-reply |
+| [09 Paket dan margin](docs/panduan/09-paket-dan-margin.md) | Matriks harga, biaya, dan hitungan margin |
+| [10 Panduan admin](docs/panduan/10-panduan-admin.md) | Verifikasi pembayaran, paket, operasional |
 
-Panduan yang sama juga tersedia di dalam aplikasi pada halaman [`/docs`](https://wagateway.kingofcoding.my.id/docs), dan bisa dibuka dari menu **Dokumentasi** di dashboard.
+Panduan yang sama juga tersedia di dalam aplikasi pada halaman [`/docs`](https://wagateway.kingofcoding.my.id/docs), dan bisa dibuka dari menu **Dokumentasi** di dashboard. Halaman itu dirender langsung dari `docs/panduan/`, jadi mengubah panduan berarti mengubah website setelah build dan deploy.
 
 Aturan kerja untuk agen AI ada di [`docs/AGENT-PLAYBOOK.md`](docs/AGENT-PLAYBOOK.md). Draf materi marketing ada di [`docs/marketing`](docs/marketing/README.md).
+
+Status verifikasi (per 1 November 2026): label menu, field formulir, status, kode alasan, dan angka paket di panduan sudah dicocokkan ke kode sumber. Pemeriksaan tampilan situs live setelah deploy masih menunggu; satu temuan terbuka adalah `welcomeMessage` perangkat yang tidak punya jalur pengisian lewat UI atau API (dicatat di panduan 03).
 
 ## Deploy
 

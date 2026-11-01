@@ -6,17 +6,16 @@ PesanPro mengirim **HTTP POST** ke URL yang Anda tentukan, dengan **signature HM
 
 ## Membuat endpoint webhook
 
-1. Buka dashboard → **Webhooks**.
+1. Buka dashboard → **Webhook**.
 2. Pilih perangkat.
-3. Klik **Tambah endpoint**.
-4. Isi:
-   - **Nama** — untuk Anda sendiri.
-   - **URL** — harus HTTPS di produksi.
-   - **Event** — pilih event yang dibutuhkan, atau `*` untuk semua.
-   - **Max attempts** — 1–12, default 8.
-   - **Timeout** — 1.000–30.000 ms, default 10.000 ms.
-5. Simpan.
-6. **Salin secret sekarang.** Secret hanya ditampilkan sekali.
+3. Pada kartu **New Webhook**, isi:
+   - **Name** — untuk Anda sendiri.
+   - **Webhook URL** — harus HTTPS di produksi.
+   - **Events** — pilih event yang dibutuhkan.
+4. Klik **Create Webhook**.
+5. **Salin secret sekarang.** Secret hanya ditampilkan sekali.
+
+Percobaan ulang dan waktu tunggu memakai nilai bawaan server: maksimal 8 percobaan dan timeout 10 detik per percobaan. Pengaturan kedua angka ini tidak ada di formulir dashboard.
 
 > URL webhook tidak boleh mengarah ke alamat internal/private. PesanPro memblokir `localhost`, `127.0.0.1`, rentang private IP, dan metadata cloud untuk mencegah SSRF.
 
@@ -340,8 +339,8 @@ if (!firstTime) return res.status(200).json({ duplicate: true });
 
 ## Retry dan timeout
 
-- Percobaan maksimal: **8** (bisa diatur 1–12 per endpoint).
-- Timeout per percobaan: **10 detik** (bisa diatur 1–30 detik).
+- Percobaan maksimal: **8** (nilai bawaan per endpoint; tidak bisa diubah dari dashboard).
+- Timeout per percobaan: **10 detik** (nilai bawaan per endpoint; tidak bisa diubah dari dashboard).
 - Backoff eksponensial dengan jitter, maksimal **15 menit** antar percobaan.
 - Balasan `2xx` dianggap sukses.
 - `408`, `425`, `429`, `5xx`, dan kegagalan jaringan dianggap sementara dan dicoba ulang.

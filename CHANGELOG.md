@@ -9,12 +9,49 @@ Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), da
 ### Akan datang
 
 - Deploy migrasi paket, onboarding, dan support ke produksi.
-- GitHub Release untuk `v0.2.1`, `v0.2.2`, dan `v0.2.3` serta pembersihan branch lama.
+- Pembersihan branch lama.
 - Halaman status layanan dan dokumentasi pemulihan bencana.
 - Tindak lanjut `npm audit`: 52 temuan lama dari rantai `jimp`, Baileys rc, dan
   `vite`. Perbaikannya butuh penurunan versi besar, jadi direncanakan terpisah.
 - Keputusan produk: kunci API legacy tinggal pengguna (full-scope, tanpa
   kedaluwarsa/IP allowlist) kapan dimigrasi ke kunci terkelola.
+
+## [0.2.5] - 2026-11-01
+
+Sinkronisasi panduan `/docs` dengan kode terbaru. Tidak ada perubahan logika
+aplikasi, harga, hak akses, atau perilaku auto-reply pada rilis ini.
+
+### Dokumentasi
+
+- 9 panduan di `docs/panduan/` diselaraskan dengan label sidebar dan formulir
+  terbaru: **Perangkat & QR**, **Kirim Massal**, **Jadwal Kirim**, **Antrian
+  Pesan**, **Balasan Otomatis**, **Kunci API**, **Tagihan**, serta grup admin
+  **Operasi** (**Pengguna**, **Operasi Komersial**, **Monitor Sistem**,
+  **Kirim Pengumuman**, **Pengumuman Pop-up**).
+- Panduan 01: alur membuat perangkat diganti ke kartu **Create New Session**
+  dan tombol **Create Session**, tabel status antrean dikoreksi ke
+  `QUEUED/PROCESSING/SENT/DELIVERED/READ/FAILED/CANCELLED`.
+- Panduan 02: field formulir broadcast ditulis persis (**Nama broadcast**,
+  **Nomor tujuan**, **Template pesan**, **Delay minimum/maksimum (detik)**),
+  tombol **Simpan & antrekan** dan **Jeda/Lanjut/Batal**, tab daftar jangan
+  kirim beserta kata kunci opt-out.
+- Panduan 03: ditambah langkah form Auto Reply Studio, tabel status log
+  (`PENDING/PROCESSING/ENQUEUED/SKIPPED/FAILED`), 22 kode alasan, bagian
+  "Sapaan otomatis: dua hal yang berbeda" (welcome message perangkat vs aturan
+  buatan pengguna), dan glosarium.
+- Panduan 06: langkah membuat webhook sesuai UI (**New Webhook**,
+  **Create Webhook**); klaim bahwa percobaan maksimal dan timeout bisa diatur
+  dari dashboard dihapus karena tidak ada di formulir (nilai bawaan server:
+  8 percobaan, timeout 10 detik).
+- Panduan 08: FAQ jadwal dan zona waktu, fallback yang terpicu salah, sapaan
+  ganda atau tidak terkirim, serta batas jumlah aturan.
+- README: status rilis, tabel paket, dan peta dokumentasi diperbarui.
+
+### Catatan
+
+- Perilaku `welcomeMessage` perangkat dapat dibaca di kode, tetapi tidak ada
+  UI maupun API yang menulis nilainya. Hal ini dicatat sebagai temuan di
+  panduan 03 dan belum diubah pada rilis ini.
 
 ## [0.2.4] - 2026-11-01
 

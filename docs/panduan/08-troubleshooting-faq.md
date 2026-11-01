@@ -10,7 +10,7 @@ Itu normal. PesanPro tidak punya paket trial. Akun baru berada di paket **Belum 
 
 Perbaikan:
 
-1. Buka **Billing**.
+1. Buka **Tagihan**.
 2. Pilih paket.
 3. Kirim bukti pembayaran.
 4. Tunggu admin menyetujui.
@@ -112,7 +112,7 @@ Kalau sudah penuh, hapus perangkat yang tidak dipakai atau naik paket.
 ### Pesan berstatus PENDING lama
 
 1. Periksa perangkat `CONNECTED`.
-2. Periksa antrean di **Message Queue**.
+2. Periksa antrean di **Antrian Pesan**.
 3. Kalau perangkat terputus, sambungkan lagi; pesan akan diproses setelah perangkat siap.
 4. Kalau lebih dari 15 menit, hubungi admin.
 
@@ -159,7 +159,7 @@ Perbaikan: gunakan key stabil, misalnya `order-1042-notify`, dan pakai key yang 
 
 Periksa:
 
-1. **Billing → Entitlements & usage** untuk melihat angka terpakai.
+1. **Tagihan** → kartu **Pemakaian periode ini** untuk melihat angka terpakai.
 2. Broadcast besar yang baru dijalankan.
 3. Pesan terjadwal yang dieksekusi bersamaan.
 4. Retry yang mengirim ulang pesan gagal.
@@ -179,7 +179,7 @@ Kuota dihitung per periode langganan, bukan per tanggal kalender. Periode dimula
 - Selama grace period, akses baca dan API observability tetap ada, tetapi pengiriman baru, broadcast, jadwal, auto-reply, webhook, dan upload dibekukan.
 - Setelah grace period, status menjadi `EXPIRED` dan pengiriman berhenti.
 
-Perpanjang dari **Billing** sebelum masa tenggang habis.
+Perpanjang dari **Tagihan** sebelum masa tenggang habis.
 
 ---
 
@@ -295,6 +295,43 @@ Gunakan pola sederhana seperti `^INV-[0-9]{4}$`.
 ### Aturan bentrok
 
 Dua aturan dengan kata kunci, jenis, dan prioritas sama. Ubah prioritas salah satunya. Aturan dengan prioritas lebih besar menang; kalau sama, aturan yang lebih lama menang.
+
+### Balasan keluar di luar jam kerja (atau tidak keluar di luar jam kerja)
+
+Jadwal aturan dihitung dengan `Timezone` aturan, bukan jam perangkat. Periksa:
+
+1. `Hari aktif ISO` dan `Mulai`/`Selesai` pada aturan.
+2. `Timezone` sudah benar (misalnya `Asia/Jakarta`, bukan UTC).
+3. Jadwal yang melewati tengah malam (mis. `22:00`–`02:00`) memang didukung; jadwal kosong berarti aktif sepanjang hari.
+
+Di luar jadwal, pesan masuk dicatat di log dengan alasan `OUTSIDE_SCHEDULE` dan tidak dibalas aturan itu. Kalau Anda ingin tetap membalas di luar jam kerja, buat aturan terpisah dengan jadwal malam atau aturan Fallback dengan jadwal malam.
+
+### Fallback jalan padahal seharusnya tidak
+
+Aturan `Fallback` hanya dipakai kalau **tidak ada aturan biasa yang cocok**. Kalau fallback terpicu padahal ada aturan lain yang seharusnya cocok:
+
+1. Cek kata kunci aturan biasa — mungkin `Match type`-nya terlalu ketat (mis. `Exact` padahal pelanggan menulis tambahan).
+2. Cek `Audience` — aturan `Group` tidak akan cocok untuk chat pribadi, dan sebaliknya (`AUDIENCE_MISMATCH` di log).
+3. Cek jadwal aturan biasa — kalau semua aturan biasa di luar jadwal, fallback (yang aktif) yang jalan.
+
+### Sapaan (welcome message) terkirim dua kali
+
+Welcome message perangkat didesain maksimal satu kali per kontak; penandanya tersimpan di data kontak dan tidak ikut terhapus saat pesan lama dibersihkan. Kalau kontak tampak menerima sapaan dua kali, kemungkinan yang terjadi adalah dua hal berbeda: welcome message perangkat **dan** aturan auto-reply sapaan buatan Anda sendiri. Solusinya: matikan salah satu, atau ubah isi salah satunya.
+
+### Sapaan tidak terkirim sama sekali
+
+Kemungkinan penyebab (sesuai kode):
+
+1. Kontak sudah pernah menerima sapaan sebelumnya — penanda satu-kali-per-kontak sudah terisi. Sapaan tidak akan dikirim ulang ke kontak yang sama.
+2. Pesan berasal dari grup atau status — sapaan hanya untuk chat pribadi.
+3. Pesan dikirim oleh nomor Anda sendiri — sapaan hanya untuk pesan masuk.
+4. Isi welcome message pada pengaturan perangkat kosong — sapaan tidak akan dikirim.
+
+Cara mengisi isi welcome message **tidak ditemukan di kode yang diperiksa**; lihat catatan di [03 — Auto-reply](03-auto-reply.md).
+
+### Batas aturan tercapai
+
+Jumlah aturan dibatasi paket: Starter 10, Bisnis 50, Pro tanpa batas. Kalau tercapai, muncul `AUTOREPLY_RULE_LIMIT_REACHED`. Hapus aturan yang tidak dipakai (tombol **Hapus** di kartu aturan) atau naik paket.
 
 ---
 

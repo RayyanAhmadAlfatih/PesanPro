@@ -4,14 +4,14 @@ Panduan ini untuk pemilik toko online atau pengguna WordPress/Google Forms yang 
 
 Semua integrasi memakai **integration token** (`ppint_...`), bukan API key. Token ini:
 
-- Dibuat di dashboard → **Developer** atau **Integrations**.
+- Dibuat di menu **Kunci API** (judul halamannya **Developer**).
 - Terikat ke satu perangkat WhatsApp.
 - Hanya ditampilkan sekali.
 - Bisa dicabut kapan saja.
 
 ## Menyiapkan integration token
 
-1. Buka dashboard → **Developer**.
+1. Buka menu **Kunci API**.
 2. Buat integration token dengan tipe yang sesuai:
    - `CONTACT_FORM_7` untuk Contact Form 7.
    - `WOOCOMMERCE` untuk WooCommerce.
@@ -40,7 +40,7 @@ Authorization: Bearer ppint_xxxxxxxxxxxxxxxx
 
 ## WordPress + Contact Form 7
 
-Plugin tersedia sebagai ZIP langsung dari aplikasi. Buka dashboard → **Developer**, cari kartu **Plugin WordPress**, lalu klik **Unduh ZIP plugin**. URL unduhannya juga bisa dipakai langsung:
+Plugin tersedia sebagai ZIP langsung dari aplikasi. Buka menu **Kunci API**, cari kartu **Plugin WordPress**, lalu klik **Unduh ZIP plugin**. URL unduhannya juga bisa dipakai langsung:
 
 ```
 https://wagateway.kingofcoding.my.id/api/public/plugin/wordpress
@@ -56,7 +56,7 @@ https://wagateway.kingofcoding.my.id/api/public/plugin/wordpress
 ### Langkah instalasi
 
 1. Buat integration token tipe `CONTACT_FORM_7` di PesanPro.
-2. Unduh ZIP plugin dari dashboard → **Developer**.
+2. Unduh ZIP plugin dari menu **Kunci API**.
 3. Di WordPress, buka **Plugins → Add New → Upload Plugin**, pilih ZIP-nya, lalu klik **Install Now**.
 4. Aktifkan plugin di **Plugins**.
 5. Buka **Settings → PesanPro CF7**.
@@ -74,7 +74,7 @@ https://wagateway.kingofcoding.my.id/api/public/plugin/wordpress
 7. Simpan pengaturan.
 8. Buka **Tools → Site Health** untuk memastikan tidak ada error.
 9. Kirim form uji.
-10. Buka **Message Queue** di PesanPro untuk memastikan job masuk.
+10. Buka **Antrian Pesan** di PesanPro untuk memastikan job masuk.
 
 ### Field form yang didukung
 
@@ -206,7 +206,7 @@ add_action('woocommerce_order_status_changed', function ($orderId, $from, $to, $
 ```
 
 4. Uji dengan mengubah status pesanan dari `pending` ke `processing`.
-5. Periksa **Message Queue** di PesanPro.
+5. Periksa **Antrian Pesan** di PesanPro.
 
 > **Catatan:** `Idempotency-Key` `wc-<orderId>-<status>` mencegah pesan ganda kalau status berubah bolak-balik. Kalau Anda ingin notifikasi ulang untuk status yang sama, tambahkan timestamp pada key.
 
@@ -230,7 +230,7 @@ Connector tersedia di folder `integrations/google-forms/`.
 6. Setujui permission Google.
 7. Jalankan `pesanProCheckConfiguration()`.
 8. Kirim response uji dari form.
-9. Periksa **Message Queue** di PesanPro.
+9. Periksa **Antrian Pesan** di PesanPro.
 
 ### Yang perlu diperhatikan
 
@@ -322,7 +322,7 @@ Kalau template menghasilkan pesan kosong atau lebih dari 4.096 karakter, request
 2. Token bisa dicabut tanpa mengubah kode.
 3. `Idempotency-Key` stabil per kejadian.
 4. Endpoint PesanPro bisa diakses dari server Anda (HTTPS, DNS benar).
-5. Form uji benar-benar masuk ke Message Queue.
+5. Form uji benar-benar masuk ke Antrian Pesan.
 6. Nomor tujuan memakai format yang benar.
 7. Ada penanganan error dan log di sisi WordPress/Google.
 8. Kebijakan privasi menyebut pengiriman data ke PesanPro.

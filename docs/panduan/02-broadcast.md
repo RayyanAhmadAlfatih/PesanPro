@@ -23,25 +23,27 @@ Batas penerima per broadcast dan batas pesan per bulan sama-sama berlaku. Broadc
 
 ## Broadcast lewat dashboard
 
-### Langkah 1 — Buka menu Broadcast
+### Langkah 1 — Buka menu Kirim Massal
 
-Di dashboard, pilih **Broadcast**. Halaman ini punya tiga bagian:
+Di dashboard, pilih **Kirim Massal** (judul di dalam halaman: **Broadcast**). Halaman ini punya tiga tab:
 
-1. Form pembuatan broadcast.
-2. Daftar broadcast yang sedang berjalan dan riwayatnya.
-3. Daftar suppression (nomor yang tidak boleh dikirimi).
+1. **Buat** — form pembuatan broadcast.
+2. **Riwayat** — daftar broadcast yang sedang berjalan dan riwayatnya.
+3. **Jangan kirim** — daftar suppression (nomor yang tidak boleh dikirimi).
 
 ### Langkah 2 — Isi data broadcast
 
+Di tab **Buat** ada dua kartu: **Penerima** dan **Pesan & personalisasi**.
+
 | Field | Wajib | Keterangan |
 | --- | --- | --- |
-| Nama kampanye | Tidak | Membantu Anda mencari broadcast di riwayat |
-| Penerima | Ya | Nomor manual atau import CSV |
-| Pesan | Ya | Maksimal 4.096 karakter |
+| Nama broadcast | Tidak | Membantu Anda mencari broadcast di riwayat |
+| Nomor tujuan | Ya | Nomor manual atau import CSV; maksimal 5.000 penerima unik |
+| Template pesan | Ya | Maksimal 4.096 karakter |
 | Media | Tidak | Gambar, video, audio, atau dokumen dari media library |
-| Jeda minimum | Ya | Minimal 2 detik; paket Anda bisa menetapkan minimum lebih tinggi |
-| Jeda maksimum | Ya | Harus ≥ jeda minimum |
-| Wajib opt-in | Tidak | Kalau aktif, hanya kontak berstatus `OPTED_IN` yang dikirimi |
+| Delay minimum | Ya | Dalam detik; paket Anda bisa menetapkan minimum lebih tinggi |
+| Delay maksimum | Ya | Dalam detik; harus ≥ delay minimum |
+| Wajib opt-in | Tidak | Kalau aktif, hanya kontak dengan consent aktif yang dikirimi |
 
 ### Langkah 3 — Masukkan penerima
 
@@ -55,7 +57,7 @@ Di dashboard, pilih **Broadcast**. Halaman ini punya tiga bagian:
 
 Duplikat otomatis dihapus. Nomor grup dilewati.
 
-**Cara B — import CSV.** Klik **Import CSV** dan pilih file. Aturan file:
+**Cara B — import CSV.** Klik **Import CSV** dan pilih file. Tombol **Unduh contoh CSV** di sebelahnya memberikan template siap pakai. Aturan file:
 
 - Ukuran maksimal **2 MB**.
 - Maksimal **20 kolom**.
@@ -72,7 +74,7 @@ phone,name,company,invoice_no
 628987654321,Budi Kurnia,Studio Laju,INV-2026-002
 ```
 
-Template siap pakai tersedia di dashboard: tombol **Unduh contoh CSV**.
+Template siap pakai tersedia di dashboard lewat tombol **Unduh contoh CSV**.
 
 ### Langkah 4 — Tulis pesan
 
@@ -100,7 +102,7 @@ Aturan variabel:
 
 ### Langkah 5 — Pratinjau
 
-Klik **Preview** untuk melihat beberapa variasi pesan sebelum dikirim. Periksa:
+Klik **Preview** untuk melihat "Preview penerima pertama" — beberapa variasi pesan sebelum dikirim. Periksa:
 
 1. Sapaan tidak terpotong.
 2. Variabel terisi, bukan `{{name}}` mentah.
@@ -109,7 +111,7 @@ Klik **Preview** untuk melihat beberapa variasi pesan sebelum dikirim. Periksa:
 
 ### Langkah 6 — Kirim dan pantau
 
-Klik **Kirim broadcast**. Status yang akan Anda lihat:
+Klik **Simpan & antrekan**. Status yang akan Anda lihat di tab **Riwayat**:
 
 | Status | Arti |
 | --- | --- |
@@ -121,7 +123,7 @@ Klik **Kirim broadcast**. Status yang akan Anda lihat:
 | `CANCELLED` | Dibatalkan |
 | `FAILED` | Gagal total |
 
-Anda bisa **Pause** dan **Resume** broadcast yang sedang berjalan. Progres menampilkan total, terkirim, gagal, dilewati, dan sisa.
+Broadcast berstatus `QUEUED` atau `RUNNING` bisa dijeda dengan tombol **Jeda** dan dilanjutkan dengan **Lanjut**; status `PAUSED` dan `FAILED` bisa dilanjutkan. Tombol **Batal** membatalkan broadcast. Progres menampilkan total masuk antrean, dilewati, gagal enqueue, dan persentase.
 
 ## Broadcast lewat API
 
@@ -228,7 +230,7 @@ Suppression adalah daftar nomor yang **tidak boleh** dikirimi broadcast. Tambahk
 - Mengeluh merasa dispam.
 - Nomor internal tim Anda (kalau tidak ingin menerima promo).
 
-Di dashboard, buka bagian **Suppression** pada halaman Broadcast. Di API:
+Di dashboard, buka tab **Jangan kirim** pada halaman Kirim Massal, lalu tambahkan nomor dengan tombol **Blokir**. Perintah `STOP`, `UNSUBSCRIBE`, `BERHENTI`, atau `BATAL LANGGANAN` dari pesan masuk juga otomatis masuk daftar ini. Di API:
 
 ```bash
 curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/suppressions" \

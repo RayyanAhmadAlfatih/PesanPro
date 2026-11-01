@@ -66,13 +66,13 @@ Perintah di atas menurunkan resolusi ke 720p dan mengompres audio. Ukuran biasan
 
 ## Upload lewat dashboard
 
-1. Buka halaman yang memakai lampiran: **Broadcast**, **Scheduler**, atau **Auto-reply**.
-2. Klik **Pilih file**.
-3. Pilih file. Dashboard menampilkan batas paket Anda di bawah tombol.
-4. Tunggu sampai nama file muncul.
+1. Buka halaman yang memakai lampiran: **Kirim Massal**, **Jadwal Kirim**, atau **Balasan Otomatis**.
+2. Cari bagian **Media (opsional)** di formulir.
+3. Klik **Pilih file**, lalu pilih file. Petunjuk di sebelah tombol menampilkan batas paket Anda.
+4. Tunggu sampai nama file muncul; tombolnya berubah menjadi **Ganti**.
 5. Kalau file terlalu besar, pesan error muncul sebelum upload dikirim ke server.
 
-Kalau paket belum aktif, tombol upload dinonaktifkan dan dashboard menampilkan arahan ke halaman Billing.
+Kalau paket belum aktif, tombol upload dinonaktifkan dan muncul pesan "Paket Anda belum aktif. Pilih paket di halaman Billing untuk mengunggah media."
 
 ## Upload lewat API
 
