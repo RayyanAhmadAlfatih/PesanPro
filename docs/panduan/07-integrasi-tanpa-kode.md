@@ -4,25 +4,41 @@ Panduan ini untuk pemilik toko online atau pengguna WordPress/Google Forms yang 
 
 Semua integrasi memakai **integration token** (`ppint_...`), bukan API key. Token ini:
 
-- Dibuat di menu **Kunci API** (judul halamannya **Developer**).
+- Dibuat di menu **Integrasi → Token Integrasi** (hanya ada di satu tempat ini).
 - Terikat ke satu perangkat WhatsApp.
 - Hanya ditampilkan sekali.
 - Bisa dicabut kapan saja.
 
+### Bedanya integration token (`ppint_...`) dengan API key (`wag_...`)
+
+| | Integration token | API key |
+| --- | --- | --- |
+| Format | `ppint_` diikuti 40–100 karakter | `wag_` diikuti karakter acak |
+| Dibuat di | **Integrasi → Token Integrasi** | **Integrasi → Kunci API** (kartu **Create API key**) |
+| Untuk siapa | Plugin dan konektor tanpa kode (Contact Form 7, Google Forms, WooCommerce) | Programmer yang memanggil REST API lengkap |
+| Cakupan | Satu perangkat WhatsApp, satu tugas: kirim pesan | Semua endpoint yang diizinkan scope-nya |
+| Header autentikasi | `x-integration-token: ppint_...` atau `Authorization: Bearer ppint_...` | `x-api-key: wag_...` |
+
+**Keduanya tidak bisa saling menggantikan.** Plugin Contact Form 7 hanya menerima token berformat `ppint_...` — kalau Anda mengisi API key `wag_...`, plugin menolak dengan pesan "Integration token format is invalid." Sebaliknya, integration token tidak bisa dipakai untuk memanggil endpoint REST API lain karena hanya berlaku untuk endpoint integrasi.
+
 ## Menyiapkan integration token
 
-1. Buka menu **Kunci API**.
-2. Buat integration token dengan tipe yang sesuai:
-   - `CONTACT_FORM_7` untuk Contact Form 7.
-   - `WOOCOMMERCE` untuk WooCommerce.
-   - `GOOGLE_FORMS` untuk Google Forms.
-   - `WORDPRESS` untuk form WordPress kustom.
-3. Pilih perangkat WhatsApp.
-4. Isi mapping (opsional):
-   - `recipientField` — nama field yang berisi nomor WhatsApp.
-   - `staticRecipient` — nomor tetap, kalau semua pesan dikirim ke admin.
-   - `messageTemplate` — template pesan, misalnya `Pesan baru dari {{field:nama}}: {{message}}`.
-5. Simpan dan salin token.
+1. Buka menu **Integrasi → Token Integrasi** di dashboard.
+2. Di kartu **Buat token integrasi**, isi:
+   - **Nama** — penanda token untuk Anda, misalnya `Notifikasi Contact Form 7`.
+   - **Tipe integrasi** — pilih salah satu:
+     - `Contact Form 7` untuk Contact Form 7.
+     - `WooCommerce` untuk WooCommerce.
+     - `Google Forms` untuk Google Forms.
+     - `WordPress (form kustom)` untuk form WordPress lain.
+   - **Perangkat WhatsApp** — perangkat pengirim. Hanya perangkat milik akun Anda yang muncul. Kalau daftar kosong, tambahkan perangkat dulu di menu **Perangkat & QR**.
+   - **Tanggal kedaluwarsa (opsional)** — kosongkan supaya aktif sampai dicabut.
+3. Isi bagian **Mapping (opsional)** kalau perlu:
+   - **Nomor tetap (staticRecipient)** — semua pesan masuk ke satu nomor, misalnya nomor admin. Menang atas field penerima.
+   - **Field penerima (recipientField)** — nama field form yang berisi nomor WhatsApp pengisi form.
+   - **Template pesan (messageTemplate)** — misalnya `Pesan baru dari {{field:nama}}: {{message}}`.
+4. Klik tombol **Buat token**.
+5. Secret `ppint_...` tampil di kartu **Salin secret sekarang**. Klik **Salin secret**, simpan di tempat aman, lalu klik **Sembunyikan**. Secret **hanya ditampilkan sekali** — setelah halaman ditutup, yang tampil hanya preview. Kalau hilang, buat token baru lalu cabut yang lama dari kartu **Daftar token** (tombol **Cabut**).
 
 Token dikirim lewat header:
 
@@ -40,7 +56,7 @@ Authorization: Bearer ppint_xxxxxxxxxxxxxxxx
 
 ## WordPress + Contact Form 7
 
-Plugin tersedia sebagai ZIP langsung dari aplikasi. Buka menu **Kunci API**, cari kartu **Plugin WordPress**, lalu klik **Unduh ZIP plugin**. URL unduhannya juga bisa dipakai langsung:
+Plugin tersedia sebagai ZIP langsung dari aplikasi. Buka menu **Integrasi → Kunci API** (judul halamannya **Developer**), cari kartu **Plugin WordPress**, lalu klik **Unduh ZIP plugin**. URL unduhannya juga bisa dipakai langsung:
 
 ```
 https://wagateway.kingofcoding.my.id/api/public/plugin/wordpress
@@ -55,8 +71,8 @@ https://wagateway.kingofcoding.my.id/api/public/plugin/wordpress
 
 ### Langkah instalasi
 
-1. Buat integration token tipe `CONTACT_FORM_7` di PesanPro.
-2. Unduh ZIP plugin dari menu **Kunci API**.
+1. Buat integration token tipe **Contact Form 7** di menu **Integrasi → Token Integrasi** (langkah lengkap di atas).
+2. Unduh ZIP plugin dari menu **Integrasi → Kunci API**, kartu **Plugin WordPress**, tombol **Unduh ZIP plugin**.
 3. Di WordPress, buka **Plugins → Add New → Upload Plugin**, pilih ZIP-nya, lalu klik **Install Now**.
 4. Aktifkan plugin di **Plugins**.
 5. Buka **Settings → PesanPro CF7**.
@@ -108,7 +124,7 @@ define( 'DISABLE_WP_CRON', true );
 
 ### Menghentikan integrasi
 
-Cabut token di PesanPro, atau nonaktifkan plugin. Data plugin tidak dihapus otomatis saat uninstall; tambahkan `define( 'PESANPRO_CF7_REMOVE_DATA', true );` sebelum uninstall kalau ingin menghapus data.
+Cabut token di menu **Integrasi → Token Integrasi**: cari token di kartu **Daftar token**, lalu klik **Cabut**. Token yang dicabut tampil dengan status **REVOKED** dan langsung tidak bisa dipakai. Atau nonaktifkan plugin. Data plugin tidak dihapus otomatis saat uninstall; tambahkan `define( 'PESANPRO_CF7_REMOVE_DATA', true );` sebelum uninstall kalau ingin menghapus data.
 
 ---
 
@@ -135,7 +151,7 @@ Payload:
 
 ### Langkah
 
-1. Buat integration token tipe `WOOCOMMERCE`.
+1. Buat integration token tipe **WooCommerce** di menu **Integrasi → Token Integrasi**.
 2. Tambahkan di `wp-config.php`:
    ```php
    define( 'PESANPRO_WOO_TOKEN', 'ppint_xxxxxxxxxxxxxxxx' );
@@ -218,7 +234,7 @@ Connector tersedia di folder `integrations/google-forms/`.
 
 ### Langkah
 
-1. Buat integration token tipe `GOOGLE_FORMS`.
+1. Buat integration token tipe **Google Forms** di menu **Integrasi → Token Integrasi**.
 2. Buka form target → **Extensions → Apps Script**.
 3. Ganti isi `Code.gs` dan `appsscript.json` dengan file dari folder `integrations/google-forms/`.
 4. Buka **Project Settings → Script Properties** dan isi:

@@ -22,6 +22,7 @@ import {
     BadgeDollarSign,
     ListRestart,
     Code2,
+    Puzzle,
     BookOpen,
     LifeBuoy,
 } from "lucide-react";
@@ -55,6 +56,7 @@ const navGroups: NavGroup[] = [
     {
         label: "Integrasi",
         items: [
+            { href: "/dashboard/integrations", label: "Token Integrasi", icon: Puzzle },
             { href: "/dashboard/developer", label: "Kunci API", icon: Code2 },
             { href: "/dashboard/webhooks", label: "Webhook", icon: Webhook },
         ],

@@ -18,6 +18,7 @@ const TENANT_DASHBOARD_PREFIXES = [
   "/dashboard/autoreply",
   "/dashboard/scheduler",
   "/dashboard/developer",
+  "/dashboard/integrations",
   "/dashboard/webhooks",
   "/dashboard/billing",
   "/dashboard/inbox",
