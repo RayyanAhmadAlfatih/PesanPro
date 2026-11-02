@@ -4,7 +4,7 @@ Tags: contact form 7, whatsapp, gateway, webhook, forms
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.0.0
+Stable tag: 1.1.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -50,6 +50,10 @@ Data is preserved on uninstall by default. Define `PESANPRO_CF7_REMOVE_DATA` as 
 When enabled, this plugin sends Contact Form 7 field values, form metadata, site URL, and the selected recipient to the configured PesanPro server. Site owners must document the processing purpose, lawful basis, retention, and recipients in their privacy notice.
 
 == Changelog ==
+
+= 1.1.0 =
+* Settings screen now explains why deliveries failed (HTTP 401/403/404/409/422, network, missing configuration) instead of only counting them.
+* Added a "Coba kirim ulang yang gagal" action that returns permanently failed submissions to the queue after the owner fixes the token or recipient mapping.
 
 = 1.0.0 =
 * Initial durable Contact Form 7 connector with Settings API, Site Health, atomic claim, retry, and idempotency.

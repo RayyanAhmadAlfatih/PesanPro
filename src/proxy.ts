@@ -78,6 +78,28 @@ export async function proxy(request: NextRequest) {
             return NextResponse.next();
         }
 
+        // Code-free connectors (Contact Form 7, WooCommerce, Google Forms,
+        // WordPress) authenticate with `x-integration-token`, a hashed,
+        // tenant-scoped credential the route verifies itself along with the
+        // connector type, revocation, expiry, and entitlements. The proxy has
+        // no way to validate it, and requiring a dashboard session here made
+        // every connector fail with 401 before its handler ever ran — which
+        // the WordPress plugin then recorded as a permanent failure. Keep the
+        // bypass narrow: POST on connector paths only. Token management
+        // (`/api/v1/integration-tokens`) still needs a session or API key.
+        if (request.method === "POST" && pathname.startsWith("/api/v1/integrations/")) {
+            const ip = getClientIp(request.headers);
+            const integrationLimit = 120;
+            const limit = await checkPersistentRateLimit(`integration-connector:${ip}`, integrationLimit, 60_000);
+            if (!limit.success) {
+                return NextResponse.json({ error: "Too many integration requests", code: "RATE_LIMITED" }, {
+                    status: 429,
+                    headers: rateLimitHeaders(limit, integrationLimit),
+                });
+            }
+            return NextResponse.next();
+        }
+
         // Check for API key in header
         const apiKey = request.headers.get("x-api-key");
         if (apiKey) {

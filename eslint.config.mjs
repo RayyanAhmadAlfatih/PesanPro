@@ -17,7 +17,11 @@ const eslintConfig = defineConfig([
     "pure/**",
     // Build directories left behind by failed or partial builds. They are
     // generated output, not source, and linting them can exhaust the heap.
+    // Both patterns are needed: ".next.*" only matches ".next.<something>",
+    // so a directory named ".next-stale-*" slipped through and ESLint tried
+    // to lint 27k generated files until it ran out of memory.
     ".next.*/**",
+    ".next-*/**",
     ".qa-tmp/**",
   ]),
 ]);

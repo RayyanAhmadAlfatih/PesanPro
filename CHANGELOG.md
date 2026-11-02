@@ -4,6 +4,36 @@ Semua perubahan penting pada PesanPro dicatat di file ini.
 
 Format mengikuti [Keep a Changelog](https://keepachangelog.com/id-ID/1.1.0/), dan versi mengikuti [Semantic Versioning](https://semver.org/lang/id/).
 
+## [0.3.1] - 2026-11-02
+
+Memperbaiki Contact Form 7 yang selalu gagal terkirim walaupun paket aktif dan
+perangkat WhatsApp terhubung.
+
+### Diperbaiki
+
+- **Contact Form 7 berhenti dengan 401 "Unauthorized" sebelum diproses.** Proxy
+  mewajibkan sesi dashboard atau kunci API untuk semua jalur `/api/v1`, termasuk
+  jalur integrasi yang autentikasinya memakai token `ppint_`. Akibatnya setiap
+  kiriman plugin ditolak sebelum sempat diperiksa, lalu dicatat sebagai kegagalan
+  permanen dan tidak dicoba lagi. Jalur `POST /api/v1/integrations/*` sekarang
+  dilewatkan ke penangan rute dengan pembatas laju per IP (120 permintaan per
+  menit); pengelolaan token integrasi tetap wajib sesi atau kunci API.
+- **Timestamp kiriman ditolak (422).** Plugin mengirim `gmdate('c')` yang
+  berakhiran `+00:00`, sedangkan skema hanya menerima akhiran `Z`. Setiap kiriman
+  Contact Form 7 dan Google Forms yang menyertakan waktu akan gagal validasi.
+  Skema kini menerima offset zona waktu mana pun.
+- **ESLint memeriksa folder build lama.** Pola abaikan `.next.*/**` tidak
+  mencocokkan folder bernama `.next-stale-*`, sehingga 27 ribu berkas hasil build
+  ikut diperiksa dan proses kehabisan memori. Ditambahkan pola `.next-*/**`.
+
+### Plugin WordPress 1.1.0
+
+- Halaman pengaturan menampilkan alasan kegagalan (401/403/404/409/422, gangguan
+  jaringan, konfigurasi belum lengkap), bukan hanya jumlahnya.
+- Tombol **Coba kirim ulang yang gagal** mengembalikan kiriman gagal ke antrean
+  setelah token atau field penerima diperbaiki.
+- Panduan 07 ditambah bagian penanganan status "failed".
+
 ## [Unreleased]
 
 ### Akan datang

@@ -2,9 +2,9 @@
 
 Gateway WhatsApp untuk UMKM. Satu dashboard untuk menghubungkan nomor WhatsApp, mengirim broadcast, membalas otomatis, menjadwalkan pesan, dan memanggil REST API.
 
-Status: pra-rilis `0.2.5` (1 November 2026). Tidak ada paket trial. Akun baru bisa masuk dashboard, tetapi pengiriman, auto-reply, webhook, dan unggah media aktif setelah pembayaran disetujui admin.
+Status: pra-rilis `0.3.1` (2 November 2026). Tidak ada paket trial. Akun baru bisa masuk dashboard, tetapi pengiriman, auto-reply, webhook, dan unggah media aktif setelah pembayaran disetujui admin.
 
-Rilis terakhir menjalankan dua putaran audit bug senyap (`0.2.1`, `0.2.3`), perbaikan webhook (`0.2.4`), dan sinkronisasi panduan `/docs` dengan kode (`0.2.5`). Rincian perbaikan ada di [`CHANGELOG.md`](CHANGELOG.md); laporan audit di [`docs/qa/AUDIT-REPORT-2026-11-01.md`](docs/qa/AUDIT-REPORT-2026-11-01.md) dan [`docs/qa/AUDIT-REPORT-R2-2026-11-01.md`](docs/qa/AUDIT-REPORT-R2-2026-11-01.md).
+Rilis terakhir menjalankan dua putaran audit bug senyap (`0.2.1`, `0.2.3`), perbaikan webhook (`0.2.4`), sinkronisasi panduan `/docs` dengan kode (`0.2.5`), halaman Token Integrasi (`0.3.0`), lalu perbaikan Contact Form 7 (`0.3.1`). Rincian perbaikan ada di [`CHANGELOG.md`](CHANGELOG.md); laporan audit di [`docs/qa/AUDIT-REPORT-2026-11-01.md`](docs/qa/AUDIT-REPORT-2026-11-01.md) dan [`docs/qa/AUDIT-REPORT-R2-2026-11-01.md`](docs/qa/AUDIT-REPORT-R2-2026-11-01.md).
 
 Dibuat dan dikembangkan oleh **wa-akg**.
 

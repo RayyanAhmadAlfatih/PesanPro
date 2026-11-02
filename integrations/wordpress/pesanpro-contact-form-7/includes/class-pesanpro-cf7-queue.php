@@ -206,4 +206,40 @@ final class PesanPro_CF7_Queue {
         }
         return $counts;
     }
+
+    /**
+     * Failure reasons grouped by the safe code recorded on delivery. Without
+     * this the settings screen only said "N failed", which gave the store
+     * owner nothing to act on.
+     */
+    public static function failure_codes() {
+        global $wpdb;
+        $rows = $wpdb->get_results( "SELECT last_error_code, COUNT(*) AS total FROM " . self::table_name() . " WHERE status='failed' GROUP BY last_error_code" );
+        $codes = array();
+        foreach ( (array) $rows as $row ) {
+            $code = $row->last_error_code ? sanitize_key( $row->last_error_code ) : 'unknown';
+            $codes[ $code ] = (int) $row->total;
+        }
+        return $codes;
+    }
+
+    /**
+     * Move permanently failed rows back to the queue. A 401 or 422 is
+     * permanent for the payload that produced it, so the row would otherwise
+     * sit as "failed" until retention deletes it even after the owner fixes
+     * the token or the recipient mapping.
+     */
+    public static function retry_failed() {
+        global $wpdb;
+        $now = current_time( 'mysql', true );
+        $changed = $wpdb->query(
+            $wpdb->prepare(
+                "UPDATE " . self::table_name() . " SET status='pending', attempts=0, available_at=%s, last_error_code=NULL, claim_token=NULL, locked_at=NULL, updated_at=%s WHERE status='failed'",
+                $now,
+                $now
+            )
+        );
+        self::schedule( 1 );
+        return (int) $changed;
+    }
 }

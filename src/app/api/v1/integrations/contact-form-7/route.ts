@@ -9,7 +9,10 @@ const payloadSchema = z.object({
   submissionId: z.string().trim().min(1).max(191),
   formId: z.union([z.string(), z.number().int().nonnegative()]).transform(String),
   formTitle: z.string().trim().max(200).optional(),
-  submittedAt: z.string().datetime().optional(),
+  // The plugin sends gmdate('c'), which ends in "+00:00". Zod rejects that
+  // unless offsets are allowed, so every real submission became a permanent
+  // 422 before it reached the queue.
+  submittedAt: z.string().datetime({ offset: true }).optional(),
   site: z.string().url().max(2048),
   recipient: z.string().trim().max(100).optional(),
   message: z.string().trim().min(1).max(4096).optional(),

@@ -122,6 +122,18 @@ Lalu tambahkan di `wp-config.php`:
 define( 'DISABLE_WP_CRON', true );
 ```
 
+### Kalau halaman pengaturan menampilkan "failed"
+
+Baris **Queue** di halaman **Settings → PesanPro CF7** menghitung submission: pending, retrying, failed, dan sent. Sejak plugin versi 1.1.0, alasan kegagalan ditampilkan di bawah hitungan itu, misalnya:
+
+- **401 — token ditolak.** Token salah tipe (misalnya token `WORDPRESS` dipakai untuk Contact Form 7), sudah dicabut, kedaluwarsa, atau tersalin tidak lengkap. Buat token baru tipe **Contact Form 7**, lalu perbarui `PESANPRO_CF7_TOKEN` atau isi ulang kolom **Integration token**.
+- **422 — data ditolak.** Biasanya **Recipient field name** tidak cocok dengan nama field di form, sehingga nomor tujuan kosong. Samakan dengan nama field Contact Form 7 Anda (misalnya `whatsapp`), atau isi **Static recipient**.
+- **403 — paket tidak mencakup integrasi.** Periksa menu **Tagihan**.
+- **404 — base URL salah.** Pastikan **PesanPro base URL** = `https://wagateway.kingofcoding.my.id`.
+- **network_error — server tidak bisa dihubungi.** Biasanya firewall hosting memblokir koneksi keluar.
+
+Setelah penyebabnya diperbaiki, klik **Coba kirim ulang yang gagal**. Submission yang gagal tidak dicoba ulang otomatis — tanpa tombol ini baris tersebut akan tetap berstatus failed sampai masa retensi berakhir.
+
 ### Menghentikan integrasi
 
 Cabut token di menu **Integrasi → Token Integrasi**: cari token di kartu **Daftar token**, lalu klik **Cabut**. Token yang dicabut tampil dengan status **REVOKED** dan langsung tidak bisa dipakai. Atau nonaktifkan plugin. Data plugin tidak dihapus otomatis saat uninstall; tambahkan `define( 'PESANPRO_CF7_REMOVE_DATA', true );` sebelum uninstall kalau ingin menghapus data.

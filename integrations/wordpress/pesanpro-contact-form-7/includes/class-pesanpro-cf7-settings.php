@@ -30,7 +30,39 @@ final class PesanPro_CF7_Settings {
     public static function init() {
         add_action( 'admin_menu', array( __CLASS__, 'admin_menu' ) );
         add_action( 'admin_init', array( __CLASS__, 'register' ) );
+        add_action( 'admin_post_pesanpro_cf7_retry_failed', array( __CLASS__, 'handle_retry_failed' ) );
         add_filter( 'site_status_tests', array( __CLASS__, 'site_health_tests' ) );
+    }
+
+    public static function handle_retry_failed() {
+        if ( ! current_user_can( 'manage_options' ) ) {
+            wp_die( esc_html__( 'You are not allowed to retry PesanPro deliveries.', 'pesanpro-cf7' ) );
+        }
+        check_admin_referer( 'pesanpro_cf7_retry_failed' );
+        $retried = PesanPro_CF7_Queue::retry_failed();
+        wp_safe_redirect( add_query_arg(
+            array( 'page' => 'pesanpro-cf7', 'pesanpro_retried' => $retried ),
+            admin_url( 'options-general.php' )
+        ) );
+        exit;
+    }
+
+    /**
+     * Turn the recorded safe error code into a sentence the store owner can
+     * act on. The queue only stores codes, never response bodies, so this
+     * mapping is the only place the reason becomes readable.
+     */
+    public static function describe_failure_code( $code ) {
+        $map = array(
+            'http_401'              => __( 'token ditolak (401). Token salah tipe, sudah dicabut, kedaluwarsa, atau tersalin tidak lengkap.', 'pesanpro-cf7' ),
+            'http_403'              => __( 'ditolak (403). Paket tidak mencakup integrasi ini atau token tidak punya izin.', 'pesanpro-cf7' ),
+            'http_404'              => __( 'endpoint tidak ditemukan (404). Periksa PesanPro base URL.', 'pesanpro-cf7' ),
+            'http_409'              => __( 'bentrok idempotency (409). Submission yang sama sudah pernah diproses.', 'pesanpro-cf7' ),
+            'http_422'              => __( 'data ditolak (422). Biasanya field penerima kosong, nomor tidak valid, atau template pesan kosong.', 'pesanpro-cf7' ),
+            'network_error'         => __( 'server PesanPro tidak bisa dihubungi dari situs ini.', 'pesanpro-cf7' ),
+            'configuration_missing' => __( 'base URL atau token belum terisi saat pengiriman dijalankan.', 'pesanpro-cf7' ),
+        );
+        return isset( $map[ $code ] ) ? $map[ $code ] : $code;
     }
 
     public static function admin_menu() {
@@ -127,6 +159,22 @@ final class PesanPro_CF7_Settings {
         echo '<div class="wrap"><h1>' . esc_html__( 'PesanPro for Contact Form 7', 'pesanpro-cf7' ) . '</h1>';
         settings_errors();
         echo '<p>' . esc_html( sprintf( __( 'Queue: %1$d pending, %2$d retrying, %3$d failed, %4$d sent.', 'pesanpro-cf7' ), $counts['pending'] ?? 0, $counts['retry'] ?? 0, $counts['failed'] ?? 0, $counts['sent'] ?? 0 ) ) . '</p>';
+        $retried = filter_input( INPUT_GET, 'pesanpro_retried', FILTER_VALIDATE_INT );
+        if ( null !== $retried && false !== $retried ) {
+            echo '<div class="notice notice-success is-dismissible"><p>' . esc_html( sprintf( __( '%d submission dikembalikan ke antrean. WP-Cron akan mengirimnya dalam beberapa menit.', 'pesanpro-cf7' ), absint( $retried ) ) ) . '</p></div>';
+        }
+        $failures = PesanPro_CF7_Queue::failure_codes();
+        if ( $failures ) {
+            echo '<div class="notice notice-error inline"><p><strong>' . esc_html__( 'Alasan pengiriman gagal', 'pesanpro-cf7' ) . '</strong></p><ul style="margin:0 0 8px 1.4em;list-style:disc">';
+            foreach ( $failures as $code => $total ) {
+                echo '<li>' . esc_html( sprintf( '%1$d× %2$s', $total, self::describe_failure_code( $code ) ) ) . '</li>';
+            }
+            echo '</ul><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+            wp_nonce_field( 'pesanpro_cf7_retry_failed' );
+            echo '<input type="hidden" name="action" value="pesanpro_cf7_retry_failed" />';
+            submit_button( __( 'Coba kirim ulang yang gagal', 'pesanpro-cf7' ), 'secondary', 'submit', false );
+            echo '</form><p class="description">' . esc_html__( 'Perbaiki dulu penyebabnya (token atau field penerima), lalu kirim ulang. Baris yang gagal tidak dicoba lagi secara otomatis.', 'pesanpro-cf7' ) . '</p></div>';
+        }
         echo '<form action="options.php" method="post">';
         settings_fields( 'pesanpro_cf7' );
         do_settings_sections( 'pesanpro-cf7' );

@@ -26,6 +26,37 @@ describe("Phase 9.1 form connector API boundaries", () => {
     expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ expectedType: "CONTACT_FORM_7", message: expect.objectContaining({ sourceId: "s-1" }) }));
   });
 
+  it("accepts the exact timestamp shape the WordPress plugin sends", async () => {
+    // gmdate('c') produces "+00:00", not "Z". A strict datetime parse made every
+    // real Contact Form 7 submission fail with 422 while the synthetic test
+    // payload (which omitted submittedAt) passed.
+    const response = await contactForm7(request("/api/v1/integrations/contact-form-7", {
+      submissionId: "s-2",
+      formId: "7",
+      formTitle: "Hubungi Kami",
+      submittedAt: "2026-11-02T02:47:17+00:00",
+      site: "https://wordpress.example/",
+      recipient: "628123456789",
+      fields: { "your-name": "Yusuf" },
+    }));
+    expect(response.status).toBe(202);
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.objectContaining({ metadata: expect.objectContaining({ submittedAt: "2026-11-02T02:47:17+00:00" }) }),
+    }));
+  });
+
+  it("accepts a non-UTC offset from a site-configured timezone", async () => {
+    const response = await contactForm7(request("/api/v1/integrations/contact-form-7", {
+      submissionId: "s-3",
+      formId: "7",
+      submittedAt: "2026-11-02T09:47:17+07:00",
+      site: "https://wordpress.example/",
+      recipient: "628123456789",
+      fields: { "your-name": "Yusuf" },
+    }));
+    expect(response.status).toBe(202);
+  });
+
   it("rejects oversized field collections before queue access", async () => {
     const fields = Object.fromEntries(Array.from({ length: 101 }, (_, index) => [`field-${index}`, "x"]));
     const response = await googleForms(request("/api/v1/integrations/google-forms", { responseId: "r-2", recipient: "628123456789", fields }));

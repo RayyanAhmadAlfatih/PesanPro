@@ -9,7 +9,7 @@ const payloadSchema = z.object({
   responseId: z.string().trim().min(1).max(191),
   formId: z.string().trim().max(191).optional(),
   formTitle: z.string().trim().max(200).optional(),
-  submittedAt: z.string().datetime().optional(),
+  submittedAt: z.string().datetime({ offset: true }).optional(),
   respondentEmail: z.string().trim().email().max(320).optional(),
   recipient: z.string().trim().max(100).optional(),
   message: z.string().trim().min(1).max(4096).optional(),

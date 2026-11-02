@@ -2,7 +2,7 @@
 /**
  * Plugin Name:       PesanPro for Contact Form 7
  * Description:       Queues successful Contact Form 7 submissions for durable WhatsApp delivery through PesanPro.
- * Version:           1.0.0
+ * Version:           1.1.0
  * Requires at least: 6.7
  * Requires Plugins:  contact-form-7
  * Requires PHP:      7.4
@@ -14,7 +14,7 @@
 
 defined( 'ABSPATH' ) || exit;
 
-define( 'PESANPRO_CF7_VERSION', '1.0.0' );
+define( 'PESANPRO_CF7_VERSION', '1.1.0' );
 define( 'PESANPRO_CF7_FILE', __FILE__ );
 define( 'PESANPRO_CF7_DIR', plugin_dir_path( __FILE__ ) );
 
