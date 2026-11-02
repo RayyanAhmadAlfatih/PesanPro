@@ -10,7 +10,15 @@ npm-debug.log*
 
 # Build artifacts
 .next
+.next-*
 out
+
+# Local agent state (per-machine, never part of the image)
+.insta
+.claude
+.codex
+.agents
+.qa-tmp*
 
 # Source control / logs
 *.log
