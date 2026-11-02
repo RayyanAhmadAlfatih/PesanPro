@@ -51,6 +51,10 @@ When enabled, this plugin sends Contact Form 7 field values, form metadata, site
 
 == Changelog ==
 
+= 1.1.1 =
+* The settings screen lists the field names that exist in the selected Contact Form 7 form, so the Recipient field name can be copied instead of guessed.
+* A submission whose recipient field is empty or missing is recorded as a failed row with the reason "recipient_missing" before any network call, instead of returning an unexplained 422 from the server.
+
 = 1.1.0 =
 * Settings screen now explains why deliveries failed (HTTP 401/403/404/409/422, network, missing configuration) instead of only counting them.
 * Added a "Coba kirim ulang yang gagal" action that returns permanently failed submissions to the queue after the owner fixes the token or recipient mapping.

@@ -61,6 +61,32 @@ final class PesanPro_CF7_Queue {
         return true;
     }
 
+    /**
+     * Record a submission that cannot be sent because it is missing the one
+     * value the gateway needs: a phone number. Inserting it straight into
+     * "failed" keeps it visible on the settings screen instead of letting it
+     * bounce off the gateway as an unexplained 422.
+     */
+    public static function enqueue_rejected( array $payload, $code ) {
+        global $wpdb;
+        $submission_key = hash( 'sha256', (string) $payload['submissionId'] );
+        $now = current_time( 'mysql', true );
+        $inserted = $wpdb->query(
+            $wpdb->prepare(
+                'INSERT IGNORE INTO ' . self::table_name() . ' (submission_key,payload,status,attempts,available_at,last_error_code,created_at,updated_at) VALUES (%s,%s,%s,%d,%s,%s,%s,%s)',
+                $submission_key,
+                wp_json_encode( $payload ),
+                'failed',
+                1,
+                $now,
+                sanitize_key( $code ),
+                $now,
+                $now
+            )
+        );
+        return false !== $inserted;
+    }
+
     public static function schedule( $delay_seconds ) {
         if ( ! wp_next_scheduled( self::CRON_HOOK ) ) {
             wp_schedule_single_event( time() + max( 1, absint( $delay_seconds ) ), self::CRON_HOOK );
@@ -205,6 +231,44 @@ final class PesanPro_CF7_Queue {
             $counts[ sanitize_key( $row->status ) ] = (int) $row->total;
         }
         return $counts;
+    }
+
+    /**
+     * Field names seen in submissions rejected for a missing recipient. The
+     * settings screen lists them so the owner can copy the real name instead
+     * of guessing.
+     */
+    public static function rejected_field_names() {
+        global $wpdb;
+        $rows = $wpdb->get_col( "SELECT payload FROM " . self::table_name() . " WHERE status='failed' AND last_error_code IN ('recipient_missing','http_422') ORDER BY updated_at DESC LIMIT 20" );
+        $names = array();
+        foreach ( (array) $rows as $payload ) {
+            $decoded = json_decode( (string) $payload, true );
+            if ( ! is_array( $decoded ) || ! isset( $decoded['fields'] ) || ! is_array( $decoded['fields'] ) ) continue;
+            foreach ( array_keys( $decoded['fields'] ) as $name ) {
+                $name = sanitize_key( $name );
+                if ( '' !== $name ) $names[ $name ] = true;
+            }
+        }
+        return array_keys( $names );
+    }
+
+    /**
+     * Field names on the configured Contact Form 7 form. The gateway only
+     * needs a number, but guessing which text field holds it is where
+     * submissions die, so the settings screen names the real fields.
+     */
+    public static function form_field_names() {
+        if ( ! class_exists( 'WPCF7_ContactForm' ) ) return array();
+        $form_id = absint( PesanPro_CF7_Settings::get()['form_id'] );
+        $contact_form = $form_id ? WPCF7_ContactForm::get_instance( $form_id ) : WPCF7_ContactForm::get_current();
+        if ( ! $contact_form ) return array();
+        $names = array();
+        foreach ( (array) $contact_form->scan_form_tags() as $tag ) {
+            if ( empty( $tag->name ) ) continue;
+            $names[ sanitize_key( $tag->name ) ] = true;
+        }
+        return array_keys( $names );
     }
 
     /**

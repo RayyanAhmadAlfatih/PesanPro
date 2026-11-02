@@ -26,6 +26,13 @@ perangkat WhatsApp terhubung.
   mencocokkan folder bernama `.next-stale-*`, sehingga 27 ribu berkas hasil build
   ikut diperiksa dan proses kehabisan memori. Ditambahkan pola `.next-*/**`.
 
+### Plugin WordPress 1.1.1
+
+- Kolom **Recipient field name** menampilkan nama field yang benar-benar ada di
+  formulir Contact Form 7, jadi bisa disalin alih-alih dikira-kira.
+- Kiriman tanpa nomor tujuan dicatat sebagai gagal dengan alasan
+  `recipient_missing` di WordPress, tanpa mengirim permintaan 422 ke server.
+
 ### Plugin WordPress 1.1.0
 
 - Halaman pengaturan menampilkan alasan kegagalan (401/403/404/409/422, gangguan

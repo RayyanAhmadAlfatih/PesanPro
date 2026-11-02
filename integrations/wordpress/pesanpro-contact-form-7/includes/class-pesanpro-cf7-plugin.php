@@ -47,6 +47,14 @@ final class PesanPro_CF7_Plugin {
             'recipient'    => preg_replace( '/[^0-9+]/', '', (string) $recipient ),
             'fields'       => $fields,
         );
+        // A wrong Recipient field name used to reach the gateway and come back
+        // as a bare 422, which told the owner nothing. Catch it here, record
+        // why, and let the settings screen show the real field names.
+        $normalized_recipient = preg_replace( '/[^0-9+]/', '', (string) $recipient );
+        if ( '' === $normalized_recipient ) {
+            PesanPro_CF7_Queue::enqueue_rejected( $payload, 'recipient_missing' );
+            return;
+        }
         PesanPro_CF7_Queue::enqueue( $payload );
     }
 

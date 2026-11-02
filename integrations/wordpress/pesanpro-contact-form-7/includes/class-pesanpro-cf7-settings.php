@@ -59,6 +59,7 @@ final class PesanPro_CF7_Settings {
             'http_404'              => __( 'endpoint tidak ditemukan (404). Periksa PesanPro base URL.', 'pesanpro-cf7' ),
             'http_409'              => __( 'bentrok idempotency (409). Submission yang sama sudah pernah diproses.', 'pesanpro-cf7' ),
             'http_422'              => __( 'data ditolak (422). Biasanya field penerima kosong, nomor tidak valid, atau template pesan kosong.', 'pesanpro-cf7' ),
+            'recipient_missing'     => __( 'nomor tujuan kosong. Nama field penerima tidak ada di formulir, atau isinya bukan nomor.', 'pesanpro-cf7' ),
             'network_error'         => __( 'server PesanPro tidak bisa dihubungi dari situs ini.', 'pesanpro-cf7' ),
             'configuration_missing' => __( 'base URL atau token belum terisi saat pengiriman dijalankan.', 'pesanpro-cf7' ),
         );
@@ -151,10 +152,23 @@ final class PesanPro_CF7_Settings {
                 return;
         }
         printf( '<input class="regular-text" type="text" name="%1$s" value="%2$s" />', esc_attr( $name ), esc_attr( $settings[ $field ] ) );
+        if ( 'recipient_field' === $field ) {
+            $field_names = PesanPro_CF7_Queue::form_field_names();
+            if ( $field_names ) {
+                echo '<p class="description">' . esc_html__( 'Nama field di formulir:', 'pesanpro-cf7' );
+                foreach ( $field_names as $field_name ) {
+                    echo ' <code>' . esc_html( $field_name ) . '</code>';
+                }
+                echo '</p>';
+            } else {
+                echo '<p class="description">' . esc_html__( 'Isi dengan nama field nomor WhatsApp di formulir Contact Form 7, tanpa tanda kurung siku.', 'pesanpro-cf7' ) . '</p>';
+            }
+        }
     }
 
     public static function render_page() {
         if ( ! current_user_can( 'manage_options' ) ) return;
+        $settings = self::get();
         $counts = PesanPro_CF7_Queue::counts();
         echo '<div class="wrap"><h1>' . esc_html__( 'PesanPro for Contact Form 7', 'pesanpro-cf7' ) . '</h1>';
         settings_errors();
@@ -169,7 +183,19 @@ final class PesanPro_CF7_Settings {
             foreach ( $failures as $code => $total ) {
                 echo '<li>' . esc_html( sprintf( '%1$d× %2$s', $total, self::describe_failure_code( $code ) ) ) . '</li>';
             }
-            echo '</ul><form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
+            echo '</ul>';
+            echo '<p class="description">' . esc_html__( 'Recipient field name saat ini:', 'pesanpro-cf7' ) . ' <code>' . esc_html( $settings['recipient_field'] ) . '</code></p>';
+            $field_names = PesanPro_CF7_Queue::form_field_names();
+            if ( ! $field_names ) $field_names = PesanPro_CF7_Queue::rejected_field_names();
+            if ( $field_names ) {
+                echo '<p class="description">' . esc_html__( 'Nama field yang tersedia di formulir:', 'pesanpro-cf7' );
+                foreach ( $field_names as $field_name ) {
+                    echo ' <code>' . esc_html( $field_name ) . '</code>';
+                }
+                echo '</p>';
+                echo '<p class="description">' . esc_html__( 'Salin satu nama di atas ke kolom Recipient field name, atau isi Static recipient dengan nomor tujuan yang tetap.', 'pesanpro-cf7' ) . '</p>';
+            }
+            echo '<form method="post" action="' . esc_url( admin_url( 'admin-post.php' ) ) . '">';
             wp_nonce_field( 'pesanpro_cf7_retry_failed' );
             echo '<input type="hidden" name="action" value="pesanpro_cf7_retry_failed" />';
             submit_button( __( 'Coba kirim ulang yang gagal', 'pesanpro-cf7' ), 'secondary', 'submit', false );

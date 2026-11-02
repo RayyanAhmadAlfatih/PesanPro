@@ -79,8 +79,8 @@ https://wagateway.kingofcoding.my.id/api/public/plugin/wordpress
 6. Isi:
    - **PesanPro base URL** — `https://wagateway.kingofcoding.my.id` (tanpa slash di akhir).
    - **Form ID** — opsional; kosongkan untuk semua form.
-   - **Recipient field** — nama field Contact Form 7 yang berisi nomor WhatsApp, misalnya `whatsapp`.
-   - **Static recipient** — isi kalau semua notifikasi dikirim ke nomor admin.
+   - **Recipient field** — nama field Contact Form 7 yang berisi nomor WhatsApp, misalnya `whatsapp`. Nama field yang tersedia di formulir ditampilkan tepat di bawah kolom ini; salin dari situ, jangan dikira-kira. Kalau namanya tidak cocok, nomor tujuan kosong dan kiriman gagal.
+   - **Static recipient** — isi kalau semua notifikasi dikirim ke nomor admin. Kalau kolom ini terisi, nama field penerima diabaikan.
 6. Simpan token dengan salah satu cara:
    - **Disarankan:** tambahkan di `wp-config.php`:
      ```php
@@ -128,6 +128,7 @@ Baris **Queue** di halaman **Settings → PesanPro CF7** menghitung submission: 
 
 - **401 — token ditolak.** Token salah tipe (misalnya token `WORDPRESS` dipakai untuk Contact Form 7), sudah dicabut, kedaluwarsa, atau tersalin tidak lengkap. Buat token baru tipe **Contact Form 7**, lalu perbarui `PESANPRO_CF7_TOKEN` atau isi ulang kolom **Integration token**.
 - **422 — data ditolak.** Biasanya **Recipient field name** tidak cocok dengan nama field di form, sehingga nomor tujuan kosong. Samakan dengan nama field Contact Form 7 Anda (misalnya `whatsapp`), atau isi **Static recipient**.
+- **recipient_missing — nomor tujuan kosong.** Sama penyebabnya dengan 422, tetapi plugin kini menangkapnya di WordPress dan tidak mengirim sama sekali. Sejak versi 1.1.1, nama field yang benar-benar ada di formulir ditampilkan di bawah pesan; salin satu ke **Recipient field name**.
 - **403 — paket tidak mencakup integrasi.** Periksa menu **Tagihan**.
 - **404 — base URL salah.** Pastikan **PesanPro base URL** = `https://wagateway.kingofcoding.my.id`.
 - **network_error — server tidak bisa dihubungi.** Biasanya firewall hosting memblokir koneksi keluar.
