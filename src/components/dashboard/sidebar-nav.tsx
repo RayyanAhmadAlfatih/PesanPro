@@ -111,6 +111,8 @@ export function SidebarNav() {
         return pathname.startsWith(href);
     };
 
+    const groupSlug = (label: string) => label.toLowerCase().replace(/[^a-z0-9]+/g, "-");
+
     return (
         <TooltipProvider delayDuration={0}>
             <nav className="styled-scrollbar flex-1 space-y-1 overflow-y-auto overflow-x-hidden px-3 py-4">
@@ -119,6 +121,11 @@ export function SidebarNav() {
                     if (visibleItems.length === 0) return null;
 
                     const isGroupCollapsed = collapsedGroups[group.label] ?? false;
+                    const groupId = `nav-group-${groupSlug(group.label)}`;
+                    // A group holding the current page stays visually marked
+                    // even while collapsed, so the sidebar always answers
+                    // "where am I?".
+                    const groupHasActiveItem = visibleItems.some((item) => isActive(item.href));
 
                     if (group.label === "Main") {
                         return (
@@ -139,12 +146,21 @@ export function SidebarNav() {
                         <div key={group.label} className="mb-1">
                             {!isCollapsed && (
                                 <button
+                                    type="button"
                                     onClick={() => toggleGroup(group.label)}
-                                    className="group flex w-full items-center justify-between px-2 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] text-muted-foreground hover:text-foreground"
+                                    aria-expanded={!isGroupCollapsed}
+                                    aria-controls={groupId}
+                                    title={`${isGroupCollapsed ? "Buka" : "Tutup"} menu ${group.label}`}
+                                    className={`group flex w-full items-center justify-between rounded-md px-2 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${groupHasActiveItem ? "text-[var(--pp-ink)]" : "text-muted-foreground hover:text-foreground"}`}
                                 >
-                                    {group.label}
+                                    <span className="flex items-center gap-1.5">
+                                        {group.label}
+                                        {groupHasActiveItem && <span aria-hidden="true" className="size-1.5 rounded-full bg-[var(--pp-ink)]" />}
+                                        <span className="sr-only">{groupHasActiveItem ? "(berisi halaman aktif)" : ""}</span>
+                                    </span>
                                     <ChevronDown
                                         size={12}
+                                        aria-hidden="true"
                                         className={`transition-transform duration-200 ${isGroupCollapsed ? "-rotate-90" : ""}`}
                                     />
                                 </button>
@@ -155,7 +171,7 @@ export function SidebarNav() {
                             )}
 
                             {(!isGroupCollapsed || isCollapsed) && (
-                                <div className="space-y-0.5">
+                                <div id={groupId} className="space-y-0.5">
                                     {visibleItems.map((item) => (
                                         <NavLink
                                             key={item.href}

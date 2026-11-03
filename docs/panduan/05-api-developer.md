@@ -1,5 +1,7 @@
 # 05 — API untuk developer
 
+> **⚙️ Halaman ini khusus developer.** Kalau Anda memakai dashboard tanpa ngoding, tidak perlu membaca halaman ini — semua fitur kirim pesan, broadcast, jadwal, dan auto-reply bisa dioperasikan dari menu dashboard (mulai dari [01 — Memulai untuk UMKM](01-memulai-umkm.md)). Halaman ini hanya untuk yang ingin menghubungkan aplikasi/sistem lain ke PesanPro lewat REST API.
+
 PesanPro menyediakan REST API untuk mengirim pesan, mengelola media, menjadwalkan pesan, menjalankan broadcast, mengatur auto-reply, dan mengelola suppression.
 
 Semua contoh di sini memakai domain gateway:
@@ -144,8 +146,14 @@ Kalau terlampaui, API mengembalikan `429` dengan `code: "QUOTA_EXCEEDED"` atau `
 | `POST` | `/api/v1/messages/media` | `message:send` | Kirim media |
 | `GET` | `/api/v1/messages` | `message:read` | Daftar pesan |
 | `GET` | `/api/v1/messages/{id}` | `message:read` | Detail pesan |
-| `DELETE` | `/api/v1/messages/{id}` | `message:send` | Batalkan pesan yang belum terkirim |
-| `POST` | `/api/v1/messages/{id}/retry` | `message:send` | Kirim ulang |
+| `DELETE` | `/api/v1/messages/{id}` | `message:send` | Batalkan pesan `QUEUED` (bawaan) |
+| `DELETE` | `/api/v1/messages/{id}?mode=delete` | `message:send` | Hapus permanen riwayat pesan yang sudah selesai (`SENT`/`DELIVERED`/`READ`/`FAILED`/`CANCELLED`) |
+| `POST` | `/api/v1/messages/{id}/retry` | `message:send` | Kirim ulang pesan `FAILED` |
+
+Aturan DELETE pesan:
+
+- Tanpa `mode=delete`: hanya pesan berstatus `QUEUED` yang bisa dibatalkan. Pesan lain ditolak `409 INVALID_JOB_STATE`.
+- Dengan `mode=delete`: menghapus permanen baris riwayat pesan yang sudah selesai. Pesan `QUEUED`/`PROCESSING` **tidak bisa** dihapus — batalkan atau tunggu saja. Setelah dihapus, `Idempotency-Key` yang sama bisa dipakai lagi dan akan membuat pengiriman baru.
 
 ### Media
 
@@ -163,8 +171,11 @@ Kalau terlampaui, API mengembalikan `429` dengan `code: "QUOTA_EXCEEDED"` atau `
 | --- | --- | --- | --- |
 | `POST` | `/api/v1/schedules` | `schedule:write` | Buat jadwal |
 | `GET` | `/api/v1/schedules?sessionId=...` | `schedule:read` | Daftar jadwal |
-| `PUT` | `/api/v1/schedules/{id}` | `schedule:write` | Ubah jadwal |
-| `DELETE` | `/api/v1/schedules/{id}` | `schedule:write` | Hapus jadwal |
+| `GET` | `/api/v1/schedules/{id}?sessionId=...` | `schedule:read` | Detail jadwal |
+| `PUT` | `/api/v1/schedules/{id}` | `schedule:write` | Ubah jadwal (`sessionId` ada di body) |
+| `DELETE` | `/api/v1/schedules/{id}?sessionId=...` | `schedule:write` | Hapus jadwal |
+
+> **Wajib:** `GET` dan `DELETE` pada `/api/v1/schedules/{id}` menuntut query parameter `sessionId`. Tanpa itu API menolak `422 VALIDATION_ERROR` ("sessionId query parameter is required").
 
 ### Broadcast
 
@@ -175,8 +186,12 @@ Kalau terlampaui, API mengembalikan `429` dengan `code: "QUOTA_EXCEEDED"` atau `
 | `GET` | `/api/v1/broadcasts/{id}` | `broadcast:read` | Detail |
 | `POST` | `/api/v1/broadcasts/{id}/pause` | `broadcast:write` | Jeda |
 | `POST` | `/api/v1/broadcasts/{id}/resume` | `broadcast:write` | Lanjutkan |
+| `DELETE` | `/api/v1/broadcasts/{id}` | `broadcast:write` | Batalkan broadcast aktif (`QUEUED`/`RUNNING`/`PAUSED`/`FAILED`) |
+| `DELETE` | `/api/v1/broadcasts/{id}?mode=delete` | `broadcast:write` | Hapus permanen broadcast `COMPLETED`/`CANCELLED` beserta daftar penerimanya |
 | `POST` | `/api/v1/broadcasts/recipients/import` | `broadcast:write` | Import CSV |
 | `POST` | `/api/v1/broadcasts/spintax/preview` | `broadcast:write` | Pratinjau spintax |
+
+> **Wajib:** `GET` daftar broadcast menuntut query `sessionId`. `DELETE` tanpa `mode=delete` membatalkan broadcast yang masih berjalan; `DELETE?mode=delete` menghapus riwayat yang sudah selesai. Broadcast `QUEUED`/`RUNNING`/`PAUSED`/`FAILED` tidak bisa dihapus — batalkan atau lanjutkan dulu.
 
 ### Auto-reply
 
@@ -184,11 +199,13 @@ Kalau terlampaui, API mengembalikan `429` dengan `code: "QUOTA_EXCEEDED"` atau `
 | --- | --- | --- | --- |
 | `POST` | `/api/v1/autoreplies` | `autoreply:write` | Buat aturan |
 | `GET` | `/api/v1/autoreplies?sessionId=...` | `autoreply:read` | Daftar aturan |
-| `PUT` | `/api/v1/autoreplies/{id}` | `autoreply:write` | Ubah aturan |
-| `DELETE` | `/api/v1/autoreplies/{id}` | `autoreply:write` | Hapus aturan |
+| `PUT` | `/api/v1/autoreplies/{id}` | `autoreply:write` | Ubah aturan (`sessionId` ada di body) |
+| `DELETE` | `/api/v1/autoreplies/{id}?sessionId=...` | `autoreply:write` | Hapus aturan |
 | `POST` | `/api/v1/autoreplies/{id}/toggle` | `autoreply:write` | Aktif/nonaktif |
 | `POST` | `/api/v1/autoreplies/preview` | `autoreply:read` | Uji tanpa kirim |
 | `GET` | `/api/v1/autoreplies/logs?sessionId=...` | `autoreply:read` | Log pemicu |
+
+> **Wajib:** `DELETE /api/v1/autoreplies/{id}` menuntut query parameter `sessionId`. Tanpa itu API menolak `422` ("sessionId is required").
 
 ### Suppression
 
@@ -197,6 +214,23 @@ Kalau terlampaui, API mengembalikan `429` dengan `code: "QUOTA_EXCEEDED"` atau `
 | `GET` | `/api/v1/suppressions` | `broadcast:read` | Daftar nomor |
 | `POST` | `/api/v1/suppressions` | `broadcast:write` | Tambah nomor |
 | `DELETE` | `/api/v1/suppressions/{recipient}` | `broadcast:write` | Hapus nomor |
+
+### Webhook (penerima event)
+
+Endpoint webhook **bukan** di bawah `/api/v1/webhooks` — path itu tidak ada. Endpoint yang benar:
+
+| Method | Path | Fungsi |
+| --- | --- | --- |
+| `GET` | `/api/webhooks/{sessionId}` | Daftar webhook perangkat |
+| `POST` | `/api/webhooks/{sessionId}` | Buat webhook |
+| `PUT` | `/api/webhooks/{sessionId}/{id}` | Ubah webhook |
+| `DELETE` | `/api/webhooks/{sessionId}/{id}` | Hapus webhook |
+| `POST` | `/api/webhooks/{sessionId}/{id}/test` | Kirim event uji |
+| `GET` | `/api/webhooks/{sessionId}/{id}/logs` | Log pengiriman |
+| `POST` | `/api/webhooks/{sessionId}/{id}/rotate-secret` | Rotasi signing secret |
+| `POST` | `/api/webhooks/{sessionId}/{id}/deliveries/{deliveryId}/replay` | Kirim ulang delivery yang gagal |
+
+Autentikasi: cookie sesi dashboard (halaman Webhook), atau API key dengan scope `webhook:read`/`webhook:write`. Isi payload event, verifikasi signature, retry, dan replay dijelaskan di [06 — Webhook](06-webhook.md).
 
 ### Integration token
 

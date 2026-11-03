@@ -2,13 +2,19 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Plus, Wifi, WifiOff, QrCode, ArrowRight } from "lucide-react";
+import { Plus, Wifi, WifiOff, QrCode, ArrowRight, CreditCard } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getAccessibleSessions } from "@/lib/api-auth";
+import { getBillingSnapshot } from "@/lib/billing";
+import { subscriptionStatusView } from "@/lib/billing-status";
 import { redirect } from "next/navigation";
 import { canAccessDashboardPath } from "@/lib/access-policy";
 
 export const dynamic = "force-dynamic";
+
+function formatDateId(value: Date) {
+  return new Intl.DateTimeFormat("id-ID", { day: "numeric", month: "long", year: "numeric" }).format(value);
+}
 
 export default async function DashboardPage() {
   const session = await auth();
@@ -18,6 +24,19 @@ export default async function DashboardPage() {
   const totalSessions = sessions.length;
   const connectedSessions = sessions.filter((item) => item.status === "CONNECTED").length;
   const disconnectedSessions = totalSessions - connectedSessions;
+
+  // Same billing source the Tagihan page reads — no hardcoded plan values.
+  const billing = await getBillingSnapshot(session.user.id!).catch(() => null);
+  const planView = subscriptionStatusView(billing ? { status: billing.status, plan: billing.plan } : null);
+  const planName = billing?.plan.name ?? null;
+  const planEndsAt = billing && "endsAt" in billing && billing.endsAt ? new Date(billing.endsAt) : null;
+  const planTone = billing
+    ? billing.status === "ACTIVE" && billing.plan.code !== "PENDING"
+      ? "bg-[var(--pp-mint)]"
+      : billing.status === "GRACE_PERIOD" || billing.status === "EXPIRED"
+        ? "bg-[var(--pp-terracotta)] text-white"
+        : "bg-[var(--pp-highlight)]"
+    : "bg-[var(--pp-highlight)]";
 
   let autoReplyCount = 0;
   try {
@@ -51,6 +70,26 @@ export default async function DashboardPage() {
         </div>
         <Button asChild><Link href="/dashboard/sessions"><Plus /> Tambah session</Link></Button>
       </header>
+
+      <section aria-label="Status paket">
+        <Card className={planView.surface}>
+          <CardContent className="flex flex-col gap-4 p-5 sm:flex-row sm:items-center sm:justify-between">
+            <div className="flex flex-wrap items-center gap-3">
+              <CreditCard className="size-5 text-[var(--pp-ink)]" aria-hidden="true" />
+              <div>
+                <p className="font-bold">{planName ? `Paket ${planName}` : "Belum ada paket"}</p>
+                <p className="mt-0.5 text-sm text-muted-foreground">
+                  {planEndsAt ? `Berlaku sampai ${formatDateId(planEndsAt)}` : planView.note}
+                </p>
+              </div>
+              <span className={`inline-flex rounded-full border border-[var(--pp-ink)] px-2.5 py-1 text-xs font-bold ${planTone}`}>{planView.label}</span>
+            </div>
+            <Button asChild variant="outline">
+              <Link href="/dashboard/billing">Buka Tagihan <ArrowRight size={16} /></Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </section>
 
       <section aria-labelledby="quick-title">
         <div className="mb-3 flex items-end justify-between gap-4"><div><h2 id="quick-title" className="pp-section-title">Akses cepat</h2><p className="mt-1 text-sm text-muted-foreground">Mulai pekerjaan utama tanpa mencari menu.</p></div></div>

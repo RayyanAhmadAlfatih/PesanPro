@@ -3,16 +3,16 @@ import { ArrowLeft, ShieldCheck, Scale } from "lucide-react";
 
 export const metadata = {
     title: "Terms of Service | PesanPro",
-    description: "Terms of Service for PesanPro self-hosted WhatsApp Gateway. Usage guidelines, security requirements, and acceptable use policy.",
+    description: "Terms of Service for the PesanPro WhatsApp Gateway service: usage guidelines, security requirements, and acceptable use policy.",
     openGraph: {
         title: "Terms of Service | PesanPro",
-        description: "Terms of Service for PesanPro self-hosted WhatsApp Gateway.",
+        description: "Terms of Service for the PesanPro WhatsApp Gateway service.",
         type: "website",
     },
     twitter: {
         card: "summary_large_image",
         title: "Terms of Service | PesanPro",
-        description: "Terms of Service for PesanPro self-hosted WhatsApp Gateway.",
+        description: "Terms of Service for the PesanPro WhatsApp Gateway service.",
     },
 };
 
@@ -49,15 +49,15 @@ export default function TermsPage() {
 
                         <h2 className="flex items-center gap-2 mt-8 text-2xl border-b pb-2">
                             <ShieldCheck className="h-6 w-6 text-emerald-500" />
-                            1. Data Security & Responsibility
+                            1. The Service
                         </h2>
                         <p>
-                            Security forms the core of our service. As a self-hosted platform, PesanPro ensures that your data remains strictly within your own infrastructure.
+                            PesanPro is a <strong>hosted WhatsApp Gateway service</strong>. The application runs on infrastructure operated by the service provider, and you access it through the website and dashboard. Your account, plan, and usage records are stored on that infrastructure so the service can operate. Message content exchanged through the gateway is not stored by PesanPro — only delivery records such as status and timestamps.
                         </p>
                         <ul>
-                            <li><strong>Your Data is Yours:</strong> We do not track, intercept, or sell your WhatsApp messages, contact lists, or session data. Your information is secure and not misused.</li>
-                            <li><strong>Safe Usage:</strong> You are responsible for ensuring your hardware and server environments are properly secured.</li>
-                            <li><strong>Authentication:</strong> You must safeguard your account credentials. Do not share your login details with unauthorized personnel.</li>
+                            <li><strong>Your responsibility:</strong> keep your account credentials private, use strong passwords, and revoke API keys or integration tokens you no longer use.</li>
+                            <li><strong>Account integrity:</strong> monitor the devices connected to your account. If you suspect unauthorized access, change your password immediately and unlink the device from your WhatsApp app.</li>
+                            <li><strong>Service availability:</strong> the service depends on hosting infrastructure and on WhatsApp&apos;s systems; planned maintenance and outages may occur.</li>
                         </ul>
 
                         <h2 className="mt-8 text-2xl border-b pb-2">2. Acceptable Use Policy</h2>
@@ -68,12 +68,15 @@ export default function TermsPage() {
                             <li>Send unsolicited &quot;spam&quot; messages or bulk promotional campaigns to users who have not explicitly opted-in.</li>
                             <li>Use the platform to distribute malicious software, phishing links, or illegal content.</li>
                             <li>Attempt to reverse-engineer the core API or overload the service with excessive requests.</li>
+                            <li>Use the service in ways that violate applicable law, including rules on electronic messages and personal data.</li>
                         </ul>
 
-                        <h2 className="mt-8 text-2xl border-b pb-2">3. Account Integrity</h2>
-                        <p>
-                            PesanPro provides tools to manage multiple WhatsApp sessions. It is crucial to monitor your active devices. If you suspect unauthorized access to your gateway dashboard, immediately change your password and revoke any connected WhatsApp sessions from your physical device.
-                        </p>
+                        <h2 className="mt-8 text-2xl border-b pb-2">3. Plans, Payment, and Fair Use</h2>
+                        <ul>
+                            <li>The service is offered through paid plans with defined limits (devices, messages, broadcast volume, storage). Your current plan and its limits are always visible in the dashboard.</li>
+                            <li>Payments are made by manual bank transfer followed by administrator verification; a plan becomes active after the payment is approved.</li>
+                            <li>Usage that exceeds a plan&apos;s limits is rejected cleanly — for example, uploads are blocked while storage is over quota — without deleting your existing data.</li>
+                        </ul>
 
                         <h2 className="mt-8 text-2xl border-b pb-2">4. Disclaimers and Limitations</h2>
                         <p>

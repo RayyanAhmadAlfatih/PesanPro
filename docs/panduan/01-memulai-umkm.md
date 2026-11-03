@@ -41,7 +41,7 @@ Admin memeriksa bukti transfer. Setelah disetujui:
 
 Kalau akun sudah terlanjur dibuat tetapi pembayaran belum dikirim, buka menu **Tagihan** dan kirim bukti dari sana.
 
-> **Belum tahu paket mana?** Mulai dari Starter kalau hanya satu nomor dan volume pesan di bawah 3.000/bulan. Naik ke Bisnis kalau butuh 2–3 nomor atau broadcast lebih sering. Lihat perbandingan lengkap di [09 — Paket, harga, dan margin](09-paket-dan-margin.md).
+> **Belum tahu paket mana?** Mulai dari Starter kalau hanya satu nomor dan volume pesan di bawah 3.000/bulan. Naik ke Bisnis kalau butuh 2–3 nomor atau broadcast lebih sering. Batas tiap paket (nomor, pesan, ukuran file, penyimpanan) tampil di halaman pendaftaran dan halaman Tagihan di dashboard.
 
 ## Langkah 3 — Hubungkan WhatsApp
 

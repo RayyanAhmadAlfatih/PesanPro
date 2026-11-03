@@ -77,6 +77,67 @@ export function canUseApiScope(
     return user.authMethod !== "apiKey" || (user.apiKeyScopes?.includes(scope) ?? false);
 }
 
+const SAFE_HTTP_METHODS = new Set(["GET", "HEAD", "OPTIONS"]);
+
+function hostFromUrl(value: string): string | null {
+    try {
+        return new URL(value).host.toLowerCase() || null;
+    } catch {
+        return null;
+    }
+}
+
+/**
+ * Cookie-authenticated (dashboard) state-changing requests must originate from
+ * the app itself. A browser attaches the session cookie to every request to
+ * this site — including cross-site requests crafted by another website — so
+ * without an origin check any third-party page could drive messaging APIs on
+ * behalf of a logged-in tenant (classic CSRF). Browsers send `Origin` on
+ * state-changing fetches and `Sec-Fetch-Site` on all navigations/fetches, so a
+ * legitimate same-origin dashboard request always passes; API-key requests
+ * never reach this check and external integrations keep working from any
+ * origin.
+ */
+export function isSameOriginRequest(request: NextRequest): boolean {
+    if (SAFE_HTTP_METHODS.has(request.method)) return true;
+
+    // Modern browsers declare the request context. A browser-labelled
+    // cross-site request is rejected even if an Origin header was stripped.
+    const fetchSite = request.headers.get("sec-fetch-site")?.trim().toLowerCase();
+    if (fetchSite === "cross-site" || fetchSite === "null") return false;
+
+    const allowedHosts = new Set<string>();
+    const host = request.headers.get("host")?.trim().toLowerCase();
+    if (host) allowedHosts.add(host);
+    const forwardedHost = request.headers.get("x-forwarded-host")?.split(",")[0]?.trim().toLowerCase();
+    if (forwardedHost) allowedHosts.add(forwardedHost);
+    // The URL host is the app's own host by definition; include it so the
+    // check also works where the Host header is not populated explicitly.
+    const urlHost = request.nextUrl.host?.toLowerCase();
+    if (urlHost) allowedHosts.add(urlHost);
+
+    const origin = request.headers.get("origin")?.trim();
+    if (origin) {
+        // Sandboxed iframes send the literal string "null" — never same-origin.
+        if (origin === "null") return false;
+        const originHost = hostFromUrl(origin);
+        if (!originHost || allowedHosts.size === 0 || !allowedHosts.has(originHost)) return false;
+        return true;
+    }
+
+    const referer = request.headers.get("referer")?.trim();
+    if (referer) {
+        const refererHost = hostFromUrl(referer);
+        if (!refererHost || allowedHosts.size === 0 || !allowedHosts.has(refererHost)) return false;
+    }
+
+    // No Origin/Referer at all: browsers attach at least one of them to
+    // state-changing requests, so an absent pair means a non-browser client
+    // (server-to-server, curl) that explicitly presents the cookie. That is
+    // not a CSRF vector — CSRF requires a browser to attach cookies silently.
+    return true;
+}
+
 /**
  * Validate API key from request header
  */
@@ -102,25 +163,35 @@ export async function validateApiKey(request: NextRequest) {
  * Get authenticated user from either session or API key
  */
 export async function getAuthenticatedUser(request?: NextRequest) {
-    // First try API key if request is provided
-    if (request) {
+    // A request that presents an API key declares itself an API request. When
+    // the key is invalid, expired, IP-blocked, or lacks the required scope it
+    // must fail closed: falling through to session auth would silently discard
+    // the key's restrictions (scope, IP allowlist, revocation) whenever the
+    // caller also holds a dashboard cookie.
+    if (request && request.headers.get("x-api-key")) {
         const apiKeyUser = await validateApiKey(request);
-        if (apiKeyUser) {
-            const requiredScope = getRequiredApiScope(request.method, request.nextUrl.pathname);
-            // A valid API key that lacks the required scope must fail closed.
-            // Falling through to session auth here would let the key's scope
-            // restriction be silently discarded whenever a session cookie is
-            // also present; the edge normally blocks this first, but the route
-            // layer must not depend on that.
-            if (!requiredScope) return null;
-            if (!apiKeyUser.apiKeyScopes?.includes(requiredScope)) return null;
-            return { ...apiKeyUser, authMethod: "apiKey" as const };
-        }
+        if (!apiKeyUser) return null;
+        const requiredScope = getRequiredApiScope(request.method, request.nextUrl.pathname);
+        // A valid API key that lacks the required scope must fail closed.
+        if (!requiredScope) return null;
+        if (!apiKeyUser.apiKeyScopes?.includes(requiredScope)) return null;
+        return { ...apiKeyUser, authMethod: "apiKey" as const };
     }
 
     // Fall back to session auth
     const session = await auth();
     if (session?.user?.id) {
+        // CSRF defence: a browser sends the session cookie on cross-site
+        // requests too, so cookie-authenticated state-changing requests must
+        // originate from this app. API-key requests never reach this branch.
+        if (request && !isSameOriginRequest(request)) {
+            logger.warn("Auth", "Rejected cookie-authenticated request with foreign origin", {
+                path: request.nextUrl.pathname,
+                origin: request.headers.get("origin"),
+                fetchSite: request.headers.get("sec-fetch-site"),
+            });
+            return null;
+        }
         // Fetch full user data including role
         const user = await prisma.user.findUnique({
             where: { id: session.user.id },
