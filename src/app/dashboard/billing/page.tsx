@@ -462,18 +462,21 @@ export default function BillingPage() {
               </div>
             ) : (
               <div className="space-y-4">
-                {usageRows.some((row) => row.limit !== null && row.used > row.limit) && (
-                  <div role="alert" className="rounded-lg border border-[var(--pp-danger)] bg-[var(--pp-blush)] p-4">
-                    <p className="font-semibold">Pemakaian sudah melewati batas paket</p>
-                    <p className="mt-1 text-sm text-[var(--pp-muted)]">
-                      {usageRows
-                        .filter((row) => row.limit !== null && row.used > row.limit)
-                        .map((row) => `${row.label} terpakai ${formatUsageValue(row.feature, row.used)} dari batas ${formatUsageValue(row.feature, row.limit)}`)
-                        .join(", ")}
-                      . Upload media baru akan ditolak sampai pemakaian kembali di bawah batas — hapus media yang tidak terpakai di dashboard, atau upgrade paket. Pesan yang sudah terkirim tidak terpengaruh, dan tidak ada data lama yang dihapus otomatis.
-                    </p>
-                  </div>
-                )}
+                {(() => {
+                  const overQuotaRows = usageRows.filter((row): row is typeof row & { limit: number } => row.limit !== null && row.used > row.limit);
+                  if (overQuotaRows.length === 0) return null;
+                  return (
+                    <div role="alert" className="rounded-lg border border-[var(--pp-danger)] bg-[var(--pp-blush)] p-4">
+                      <p className="font-semibold">Pemakaian sudah melewati batas paket</p>
+                      <p className="mt-1 text-sm text-[var(--pp-muted)]">
+                        {overQuotaRows
+                          .map((row) => `${row.label} terpakai ${formatUsageValue(row.feature, row.used)} dari batas ${formatUsageValue(row.feature, row.limit)}`)
+                          .join(", ")}
+                        . Upload media baru akan ditolak sampai pemakaian kembali di bawah batas — hapus media yang tidak terpakai di dashboard, atau upgrade paket. Pesan yang sudah terkirim tidak terpengaruh, dan tidak ada data lama yang dihapus otomatis.
+                      </p>
+                    </div>
+                  );
+                })()}
                 {usageRows.map((row) => {
                   const percent = row.limit && row.limit > 0
                     ? Math.min(100, Math.round((row.used / row.limit) * 100))

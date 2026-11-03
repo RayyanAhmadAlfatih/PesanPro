@@ -98,7 +98,9 @@ describe("getAuthenticatedUser CSRF and API-key fail-closed behaviour", () => {
 
   beforeEach(() => {
     vi.clearAllMocks();
-    vi.mocked(auth).mockResolvedValue({ user: sessionUser });
+    // auth() is typed as a NextAuth middleware, but getAuthenticatedUser only
+    // reads the resolved session object — cast the mock through unknown.
+    vi.mocked(auth).mockResolvedValue({ user: sessionUser } as unknown as Awaited<ReturnType<typeof auth>>);
     mocks.prisma.user.findUnique.mockResolvedValue(sessionUser);
   });
 
