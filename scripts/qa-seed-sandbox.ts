@@ -1,7 +1,7 @@
 /* QA seed for the sandbox database: one tenant, one plan, one session, one API key. */
 import bcrypt from "bcryptjs";
 import crypto from "node:crypto";
-import { PrismaClient } from "@prisma/client";
+import { EntitlementFeature, PrismaClient } from "@prisma/client";
 
 const prisma = new PrismaClient();
 
@@ -19,7 +19,7 @@ async function main() {
     return;
   }
 
-  const planEntitlements = [
+  const planEntitlements: Array<{ feature: EntitlementFeature; enabled: boolean; limitValue: bigint | null }> = [
     { feature: "API_ACCESS", enabled: true, limitValue: null },
     { feature: "API_KEYS", enabled: true, limitValue: BigInt(10) },
     { feature: "DEVICES", enabled: true, limitValue: BigInt(3) },
