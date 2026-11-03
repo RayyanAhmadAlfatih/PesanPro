@@ -19,6 +19,10 @@ contains() { # contains <name> <needle> <haystack-file>
 }
 
 echo "== Login (dashboard session) =="
+# Sign-in is rate limited at 5 attempts per 15 minutes per IP+email, so repeated
+# runs of this battery hit CredentialsSignin for reasons unrelated to the code
+# under test. Clear the sandbox buckets before logging in.
+sudo mysql pesanpro -e "DELETE FROM RateLimitBucket;"
 CSRF=$(curl -s -c "$JAR" "$BASE/api/auth/csrf" | sed 's/.*"csrfToken":"\([^"]*\)".*/\1/')
 LOGIN_CODE=$(curl -s -o /tmp/qa-login.out -w '%{http_code}' -b "$JAR" -c "$JAR" -X POST "$BASE/api/auth/callback/credentials" \
   --data-urlencode "csrfToken=$CSRF" --data-urlencode "email=qa-tenant@example.com" --data-urlencode "password=QaTenant#2026" \

@@ -94,11 +94,15 @@ const navGroups: NavGroup[] = [
     },
 ];
 
-export function SidebarNav() {
+export function SidebarNav({ userRole: serverRole }: { userRole?: string | null }) {
     const pathname = usePathname();
     const { data: session } = useSession();
     const { isCollapsed, toggleCollapse } = useSidebar();
-    const userRole = session?.user?.role;
+    // Prefer the role resolved on the server. `useSession()` is still undefined
+    // during SSR, so relying on it alone renders an empty sidebar server-side
+    // and a full sidebar on the client — a hydration mismatch that leaves a
+    // hidden duplicate copy of the page in the DOM.
+    const userRole = serverRole ?? session?.user?.role;
 
     const [collapsedGroups, setCollapsedGroups] = useState<Record<string, boolean>>({});
 

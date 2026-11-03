@@ -11,9 +11,15 @@ interface SidebarShellProps {
   userName?: string | null;
   userEmail?: string | null;
   version: string;
+  // Role resolved on the server from the session. Passing it down keeps the
+  // SSR markup and the hydrated markup identical: reading the role only from
+  // `useSession()` renders an empty sidebar during SSR and then 13 links after
+  // hydration, which makes React discard the streamed tree and leave a hidden
+  // duplicate copy of the page in the DOM.
+  userRole?: string | null;
 }
 
-export function SidebarShell({ appName, userName, userEmail, version }: SidebarShellProps) {
+export function SidebarShell({ appName, userName, userEmail, version, userRole }: SidebarShellProps) {
   const { isCollapsed } = useSidebar();
   const initials = appName.trim().split(/\s+/).map((part) => part[0]).join("").slice(0, 2).toUpperCase() || "PP";
 
@@ -28,7 +34,7 @@ export function SidebarShell({ appName, userName, userEmail, version }: SidebarS
         </div>
       </div>
 
-      <SidebarNav />
+      <SidebarNav userRole={userRole} />
 
       <div className={`border-t border-[var(--pp-line)] bg-[var(--pp-paper)] ${isCollapsed ? "p-2" : "p-4"}`}>
         {isCollapsed ? (

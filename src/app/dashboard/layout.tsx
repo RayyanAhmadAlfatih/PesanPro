@@ -40,6 +40,7 @@ export default async function DashboardLayout({
                         userName={session?.user?.name}
                         userEmail={session?.user?.email}
                         version={pkg.version}
+                        userRole={session?.user?.role}
                     />
                     <div className="flex min-w-0 flex-1 flex-col overflow-hidden" suppressHydrationWarning={true}>
                         <Navbar appName={appName} />

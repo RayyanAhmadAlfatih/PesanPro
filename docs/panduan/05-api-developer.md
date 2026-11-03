@@ -52,6 +52,11 @@ Pilih scope minimum yang dibutuhkan integrasi Anda.
 
 Request dengan scope kurang ditolak `401` atau `403` (fail-closed).
 
+Path di bawah `/api/v1/` yang tidak ada di daftar ini juga ditolak `403`
+`SCOPE_FORBIDDEN`, bukan `404`. Gerbang API menolak lebih dulu sebelum request
+sampai ke handler, jadi salah ketik nama endpoint terlihat seperti masalah izin.
+Periksa kembali penulisan path sebelum menyalahkan scope.
+
 ## Bentuk respons
 
 Sukses:
