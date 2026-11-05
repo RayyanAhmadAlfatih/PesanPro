@@ -22,8 +22,9 @@ CSRF (cross-site request forgery) adalah serangan dari situs lain yang memanfaat
 Untuk semua permintaan yang mengubah data (POST/PUT/PATCH/DELETE) dan diautentikasi **lewat cookie sesi**, PesanPro memeriksa asal permintaan:
 
 - **Origin sama dengan situs PesanPro** → diterima. Dashboard normal selalu begini.
-- **Origin dari situs lain** (misalnya `https://evil.example.com`) → **ditolak 401**, sekalipun cookie sesi valid.
-- Header `Sec-Fetch-Site: cross-site` dari browser → ditolak.
+- **Origin dari situs lain** (misalnya `https://evil.example.com`) → **ditolak 403** dengan kode error `CSRF_ORIGIN_REJECTED`, sekalipun cookie sesi valid. Penolakan ini terjadi di lapisan proxy sebelum permintaan sampai ke handler, jadi tidak ada pesan yang masuk antrean.
+- Header `Sec-Fetch-Site: cross-site` dari browser → ditolak 403 dengan kode error `CSRF_ORIGIN_REJECTED`.
+- **Referer dari situs lain** saat header `Origin` tidak ada → ditolak 403 dengan kode error `CSRF_ORIGIN_REJECTED`.
 - Tanpa `Origin`/`Referer` sama sekali (misalnya `curl` yang menyertakan cookie manual) → diterima, karena browser selalu mengirim salah satu dari header itu untuk permintaan pengubah data; request tanpa keduanya bukan permintaan browser.
 
 Permintaan yang memakai **`x-api-key` tidak terpengaruh aturan origin** — server-to-server dari origin mana pun tetap boleh, asalkan key dan scope-nya valid.
@@ -46,7 +47,7 @@ Kalau key hanya punya scope `message:read`, permintaan kirim pesan ditolak 403 `
 
 ### Ditolak — cookie sesi dari situs lain
 
-Request dengan cookie sesi dashboard tetapi header `Origin: https://evil.example.com` ditolak 401. Tidak ada pesan masuk antrean.
+Request dengan cookie sesi dashboard tetapi header `Origin: https://evil.example.com` ditolak **403** dengan kode error `CSRF_ORIGIN_REJECTED`. Tidak ada pesan masuk antrean. Penolakan CSRF berbeda dengan kegagalan autentikasi biasa (401 `UNAUTHORIZED`): 403 di sini berarti kredensialnya ada, tetapi asal permintaannya tidak boleh. Karena itu penanganan error di kode integrasi harus membedakan `403` + `CSRF_ORIGIN_REJECTED`, bukan mengira-kira kode 401.
 
 ### Benar — dashboard sendiri
 

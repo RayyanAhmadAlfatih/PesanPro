@@ -22,8 +22,8 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs"
 import { Loader2 } from "lucide-react";
 
 const formSchema = z.object({
-  email: z.string().email("Please enter a valid email address"),
-  password: z.string().min(1, "Password is required"),
+  email: z.string().email("Masukkan alamat email yang valid."),
+  password: z.string().min(1, "Kata sandi wajib diisi."),
 });
 
 // Duplicated from src/lib/otp-policy.ts on purpose: that module imports
@@ -35,21 +35,23 @@ const OTP_CODE_LENGTH = 6;
  * gets its own sentence instead of one generic failure for every cause.
  */
 const OTP_ERROR_MESSAGES: Record<string, string> = {
-  no_challenge: "That code is no longer valid. Request a new one.",
-  expired: "That code has expired. Request a new one.",
-  attempts_exhausted: "Too many wrong attempts. Request a new code.",
-  wrong_code: "That code is not correct.",
-  invalid_code: "Enter the six digit code from the email.",
-  rate_limited: "Too many attempts from this network. Try again later.",
-  account_inactive: "This account is not active. Contact the administrator.",
-  fallback: "Could not sign you in with that code. Try again.",
+  no_challenge: "Kode sudah tidak berlaku. Minta kode baru.",
+  expired: "Kode sudah kedaluwarsa. Minta kode baru.",
+  attempts_exhausted: "Terlalu banyak percobaan salah. Minta kode baru.",
+  wrong_code: "Kode tidak benar.",
+  invalid_code: "Masukkan enam digit kode dari email.",
+  rate_limited: "Terlalu banyak percobaan dari jaringan ini. Coba lagi nanti.",
+  account_inactive: "Akun ini tidak aktif. Hubungi administrator.",
+  fallback: "Tidak bisa masuk dengan kode itu. Coba lagi.",
 };
 
-function ErrorNotice({ message }: { message: string | null }) {
+function ErrorNotice({ id, message }: { id: string; message: string | null }) {
   if (!message) return null;
   return (
     <div
+      id={id}
       role="alert"
+      aria-live="assertive"
       className="rounded-md border border-[var(--pp-danger)] bg-[var(--pp-white)] px-3 py-2 text-sm font-medium text-[var(--pp-danger)]"
     >
       {message}
@@ -81,13 +83,17 @@ function PasswordPanel({ callbackUrl }: { callbackUrl: string }) {
       });
 
       if (result?.error) {
+        // Generic on purpose: the same sentence for an unknown email and a
+        // wrong password, so the form never reveals whether an account exists.
+        // Kept verbatim: the login-failure message is a passing
+        // anti-enumeration item and must not be changed by the copy pass.
         setError("Invalid email or password");
       } else {
         window.location.href = callbackUrl;
         router.refresh();
       }
     } catch {
-      setError("An unexpected error occurred");
+      setError("Terjadi kesalahan tak terduga.");
     } finally {
       setLoading(false);
     }
@@ -96,7 +102,7 @@ function PasswordPanel({ callbackUrl }: { callbackUrl: string }) {
   return (
     <Form {...form}>
       <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-        <ErrorNotice message={error} />
+        <ErrorNotice id="login-password-error" message={error} />
 
         <FormField
           control={form.control}
@@ -105,9 +111,9 @@ function PasswordPanel({ callbackUrl }: { callbackUrl: string }) {
             <FormItem>
               <FormLabel>Email</FormLabel>
               <FormControl>
-                <Input type="email" autoComplete="email" placeholder="name@example.com" {...field} />
+                <Input type="email" autoComplete="email" placeholder="nama@email.com" {...field} />
               </FormControl>
-              <FormMessage />
+              <FormMessage role="alert" aria-live="assertive" />
             </FormItem>
           )}
         />
@@ -116,24 +122,24 @@ function PasswordPanel({ callbackUrl }: { callbackUrl: string }) {
           name="password"
           render={({ field }) => (
             <FormItem>
-              <FormLabel>Password</FormLabel>
+              <FormLabel>Kata sandi</FormLabel>
               <FormControl>
-                <Input type="password" autoComplete="current-password" placeholder="Your password" {...field} />
+                <Input type="password" autoComplete="current-password" placeholder="Kata sandi Anda" {...field} />
               </FormControl>
-              <FormMessage />
+              <FormMessage role="alert" aria-live="assertive" />
             </FormItem>
           )}
         />
 
         <div className="flex justify-end">
           <Link href="/auth/forgot-password" className="text-sm font-semibold underline-offset-4 hover:underline">
-            Forgot password?
+            Lupa kata sandi?
           </Link>
         </div>
 
         <Button type="submit" className="w-full" disabled={loading}>
           {loading ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-          {loading ? "Signing in..." : "Sign in"}
+          {loading ? "Sedang masuk..." : "Masuk"}
         </Button>
       </form>
     </Form>
@@ -162,7 +168,7 @@ function OtpPanel({ callbackUrl }: { callbackUrl: string }) {
   async function requestCode() {
     const normalized = email.trim().toLowerCase();
     if (!/^[^@\s]+@[^@\s]+\.[^@\s]+$/.test(normalized)) {
-      setError("Please enter a valid email address.");
+      setError("Masukkan alamat email yang valid.");
       return;
     }
 
@@ -179,16 +185,18 @@ function OtpPanel({ callbackUrl }: { callbackUrl: string }) {
         | null;
 
       if (!response.ok) {
-        setError(payload?.error ?? "Could not send the code. Try again.");
+        setError(payload?.error ?? "Kode tidak bisa dikirim. Coba lagi.");
         return;
       }
 
       setSentTo(normalized);
       setCode("");
+      // Generic for registered and unknown addresses alike; the neutral
+      // sentence below explains the case where no email will arrive.
       setNotice(`Code sent to ${normalized}.`);
       setResendIn(Math.max(1, Math.ceil((payload?.data?.resendAfterMs ?? 60_000) / 1000)));
     } catch {
-      setError("Could not send the code. Try again.");
+      setError("Kode tidak bisa dikirim. Coba lagi.");
     } finally {
       setSending(false);
     }
@@ -213,7 +221,7 @@ function OtpPanel({ callbackUrl }: { callbackUrl: string }) {
       window.location.href = callbackUrl;
       router.refresh();
     } catch {
-      setError("An unexpected error occurred");
+      setError("Terjadi kesalahan tak terduga.");
     } finally {
       setVerifying(false);
     }
@@ -221,7 +229,7 @@ function OtpPanel({ callbackUrl }: { callbackUrl: string }) {
 
   return (
     <div className="space-y-4">
-      <ErrorNotice message={error} />
+      <ErrorNotice id="login-otp-error" message={error} />
 
       <div className="space-y-2">
         <Label htmlFor="otp-email">Email</Label>
@@ -229,27 +237,32 @@ function OtpPanel({ callbackUrl }: { callbackUrl: string }) {
           id="otp-email"
           type="email"
           autoComplete="email"
-          placeholder="name@example.com"
+          placeholder="nama@email.com"
           value={email}
           disabled={sending || verifying}
+          aria-invalid={error ? true : undefined}
+          aria-describedby={error ? "login-otp-email-hint login-otp-error" : "login-otp-email-hint"}
           onChange={(event) => setEmail(event.target.value)}
         />
+        <p id="login-otp-email-hint" className="text-xs text-muted-foreground">
+          Gunakan alamat email yang terdaftar di akun PesanPro Anda. Kami akan mengirim kode enam digit ke alamat itu.
+        </p>
         <p className="text-xs text-muted-foreground">
-          Use the address registered to your PesanPro account. We email a six digit code to it.
+          Kalau email tidak terdaftar, kode tidak akan terkirim.
         </p>
       </div>
 
       {sentTo === null ? (
         <Button type="button" className="w-full" onClick={() => void requestCode()} disabled={sending}>
           {sending ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-          {sending ? "Sending code..." : "Email me a code"}
+          {sending ? "Mengirim kode..." : "Kirim kode ke email"}
         </Button>
       ) : (
         <>
           <p aria-live="polite" className="text-sm text-muted-foreground">{notice}</p>
 
           <div className="space-y-2">
-            <Label htmlFor="otp-code">Login code</Label>
+            <Label htmlFor="otp-code">Kode login</Label>
             <Input
               id="otp-code"
               inputMode="numeric"
@@ -259,9 +272,13 @@ function OtpPanel({ callbackUrl }: { callbackUrl: string }) {
               className="font-mono text-lg tracking-[0.3em]"
               value={code}
               disabled={verifying}
+              aria-invalid={error ? true : undefined}
+              aria-describedby={error ? "login-otp-code-hint login-otp-error" : "login-otp-code-hint"}
               onChange={(event) => setCode(event.target.value.replace(/\D/g, '').slice(0, OTP_CODE_LENGTH))}
             />
-            <p className="text-xs text-muted-foreground">The code is valid for 10 minutes and works once.</p>
+            <p id="login-otp-code-hint" className="text-xs text-muted-foreground">
+              Kode berlaku 10 menit dan hanya bisa dipakai sekali.
+            </p>
           </div>
 
           <Button
@@ -271,7 +288,7 @@ function OtpPanel({ callbackUrl }: { callbackUrl: string }) {
             disabled={verifying || code.length !== OTP_CODE_LENGTH}
           >
             {verifying ? <Loader2 className="animate-spin" aria-hidden="true" /> : null}
-            {verifying ? "Checking code..." : "Sign in"}
+            {verifying ? "Memeriksa kode..." : "Masuk"}
           </Button>
 
           <div className="flex flex-wrap items-center justify-between gap-2">
@@ -282,7 +299,7 @@ function OtpPanel({ callbackUrl }: { callbackUrl: string }) {
               disabled={sending || verifying}
               onClick={() => { setSentTo(null); setNotice(null); setError(null); setCode(""); }}
             >
-              Change email
+              Ganti email
             </Button>
             <Button
               type="button"
@@ -291,7 +308,7 @@ function OtpPanel({ callbackUrl }: { callbackUrl: string }) {
               disabled={sending || verifying || resendIn > 0}
               onClick={() => void requestCode()}
             >
-              {resendIn > 0 ? `Send a new code in ${resendIn}s` : "Send a new code"}
+              {resendIn > 0 ? `Kirim kode baru dalam ${resendIn} detik` : "Kirim kode baru"}
             </Button>
           </div>
         </>
@@ -308,16 +325,16 @@ function LoginScreen() {
     <div className="flex min-h-screen items-center justify-center bg-[var(--pp-paper)] px-4 py-10">
       <div className="w-full max-w-md">
         <div className="mb-6">
-          <h1 className="text-2xl font-bold">Sign in</h1>
+          <h1 className="text-2xl font-bold">Masuk</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Sign in to your PesanPro workspace to manage devices, messages, and API keys.
+            Masuk ke ruang kerja PesanPro untuk mengelola perangkat, pesan, dan kunci API.
           </p>
         </div>
 
         <div className="rounded-xl border border-[var(--pp-ink)] bg-[var(--pp-white)] p-6">
           <Tabs defaultValue="password">
             <TabsList className="w-full">
-              <TabsTrigger value="password" className="flex-1">Email and password</TabsTrigger>
+              <TabsTrigger value="password" className="flex-1">Email dan kata sandi</TabsTrigger>
               <TabsTrigger value="otp" className="flex-1">Email OTP</TabsTrigger>
             </TabsList>
             <TabsContent value="password" className="pt-4">
@@ -330,9 +347,9 @@ function LoginScreen() {
         </div>
 
         <p className="mt-6 text-center text-sm text-muted-foreground">
-          Don&apos;t have an account?{" "}
+          Belum punya akun?{" "}
           <Link href="/auth/register" className="font-semibold underline-offset-4 hover:underline">
-            Create an account
+            Buat akun
           </Link>
         </p>
       </div>

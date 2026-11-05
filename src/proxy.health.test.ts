@@ -17,7 +17,7 @@ describe("health probe authentication boundary", () => {
     mocks.rate.mockResolvedValue({ success: true, remaining: 119, resetMs: Date.now() + 60_000 });
   });
 
-  it.each(["/api/health/live", "/api/health/ready"])("allows anonymous probes at %s without authentication or billing", async (path) => {
+  it.each(["/api/health", "/api/health/live", "/api/health/ready"])("allows anonymous probes at %s without authentication or billing", async (path) => {
     for (const method of ["GET", "HEAD"]) {
       const response = await proxy(new NextRequest(`http://localhost${path}`, { method, headers: { "x-api-key": "irrelevant-probe-header" } }));
       expect(response.headers.get("x-middleware-next")).toBe("1");
@@ -28,12 +28,12 @@ describe("health probe authentication boundary", () => {
     expect(mocks.usage).not.toHaveBeenCalled();
   });
 
-  it.each(["/api/health", "/api/health/ready/private", "/api/health/live-extra", "/api/admin/operations/overview"])("keeps authentication on %s", async (path) => {
+  it.each(["/api/health/secret", "/api/health/ready/private", "/api/health/live-extra", "/api/admin/operations/overview", "/api/v1/messages", "/api/user/api-key"])("keeps authentication on %s", async (path) => {
     expect((await proxy(new NextRequest(`http://localhost${path}`))).status).toBe(401);
   });
 
-  it("does not exempt writes to probe paths", async () => {
-    expect((await proxy(new NextRequest("http://localhost/api/health/live", { method: "POST" }))).status).toBe(401);
+  it.each(["/api/health", "/api/health/live"])("does not exempt writes to %s", async (path) => {
+    expect((await proxy(new NextRequest(`http://localhost${path}`, { method: "POST" }))).status).toBe(401);
   });
 });
 

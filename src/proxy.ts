@@ -13,9 +13,13 @@ export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Infrastructure probes must work without a user session or API quota.
+    // `/api/health` is the bare liveness endpoint most uptime checkers and load
+    // balancers probe by default; keep the match exact so no sibling route is
+    // accidentally opened. The route handler answers with a single status field
+    // and nothing about tenants, sessions, storage, workers, or versions.
     if (
         (request.method === "GET" || request.method === "HEAD") &&
-        (pathname === "/api/health/live" || pathname === "/api/health/ready")
+        (pathname === "/api/health" || pathname === "/api/health/live" || pathname === "/api/health/ready")
     ) {
         return NextResponse.next();
     }

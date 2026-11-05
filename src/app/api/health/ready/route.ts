@@ -9,7 +9,8 @@ export const dynamic = "force-dynamic";
  * This route is intentionally reachable without authentication (load balancer /
  * uptime checks), so the response only reports whether the service is ready.
  * The detailed snapshot (storage paths, disk capacity, worker topology, queue
- * depths) is exposed only through the session-gated `/api/health` route.
+ * depths) is exposed only through the authenticated admin/monitor routes.
+ * `/api/health` is the bare liveness probe; it never carries this snapshot.
  */
 export async function GET() {
   try {
