@@ -9,6 +9,7 @@ import { Label } from '@/components/ui/label';
 import { BankAccountPicker, type BankAccountOption } from '@/components/payment/bank-account-picker';
 import { cn } from '@/lib/utils';
 import { parseUserWhatsapp } from '@/lib/whatsapp-number';
+import { formatPlanStorage } from '@/lib/plan-storage';
 
 interface PlanEntitlement {
   feature: string;
@@ -82,6 +83,11 @@ function planFacts(plan: Plan) {
   const upload = get('MEDIA_MAX_UPLOAD_BYTES');
   const uploadLabel = formatBytes(upload?.limitValue ?? null);
   if (uploadLabel) facts.push(`File maksimal ${uploadLabel}`);
+  // Displays the existing MEDIA_STORAGE_BYTES entitlement only. No price or
+  // limit is changed, and the three existing facts above stay in place.
+  const storage = get('MEDIA_STORAGE_BYTES');
+  const storageLabel = formatPlanStorage(storage?.limitValue ?? null);
+  if (storageLabel) facts.push(`Penyimpanan media ${storageLabel}`);
   return facts;
 }
 
@@ -93,15 +99,27 @@ function passwordIssue(password: string) {
   return null;
 }
 
-function ErrorNotice({ message }: { message: string | null }) {
+function ErrorNotice({ id, message }: { id: string; message: string | null }) {
   if (!message) return null;
   return (
     <div
+      id={id}
       role="alert"
+      aria-live="assertive"
       className="rounded-md border border-[var(--pp-danger)] bg-[var(--pp-white)] px-3 py-2 text-sm font-medium text-[var(--pp-danger)]"
     >
       {message}
     </div>
+  );
+}
+
+/** Field-level error, announced and linked to its input by a stable id. */
+function FieldError({ id, message }: { id: string; message: string | null }) {
+  if (!message) return null;
+  return (
+    <p id={id} role="alert" aria-live="assertive" className="text-xs text-[var(--pp-danger)]">
+      {message}
+    </p>
   );
 }
 
@@ -176,6 +194,9 @@ export default function RegisterPage() {
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
   const passwordProblem = passwordIssue(form.password);
   const passwordsMatch = form.password.length > 0 && form.password === form.confirmPassword;
+  const emailError = form.email.length > 0 && !emailValid;
+  const passwordError = form.password.length > 0 && passwordProblem !== null;
+  const confirmError = form.confirmPassword.length > 0 && !passwordsMatch;
   const accountReady = form.name.trim().length >= 2 && emailValid && !passwordProblem && passwordsMatch && whatsappOk;
   const paymentReady = Boolean(
     manualReady &&
@@ -294,7 +315,7 @@ export default function RegisterPage() {
       <div className="flex min-h-screen items-center justify-center bg-[var(--pp-paper)] px-4 py-10">
         <div className="w-full max-w-md rounded-xl border border-[var(--pp-danger)] bg-[var(--pp-white)] p-6">
           <h1 className="text-xl font-bold">Pendaftaran belum bisa dibuka</h1>
-          <p className="mt-2 text-sm text-muted-foreground">{loadError ?? 'Data pendaftaran tidak tersedia.'}</p>
+          <p role="alert" className="mt-2 text-sm text-muted-foreground">{loadError ?? 'Data pendaftaran tidak tersedia.'}</p>
           <Button className="mt-4 w-full" variant="outline" onClick={() => window.location.reload()}>
             Coba lagi
           </Button>
@@ -374,11 +395,14 @@ export default function RegisterPage() {
                   autoComplete="email"
                   placeholder="nama@email.com"
                   value={form.email}
+                  aria-invalid={emailError ? true : undefined}
+                  aria-describedby={emailError ? 'register-email-error' : undefined}
                   onChange={(event) => update({ email: event.target.value })}
                 />
-                {form.email.length > 0 && !emailValid ? (
-                  <p className="text-xs text-[var(--pp-danger)]">Format email belum benar.</p>
-                ) : null}
+                <FieldError
+                  id="register-email-error"
+                  message={emailError ? 'Format email belum benar.' : null}
+                />
               </div>
               <div className="grid gap-2 sm:col-span-2">
                 <Label htmlFor="whatsappNumber">Nomor WhatsApp (untuk konfirmasi pembayaran dan bantuan)</Label>
@@ -394,13 +418,15 @@ export default function RegisterPage() {
                   aria-invalid={whatsappTouched && !whatsappOk ? 'true' : undefined}
                   aria-describedby={whatsappTouched && !whatsappOk ? 'whatsappNumber-error' : undefined}
                 />
-                {whatsappTouched && !whatsappOk ? (
-                  <p id="whatsappNumber-error" className="text-xs text-[var(--pp-danger)]">{whatsapp.reason}</p>
-                ) : (
+                <FieldError
+                  id="whatsappNumber-error"
+                  message={whatsappTouched && !whatsapp.ok ? whatsapp.reason : null}
+                />
+                {whatsappTouched && whatsappOk ? (
                   <p className="text-xs text-muted-foreground">
                     Ini nomor WhatsApp Anda untuk dihubungi admin, bukan nomor perangkat gateway. Disimpan sebagai 62…
                   </p>
-                )}
+                ) : null}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Kata sandi</Label>
@@ -410,12 +436,14 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   placeholder="Minimal 10 karakter"
                   value={form.password}
+                  aria-invalid={passwordError ? true : undefined}
+                  aria-describedby={passwordError ? 'register-password-error' : 'register-password-hint'}
                   onChange={(event) => update({ password: event.target.value })}
                 />
-                {form.password.length > 0 && passwordProblem ? (
-                  <p className="text-xs text-[var(--pp-danger)]">{passwordProblem}</p>
+                {passwordError ? (
+                  <FieldError id="register-password-error" message={passwordProblem} />
                 ) : (
-                  <p className="text-xs text-muted-foreground">Gunakan huruf besar, huruf kecil, dan angka.</p>
+                  <p id="register-password-hint" className="text-xs text-muted-foreground">Gunakan huruf besar, huruf kecil, dan angka.</p>
                 )}
               </div>
               <div className="grid gap-2">
@@ -426,11 +454,14 @@ export default function RegisterPage() {
                   autoComplete="new-password"
                   placeholder="Ulangi kata sandi"
                   value={form.confirmPassword}
+                  aria-invalid={confirmError ? true : undefined}
+                  aria-describedby={confirmError ? 'register-confirm-password-error' : undefined}
                   onChange={(event) => update({ confirmPassword: event.target.value })}
                 />
-                {form.confirmPassword.length > 0 && !passwordsMatch ? (
-                  <p className="text-xs text-[var(--pp-danger)]">Kata sandi belum sama.</p>
-                ) : null}
+                <FieldError
+                  id="register-confirm-password-error"
+                  message={confirmError ? 'Kata sandi belum sama.' : null}
+                />
               </div>
             </div>
           </section>
@@ -557,6 +588,8 @@ export default function RegisterPage() {
                     type="file"
                     accept="image/jpeg,image/png,image/webp,application/pdf"
                     className="peer sr-only"
+                    aria-invalid={proofTooLarge ? true : undefined}
+                    aria-describedby={proofTooLarge ? 'register-proof-error' : 'register-proof-hint'}
                     onChange={(event) => setProof(event.target.files?.[0] ?? null)}
                   />
                   <label
@@ -572,19 +605,19 @@ export default function RegisterPage() {
                     <span className="max-w-full truncate text-sm font-semibold">
                       {proof ? proof.name : 'Pilih foto atau PDF'}
                     </span>
-                    <span className="text-xs text-muted-foreground">
+                    <span id="register-proof-hint" className="text-xs text-muted-foreground">
                       {proof ? 'Klik untuk mengganti.' : 'JPG, PNG, WebP, atau PDF. Maksimal 5 MB.'}
                     </span>
                   </label>
                 </div>
                 {proofTooLarge ? (
-                  <p className="text-xs text-[var(--pp-danger)]">File terlalu besar. Kecilkan sampai di bawah 5 MB.</p>
+                  <FieldError id="register-proof-error" message="File terlalu besar. Kecilkan sampai di bawah 5 MB." />
                 ) : null}
               </div>
             </div>
           </section>
 
-          <ErrorNotice message={error} />
+          <ErrorNotice id="register-submit-error" message={error} />
 
           <div className="rounded-xl border border-[var(--pp-line)] bg-[var(--pp-white)] p-4">
             <Button type="submit" className="w-full" disabled={!canSubmit}>

@@ -29,12 +29,15 @@ export function isGuideSlug(slug: string) {
 }
 
 /**
- * Internal guides are operator documentation. They stay in the repository but
- * are hidden from the public docs list and unreadable there unless the viewer
- * is a superadmin.
+ * Internal guides are operator/business documentation. They stay in the
+ * repository but are hidden from the public docs list and unreadable there
+ * unless the viewer is a superadmin. `09-` carries internal margin and pricing
+ * strategy: it must never be reachable without a superadmin session.
  */
+const INTERNAL_GUIDE_PREFIXES = ["09-", "10-"];
+
 export function isInternalGuideSlug(slug: string) {
-  return slug.startsWith("10-");
+  return INTERNAL_GUIDE_PREFIXES.some((prefix) => slug.startsWith(prefix));
 }
 
 export async function listGuides(options: { includeInternal?: boolean } = {}): Promise<GuideSummary[]> {

@@ -22,6 +22,16 @@ import {
   XCircle,
 } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 import { MediaPicker } from "@/components/dashboard/media-picker";
 import { SessionGuard } from "@/components/dashboard/session-guard";
 import { useSession } from "@/components/dashboard/session-provider";
@@ -36,6 +46,10 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Textarea } from "@/components/ui/textarea";
 
 type BroadcastStatus = "DRAFT" | "QUEUED" | "RUNNING" | "PAUSED" | "COMPLETED" | "CANCELLED" | "FAILED";
+// Terminal broadcasts can be deleted as an explicit cleanup action. QUEUED/
+// RUNNING/PAUSED/FAILED keep Jeda/Lanjut/Batal because a live dispatch must
+// never be deleted out from under the worker.
+const DELETABLE_BROADCAST_STATUSES: BroadcastStatus[] = ["COMPLETED", "CANCELLED"];
 type Broadcast = {
   id: string;
   name: string | null;
@@ -97,6 +111,7 @@ export default function BroadcastPage() {
   const [previewing, setPreviewing] = useState(false);
   const [importing, setImporting] = useState(false);
   const [suppressedRecipient, setSuppressedRecipient] = useState("");
+  const [deleteTarget, setDeleteTarget] = useState<Broadcast | null>(null);
 
   async function loadBroadcasts() {
     if (!sessionId) return;
@@ -260,6 +275,25 @@ export default function BroadcastPage() {
     }
   };
 
+  const deleteBroadcastHistory = async (broadcast: Broadcast) => {
+    setActionId(broadcast.id);
+    try {
+      // mode=delete: permanently remove a COMPLETED/CANCELLED broadcast and
+      // its recipient rows. Without it the API cancels an active broadcast
+      // instead — deletion never silently cancels a broadcast still working.
+      const response = await fetch(`/api/v1/broadcasts/${broadcast.id}?mode=delete`, { method: "DELETE" });
+      const payload = await response.json() as ApiEnvelope<unknown>;
+      if (!response.ok) throw new Error(payload.error?.message || "Gagal menghapus riwayat broadcast");
+      toast.success("Riwayat broadcast dihapus");
+      await loadBroadcasts();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Gagal menghapus riwayat broadcast");
+    } finally {
+      setActionId(null);
+      setDeleteTarget(null);
+    }
+  };
+
   const addSuppressed = async () => {
     if (!suppressedRecipient.trim()) return;
     const response = await fetch("/api/v1/suppressions", {
@@ -373,7 +407,7 @@ export default function BroadcastPage() {
           </TabsContent>
 
           <TabsContent value="history" className="mt-6">
-            <Card><CardHeader><CardTitle className="text-2xl">Riwayat broadcast</CardTitle><CardDescription>Status dibaca dari database setiap tiga detik, bukan dari memori browser.</CardDescription></CardHeader><CardContent className="space-y-3">{broadcasts.length === 0 ? <div className="py-12 text-center text-sm text-muted-foreground">Belum ada broadcast untuk perangkat ini.</div> : broadcasts.map((item) => <div key={item.id} className="rounded-xl border border-[var(--pp-line)] p-4 hover:bg-[color-mix(in_srgb,var(--pp-highlight)_14%,transparent)]"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{item.name || "Broadcast tanpa nama"}</p><Badge variant="outline" className={statusTone(item.status)}>{item.status}</Badge></div><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.message}</p><p className="mt-2 font-mono text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString("id-ID")} · delay {item.delayMinMs / 1000}-{item.delayMaxMs / 1000} detik</p></div><div className="flex shrink-0 gap-2">{["QUEUED", "RUNNING"].includes(item.status) && <Button size="sm" variant="outline" disabled={actionId === item.id} onClick={() => void act(item, "pause")}><CirclePause /> Jeda</Button>}{["PAUSED", "FAILED"].includes(item.status) && <Button size="sm" variant="outline" disabled={actionId === item.id} onClick={() => void act(item, "resume")}><CirclePlay /> Lanjut</Button>}{!["COMPLETED", "CANCELLED"].includes(item.status) && <Button size="sm" variant="destructive" disabled={actionId === item.id} onClick={() => void act(item, "cancel")}><XCircle /> Batal</Button>}</div></div><div className="mt-4 space-y-2"><div className="flex justify-between text-xs"><span>{item.progress.enqueued} masuk antrean · {item.progress.skipped} dilewati · {item.progress.failed} gagal enqueue</span><span>{item.progress.percent}%</span></div><Progress value={item.progress.percent} /><div className="flex flex-wrap gap-4 text-xs text-muted-foreground"><span>{item.progress.pending} pending</span><span>{item.progress.cancelled} batal</span>{item.requireOptIn && <span>opt-in aktif</span>}</div>{item.error && <p className="rounded-md border border-[var(--pp-danger)] bg-white px-3 py-2 text-xs text-[var(--pp-danger)]">{item.error.code}: {item.error.message}</p>}</div></div>)}</CardContent></Card>
+            <Card><CardHeader><CardTitle className="text-2xl">Riwayat broadcast</CardTitle><CardDescription>Status dibaca dari database setiap tiga detik, bukan dari memori browser.</CardDescription></CardHeader><CardContent className="space-y-3">{broadcasts.length === 0 ? <div className="py-12 text-center text-sm text-muted-foreground">Belum ada broadcast untuk perangkat ini.</div> : broadcasts.map((item) => <div key={item.id} className="rounded-xl border border-[var(--pp-line)] p-4 hover:bg-[color-mix(in_srgb,var(--pp-highlight)_14%,transparent)]"><div className="flex flex-col gap-3 sm:flex-row sm:items-start sm:justify-between"><div className="min-w-0"><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{item.name || "Broadcast tanpa nama"}</p><Badge variant="outline" className={statusTone(item.status)}>{item.status}</Badge></div><p className="mt-1 line-clamp-2 text-sm text-muted-foreground">{item.message}</p><p className="mt-2 font-mono text-xs text-muted-foreground">{new Date(item.createdAt).toLocaleString("id-ID")} · delay {item.delayMinMs / 1000}-{item.delayMaxMs / 1000} detik</p></div><div className="flex shrink-0 gap-2">{["QUEUED", "RUNNING"].includes(item.status) && <Button size="sm" variant="outline" disabled={actionId === item.id} onClick={() => void act(item, "pause")}><CirclePause /> Jeda</Button>}{["PAUSED", "FAILED"].includes(item.status) && <Button size="sm" variant="outline" disabled={actionId === item.id} onClick={() => void act(item, "resume")}><CirclePlay /> Lanjut</Button>}{!["COMPLETED", "CANCELLED"].includes(item.status) && <Button size="sm" variant="destructive" disabled={actionId === item.id} onClick={() => void act(item, "cancel")}><XCircle /> Batal</Button>}{DELETABLE_BROADCAST_STATUSES.includes(item.status) && <Button size="sm" variant="outline" className="text-red-700 hover:border-red-300 hover:bg-red-50" disabled={actionId === item.id} onClick={() => setDeleteTarget(item)}><Trash2 /> Hapus</Button>}</div></div><div className="mt-4 space-y-2"><div className="flex justify-between text-xs"><span>{item.progress.enqueued} masuk antrean · {item.progress.skipped} dilewati · {item.progress.failed} gagal enqueue</span><span>{item.progress.percent}%</span></div><Progress value={item.progress.percent} /><div className="flex flex-wrap gap-4 text-xs text-muted-foreground"><span>{item.progress.pending} pending</span><span>{item.progress.cancelled} batal</span>{item.requireOptIn && <span>opt-in aktif</span>}</div>{item.error && <p className="rounded-md border border-[var(--pp-danger)] bg-white px-3 py-2 text-xs text-[var(--pp-danger)]">{item.error.code}: {item.error.message}</p>}</div></div>)}</CardContent></Card>
           </TabsContent>
 
           <TabsContent value="suppression" className="mt-6">
@@ -381,6 +415,26 @@ export default function BroadcastPage() {
           </TabsContent>
         </Tabs>
       </div>
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus riwayat broadcast ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Broadcast &ldquo;{deleteTarget?.name || "Broadcast tanpa nama"}&rdquo; berstatus {deleteTarget?.status} sudah selesai diproses. Menghapusnya membersihkan riwayat dan daftar penerimanya dari dashboard — pesan yang sudah terkirim tidak bisa ditarik, dan broadcast yang masih berjalan tidak terpengaruh. Tindakan ini tidak bisa dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && void deleteBroadcastHistory(deleteTarget)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </SessionGuard>
   );
 }

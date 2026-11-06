@@ -4,7 +4,8 @@ import { isInternalGuideSlug, listGuides, readGuide } from "./docs";
 describe("in-app documentation", () => {
   it("lists every public guide in order", async () => {
     const guides = await listGuides();
-    expect(guides.length).toBeGreaterThanOrEqual(9);
+    // 01-08 are public; 09 (margin) and 10 (admin) are internal and hidden.
+    expect(guides.length).toBeGreaterThanOrEqual(8);
     expect(guides[0].slug).toBe("01-memulai-umkm");
     expect(guides[0].title).toContain("Memulai");
   });
@@ -18,11 +19,21 @@ describe("in-app documentation", () => {
     expect(allGuides.length).toBeGreaterThan(publicGuides.length);
   });
 
+  it("keeps the margin guide (09) unreadable without the superadmin flag", async () => {
+    expect(isInternalGuideSlug("09-paket-dan-margin")).toBe(true);
+    expect(await readGuide("09-paket-dan-margin")).toBeNull();
+    expect(await readGuide("09-paket-dan-margin", { includeInternal: true })).not.toBeNull();
+    expect((await listGuides()).some((guide) => guide.slug.startsWith("09-"))).toBe(false);
+  });
+
   it("renders markdown and rewrites relative .md links to /docs", async () => {
     const guide = await readGuide("01-memulai-umkm");
     expect(guide).not.toBeNull();
     expect(guide?.html).toContain("<h1");
-    expect(guide?.html).toContain('href="/docs/09-paket-dan-margin"');
+    // 01 still cross-links other public guides; the internal margin guide link
+    // was removed when 09 became superadmin-only.
+    expect(guide?.html).toContain('href="/docs/08-troubleshooting-faq"');
+    expect(guide?.html).not.toContain('href="/docs/09-paket-dan-margin"');
   });
 
   it("keeps internal guides unreadable without the superadmin flag", async () => {

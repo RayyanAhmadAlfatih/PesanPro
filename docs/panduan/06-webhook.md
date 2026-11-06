@@ -1,5 +1,7 @@
 # 06 — Webhook
 
+> **⚙️ Halaman ini sebagian khusus developer.** Membuat dan mengelola webhook bisa dilakukan dari dashboard tanpa ngoding (bagian "Membuat endpoint webhook" di bawah). Namun memverifikasi signature dan menulis penerima event (bagian selanjutnya) butuh kemampuan pemrograman. Kalau Anda hanya memakai dashboard, lewati bagian teknisnya — atau mulai dari [01 — Memulai untuk UMKM](01-memulai-umkm.md).
+
 Webhook memungkinkan sistem Anda menerima event dari PesanPro secara real-time: pesan masuk, pesan terkirim, status pengiriman, perubahan koneksi, dan status broadcast/jadwal.
 
 PesanPro mengirim **HTTP POST** ke URL yang Anda tentukan, dengan **signature HMAC** agar Anda bisa memastikan request benar-benar dari PesanPro.

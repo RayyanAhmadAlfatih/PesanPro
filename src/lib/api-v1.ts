@@ -27,7 +27,14 @@ export function apiV1Error(requestId: string, code: string, message: string, sta
 
 export function apiV1Exception(requestId: string, error: unknown) {
   if (error instanceof MessageJobError) return apiV1Error(requestId, error.code, error.message, error.status);
-  if (error instanceof QuotaExceededError) return apiV1Error(requestId, "QUOTA_EXCEEDED", "Message quota has been reached", 429, { limit: error.limit.toString() });
+  if (error instanceof QuotaExceededError) {
+    // The same quota engine guards messages and media storage; name the
+    // feature so a blocked upload is not misread as a message-limit problem.
+    const featureMessage = error.feature === "MEDIA_STORAGE_BYTES"
+      ? "Media storage quota has been reached. Delete unused media or upgrade the plan, then try again."
+      : "Message quota has been reached";
+    return apiV1Error(requestId, "QUOTA_EXCEEDED", featureMessage, 429, { feature: error.feature, limit: error.limit.toString() });
+  }
   if (error instanceof EntitlementDeniedError || error instanceof SubscriptionInactiveError) {
     return apiV1Error(requestId, "ENTITLEMENT_DENIED", error.message, 403);
   }

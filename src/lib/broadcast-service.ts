@@ -410,3 +410,49 @@ export async function cancelBroadcast(actor: BroadcastActor, broadcastId: string
   }
   return getBroadcast(actor, broadcastId);
 }
+
+// Only finished broadcasts may be removed. QUEUED/RUNNING/PAUSED/FAILED stay
+// cancellable or resumable because a running dispatch must never be deleted
+// out from under the worker; deletion is a cleanup action for history rows.
+const DELETABLE_BROADCAST_STATUSES: BroadcastStatus[] = ["COMPLETED", "CANCELLED"];
+
+/**
+ * Permanently remove a terminal broadcast (COMPLETED or CANCELLED) together
+ * with its recipient rows. Media references are released first because media
+ * rows are protected (onDelete: Restrict) while a broadcast references them,
+ * and a terminal broadcast is no longer an active workflow. This is a hard
+ * delete requested explicitly by the tenant, not a state transition: the
+ * broadcast history row cannot be recovered afterwards.
+ */
+export async function deleteBroadcast(actor: BroadcastActor, broadcastId: string) {
+  const tenantId = await actorTenant(actor);
+  const deleted = await prisma.$transaction(async (tx) => {
+    await tx.broadcastLog.updateMany({
+      where: {
+        id: broadcastId,
+        ...visibleTenantWhere(actor, tenantId),
+        status: { in: DELETABLE_BROADCAST_STATUSES },
+        mediaId: { not: null },
+      },
+      data: { mediaId: null },
+    });
+    return tx.broadcastLog.deleteMany({
+      where: {
+        id: broadcastId,
+        ...visibleTenantWhere(actor, tenantId),
+        status: { in: DELETABLE_BROADCAST_STATUSES },
+      },
+    });
+  });
+  if (deleted.count === 0) {
+    const exists = await prisma.broadcastLog.findFirst({ where: { id: broadcastId, ...visibleTenantWhere(actor, tenantId) }, select: { status: true } });
+    if (!exists) throw new MessageJobError("BROADCAST_NOT_FOUND", "Broadcast was not found", 404, false);
+    throw new MessageJobError(
+      "INVALID_BROADCAST_STATE",
+      "Only completed or cancelled broadcasts can be deleted; cancel or resume a running broadcast instead",
+      409,
+      false,
+    );
+  }
+  return { id: broadcastId, deleted: true as const };
+}

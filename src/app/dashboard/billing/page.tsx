@@ -19,6 +19,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isCommercialFeatureVisible } from "@/lib/access-policy";
+import { subscriptionStatusView } from "@/lib/billing-status";
 import { cn } from "@/lib/utils";
 import { BankAccountPicker, type BankAccountOption } from "@/components/payment/bank-account-picker";
 import { parseUserWhatsapp } from "@/lib/whatsapp-number";
@@ -235,60 +236,9 @@ function yearlySaving(plan: AvailablePlan) {
 }
 
 function subscriptionStatus(billing: BillingSummary | null) {
-  if (!billing) {
-    return {
-      label: "Belum ada data",
-      note: "Akun Anda belum punya paket. Pilih paket di bawah untuk mulai.",
-      tone: "bg-[var(--pp-white)] text-[var(--pp-ink)]",
-      surface: "border-[var(--pp-line)] bg-[var(--pp-paper)]",
-    };
-  }
-  if (billing.plan.code === "PENDING") {
-    return {
-      label: "Belum aktif",
-      note: "Pilih paket di bawah, transfer, lalu unggah bukti. Setelah disetujui, semua fitur aktif.",
-      tone: "bg-[var(--pp-white)] text-[var(--pp-ink)]",
-      surface: "border-[var(--pp-ink)] bg-[var(--pp-highlight)]/25",
-    };
-  }
-  if (billing.status === "GRACE_PERIOD") {
-    return {
-      label: "Masa tenggang",
-      note: "Paket sudah lewat jatuh tempo. Segera perpanjang agar pengiriman tidak berhenti.",
-      tone: "border-[var(--pp-terracotta)] bg-[var(--pp-terracotta)] text-white",
-      surface: "border-[var(--pp-terracotta)] bg-[var(--pp-paper)]",
-    };
-  }
-  if (billing.status === "EXPIRED") {
-    return {
-      label: "Kedaluwarsa",
-      note: "Paket sudah berakhir. Pilih paket untuk mengaktifkan lagi.",
-      tone: "border-[var(--pp-danger)] bg-[var(--pp-danger)] text-white",
-      surface: "border-[var(--pp-danger)] bg-[var(--pp-paper)]",
-    };
-  }
-  if (billing.status === "SUSPENDED") {
-    return {
-      label: "Ditangguhkan",
-      note: "Hubungi admin untuk informasi lebih lanjut.",
-      tone: "bg-[var(--pp-white)] text-[var(--pp-ink)]",
-      surface: "border-[var(--pp-ink)] bg-[var(--pp-blush)]/40",
-    };
-  }
-  if (billing.status === "CANCELLED") {
-    return {
-      label: "Dibatalkan",
-      note: "Paket sudah dibatalkan. Pilih paket untuk memulai lagi.",
-      tone: "bg-[var(--pp-white)] text-[var(--pp-ink)]",
-      surface: "border-[var(--pp-ink)] bg-[var(--pp-blush)]/40",
-    };
-  }
-  return {
-    label: "Aktif",
-    note: "Paket Anda aktif dan bisa dipakai.",
-    tone: "bg-[var(--pp-white)] text-[var(--pp-ink)]",
-    surface: "border-[var(--pp-ink)] bg-[var(--pp-mint)]",
-  };
+  // Delegates to the shared status mapping so the dashboard Ringkasan and this
+  // page always show the same label for the same billing state.
+  return subscriptionStatusView(billing);
 }
 
 function paymentStatus(status: string) {
@@ -552,6 +502,21 @@ export default function BillingPage() {
               </div>
             ) : (
               <div className="space-y-4">
+                {(() => {
+                  const overQuotaRows = usageRows.filter((row): row is typeof row & { limit: number } => row.limit !== null && row.used > row.limit);
+                  if (overQuotaRows.length === 0) return null;
+                  return (
+                    <div role="alert" className="rounded-lg border border-[var(--pp-danger)] bg-[var(--pp-blush)] p-4">
+                      <p className="font-semibold">Pemakaian sudah melewati batas paket</p>
+                      <p className="mt-1 text-sm text-[var(--pp-muted)]">
+                        {overQuotaRows
+                          .map((row) => `${row.label} terpakai ${formatUsageValue(row.feature, row.used)} dari batas ${formatUsageValue(row.feature, row.limit)}`)
+                          .join(", ")}
+                        . Upload media baru akan ditolak sampai pemakaian kembali di bawah batas — hapus media yang tidak terpakai di dashboard, atau upgrade paket. Pesan yang sudah terkirim tidak terpengaruh, dan tidak ada data lama yang dihapus otomatis.
+                      </p>
+                    </div>
+                  );
+                })()}
                 {usageRows.map((row) => {
                   const percent = row.limit && row.limit > 0
                     ? Math.min(100, Math.round((row.used / row.limit) * 100))
