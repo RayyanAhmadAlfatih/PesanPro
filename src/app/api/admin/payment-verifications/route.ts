@@ -13,8 +13,11 @@ export async function GET(request: NextRequest) {
   const submissions = await prisma.paymentVerification.findMany({
     where: status ? { status } : undefined,
     include: {
-      user: { select: { id: true, email: true, name: true } },
+      // whatsappNumber hanya untuk admin (F1.1): dipakai untuk konfirmasi
+      // pembayaran lewat wa.me. Tidak pernah dikirim ke tenant lain.
+      user: { select: { id: true, email: true, name: true, whatsappNumber: true } },
       plan: { select: { id: true, code: true, name: true } },
+      bankAccount: { select: { id: true, bankName: true, accountNumber: true, accountHolder: true } },
     },
     orderBy: { createdAt: "desc" },
     take: 200,

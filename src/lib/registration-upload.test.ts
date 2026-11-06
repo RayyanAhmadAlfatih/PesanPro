@@ -5,10 +5,12 @@ function registrationForm(includeProof = true) {
   const form = new FormData();
   form.set("name", "Ayu Setiawan");
   form.set("email", "ayu@example.com");
+  form.set("whatsappNumber", "0812-3456-7890");
   form.set("password", "Rahasia12345");
   form.set("planId", "plan_starter");
   form.set("billingCycle", "MONTHLY");
   form.set("reference", "Ayu Setiawan");
+  form.set("bankAccountId", "pa-default");
   if (includeProof) {
     form.append("proof", new Blob([Buffer.from([0x89, 0x50, 0x4e, 0x47])], { type: "image/png" }), "bukti.png");
   }
@@ -21,9 +23,11 @@ describe("registration multipart parser", () => {
     expect(parsed.fields).toMatchObject({
       name: "Ayu Setiawan",
       email: "ayu@example.com",
+      whatsappNumber: "0812-3456-7890",
       planId: "plan_starter",
       billingCycle: "MONTHLY",
       reference: "Ayu Setiawan",
+      bankAccountId: "pa-default",
     });
     expect(parsed.originalName).toBe("bukti.png");
     expect(parsed.declaredMimeType).toBe("image/png");

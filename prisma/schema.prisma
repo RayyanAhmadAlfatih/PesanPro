@@ -174,6 +174,10 @@ model User {
   id                String        @id @default(cuid())
   name              String?
   email             String        @unique
+  // Nomor WhatsApp KONTAK pemilik akun (bukan nomor device gateway). Dipakai
+  // admin untuk konfirmasi pembayaran dan bantuan. Nullable supaya akun lama
+  // tetap valid; diisi saat pendaftaran atau saat checkout pertama.
+  whatsappNumber    String?       @db.VarChar(20)
   password          String
   role              Role          @default(USER)
   status            AccountStatus @default(ACTIVE)
@@ -545,10 +549,33 @@ model RateLimitBucket {
   @@index([expiresAt])
 }
 
+// Rekening tujuan transfer manual. Multi-bank: superadmin mengelola daftar
+// ini di Settings. Rekening yang pernah dipakai pembayaran tidak boleh
+// dihapus permanen (FK Restrict + penjaga API) supaya riwayat lama tetap
+// bisa dicocokkan; cukup dinonaktifkan.
+model PaymentAccount {
+  id            String   @id @default(cuid())
+  bankName      String   @db.VarChar(120)
+  accountNumber String   @db.VarChar(60)
+  accountHolder String   @db.VarChar(160)
+  isActive      Boolean  @default(true)
+  isDefault     Boolean  @default(false)
+  sortOrder     Int      @default(0)
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
+
+  paymentVerifications PaymentVerification[]
+
+  @@index([isActive, sortOrder])
+}
+
 model PaymentVerification {
   id                  String                    @id @default(cuid())
   userId              String
   planId              String?
+  // Rekening yang dipilih pembayar saat mengirim bukti. Null untuk baris
+  // lama sebelum multi-bank ada; baris lama sudah dibackfill oleh migrasi.
+  bankAccountId       String?
   amount              Decimal                   @db.Decimal(18, 2)
   billingCycle        BillingCycle              @default(MONTHLY)
   currency            String                    @default("IDR")
@@ -565,11 +592,13 @@ model PaymentVerification {
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
 
-  user User  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan Plan? @relation(fields: [planId], references: [id], onDelete: SetNull)
+  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan        Plan?           @relation(fields: [planId], references: [id], onDelete: SetNull)
+  bankAccount PaymentAccount? @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
+  @@index([bankAccountId])
 }
 
 model EmailOutbox {
@@ -1436,10 +1465,20 @@ model SystemConfig {
   // Payment destination shown on the registration onboarding screen. Empty
   // values mean the operator has not configured a destination yet, and new
   // registrations are refused instead of sending money nowhere.
+  //
+  // LEGACY since multi-bank (PaymentAccount): kolom di bawah tidak lagi
+  // dibaca/ditulis aplikasi. Migrasi menyalin isinya ke satu entri
+  // PaymentAccount aktif. Kolom dipertahankan agar revert kode tanpa
+  // rollback migrasi tetap membaca data lama yang sama.
   bankName           String  @default("") @db.VarChar(120)
   bankAccountNumber  String  @default("") @db.VarChar(60)
   bankAccountHolder  String  @default("") @db.VarChar(160)
   paymentNote        String? @db.Text
+
+  // Saklar utama cara bayar (keputusan pemilik 5 Nov 2026). Keduanya boleh
+  // AKTIF bersamaan. Nilai awal migrasi: Manual AKTIF, Midtrans NONAKTIF.
+  manualTransferEnabled Boolean @default(true)
+  midtransEnabled       Boolean @default(false)
 
   // WhatsApp number customers can reach for help. Empty means the Help page
   // tells the customer that no contact has been configured yet.

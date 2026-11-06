@@ -7,8 +7,9 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Badge } from "@/components/ui/badge";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Trash2, Edit, User, ShieldAlert, ShieldCheck, Ban, RotateCcw } from "lucide-react";
+import { Trash2, Edit, User, ShieldAlert, ShieldCheck, Ban, RotateCcw, MessageCircle } from "lucide-react";
 import { toast } from "sonner";
+import { formatWhatsappDisplay, whatsappHref } from "@/lib/support-contact";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -24,6 +25,8 @@ interface UserProfile {
     id: string;
     name: string | null;
     email: string;
+    // Nomor WA kontak user (F1.1). Hanya dikirim ke superadmin oleh API.
+    whatsappNumber: string | null;
     role: "SUPERADMIN" | "USER";
     status: "ACTIVE" | "SUSPENDED";
     createdAt: string;
@@ -266,6 +269,32 @@ export default function UsersPage() {
                                     <span>{user._count?.sessions || 0} Sessions</span>
                                     <span>Joined {new Date(user.createdAt).toLocaleDateString()}</span>
                                 </div>
+                                {user.role === "USER" ? (
+                                    user.whatsappNumber ? (
+                                        (() => {
+                                            const wa = whatsappHref(user.whatsappNumber, `Halo ${user.name ?? user.email}, saya admin PesanPro.`);
+                                            return (
+                                                <p className="mt-2 flex flex-wrap items-center gap-2 text-sm">
+                                                    <span className="text-muted-foreground">WhatsApp:</span>
+                                                    <span className="font-medium tabular-nums">{formatWhatsappDisplay(user.whatsappNumber)}</span>
+                                                    {wa ? (
+                                                        <a
+                                                            href={wa}
+                                                            target="_blank"
+                                                            rel="noreferrer"
+                                                            className="inline-flex items-center gap-1 font-semibold text-[var(--pp-ink)] underline underline-offset-4"
+                                                        >
+                                                            <MessageCircle className="h-3.5 w-3.5" aria-hidden="true" />
+                                                            Chat
+                                                        </a>
+                                                    ) : null}
+                                                </p>
+                                            );
+                                        })()
+                                    ) : (
+                                        <p className="mt-2 text-xs text-muted-foreground">Belum ada nomor WhatsApp tersimpan.</p>
+                                    )
+                                ) : null}
                             </div>
                             <div className="bg-slate-50 p-3 flex flex-wrap justify-end gap-2 border-t">
                                 {user.role === "USER" && (

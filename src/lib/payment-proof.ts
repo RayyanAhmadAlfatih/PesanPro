@@ -22,6 +22,10 @@ export type ParsedPaymentProofUpload = {
   reference: string;
   /** Raw multipart value. Validated against the enum by the caller. */
   billingCycle: string;
+  /** Rekening pilihan pembayar; divalidasi oleh pemanggil (opsional). */
+  bankAccountId: string;
+  /** Nomor WA kontak saat checkout, khusus user yang belum menyimpannya. */
+  whatsappNumber: string;
 };
 
 /**
@@ -50,7 +54,9 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
     let planId = "";
     let reference = "";
     let billingCycle = "";
-    let fileResult: Omit<ParsedPaymentProofUpload, "planId" | "reference" | "billingCycle"> | null = null;
+    let bankAccountId = "";
+    let whatsappNumber = "";
+    let fileResult: Omit<ParsedPaymentProofUpload, "planId" | "reference" | "billingCycle" | "bankAccountId" | "whatsappNumber"> | null = null;
     let fileCount = 0;
     let tooLarge = false;
 
@@ -64,7 +70,8 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
     try {
       parser = Busboy({
         headers: Object.fromEntries(request.headers.entries()),
-        limits: { fileSize: PAYMENT_PROOF_MAX_BYTES, files: 1, fields: 4, parts: 6 },
+        // planId, reference, billingCycle, bankAccountId, whatsappNumber
+        limits: { fileSize: PAYMENT_PROOF_MAX_BYTES, files: 1, fields: 6, parts: 8 },
       });
     } catch {
       fail(new MessageJobError("INVALID_MULTIPART_BODY", "Payment proof body is invalid", 400, false));
@@ -75,6 +82,8 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
       if (name === "planId") planId = value;
       if (name === "reference") reference = value;
       if (name === "billingCycle") billingCycle = value;
+      if (name === "bankAccountId") bankAccountId = value;
+      if (name === "whatsappNumber") whatsappNumber = value;
     });
     parser.on("file", (fieldName, stream, info) => {
       fileCount += 1;
@@ -114,7 +123,7 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
         return;
       }
       settled = true;
-      resolve({ ...fileResult, planId, reference, billingCycle });
+      resolve({ ...fileResult, planId, reference, billingCycle, bankAccountId, whatsappNumber });
     });
 
     Readable.fromWeb(request.body as never)
