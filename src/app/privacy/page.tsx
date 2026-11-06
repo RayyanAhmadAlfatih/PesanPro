@@ -3,16 +3,16 @@ import { ArrowLeft, Lock, Shield } from "lucide-react";
 
 export const metadata = {
     title: "Privacy Policy | PesanPro",
-    description: "Privacy Policy for PesanPro self-hosted WhatsApp Gateway. Zero-tracking architecture, data ownership, and security practices.",
+    description: "Privacy Policy for the PesanPro WhatsApp Gateway service: what data we process, why, and how it is protected.",
     openGraph: {
         title: "Privacy Policy | PesanPro",
-        description: "Privacy Policy for PesanPro self-hosted WhatsApp Gateway.",
+        description: "Privacy Policy for the PesanPro WhatsApp Gateway service.",
         type: "website",
     },
     twitter: {
         card: "summary_large_image",
         title: "Privacy Policy | PesanPro",
-        description: "Privacy Policy for PesanPro self-hosted WhatsApp Gateway.",
+        description: "Privacy Policy for the PesanPro WhatsApp Gateway service.",
     },
 };
 
@@ -44,45 +44,46 @@ export default function PrivacyPage() {
                     <div className="prose prose-slate dark:prose-invert max-w-none prose-headings:font-bold prose-headings:tracking-tight prose-a:text-primary hover:prose-a:text-primary/80 prose-p:leading-relaxed">
 
                         <p className="lead text-lg text-muted-foreground mb-8">
-                            At PesanPro, we believe that your data is your property. This Privacy Policy details the strict boundaries regarding how information is handled when using our open-source, self-hosted WhatsApp Gateway.
+                            At PesanPro, we believe that your data is your property. This Privacy Policy explains what information the PesanPro service processes, why it is needed, and the boundaries we keep.
                         </p>
 
                         <h2 className="flex items-center gap-2 mt-8 text-2xl border-b pb-2">
                             <Lock className="h-6 w-6 text-blue-500" />
-                            1. Zero-Tracking Architecture
+                            1. How PesanPro Runs
                         </h2>
                         <p>
-                            Because PesanPro is designed to be <strong>self-hosted</strong>, all core data processing occurs exclusively on the hardware where you deploy the application.
+                            PesanPro is a <strong>centralized online service</strong>. The application and its database run on servers operated by the service provider — you use it through the website and dashboard, without installing anything on your own infrastructure. This means some data is stored on our servers so the service can function: manage your account, deliver your WhatsApp messages, and keep records you can review in the dashboard.
                         </p>
+
+                        <h2 className="mt-8 text-2xl border-b pb-2">2. Data We Process</h2>
                         <ul>
-                            <li><strong>No Centralized Telemetry:</strong> The creators of PesanPro do not receive telemetry, analytics, or usage reports about your WhatsApp interactions.</li>
-                            <li><strong>Absolute Data Ownership:</strong> Your contacts, messages, schedules, and auto-replies remain in your own database. We cannot and will not access it.</li>
+                            <li><strong>Account data:</strong> your name, email address, and password — passwords are stored only as secure hashes, never in readable form.</li>
+                            <li><strong>Billing data:</strong> your plan, billing period, payment reference, and the transfer proof you upload so an administrator can verify your payment. Bank account details you provide are used solely for payment verification.</li>
+                            <li><strong>Device metadata:</strong> the name of each WhatsApp device you connect, the linked phone number, and its connection status.</li>
+                            <li><strong>Delivery metadata:</strong> for each message, the recipient, delivery status (sent, delivered, read), timestamps, and error codes when something fails. <strong>PesanPro does not store the content of your WhatsApp messages</strong> — only the delivery record.</li>
+                            <li><strong>Media files:</strong> images, documents, audio, or video you upload to send through the gateway. Files are stored with private access permissions and are deleted automatically after the retention period shown in your plan documentation.</li>
+                            <li><strong>Automation settings:</strong> auto-reply rules, schedules, suppression lists, API keys (stored only as hashes), and webhook endpoints you configure.</li>
                         </ul>
 
-                        <h2 className="mt-8 text-2xl border-b pb-2">2. Data We Process Locally</h2>
-                        <p>
-                            When you deploy the gateway, the application running on your server interacts with:
-                        </p>
+                        <h2 className="mt-8 text-2xl border-b pb-2">3. What We Do Not Do</h2>
                         <ul>
-                            <li><strong>Authentication Credentials:</strong> Passwords you create for the dashboard are securely hashed using bcrypt before being stored in your local database.</li>
-                            <li><strong>WhatsApp Sessions:</strong> PesanPro acts as a bridge to WhatsApp Web. The session tokens (keys) necessary to maintain this connection are stored locally on your server.</li>
-                            <li><strong>Communication Logs:</strong> Messages sent and received via the gateway are logged within your local database to provide you with historical data and webhook functionality.</li>
+                            <li>We do not sell your data, and we do not share it with advertisers.</li>
+                            <li>We do not read or store your WhatsApp message content.</li>
+                            <li>We do not add third-party advertising or analytics trackers to the service.</li>
                         </ul>
 
-                        <h2 className="mt-8 text-2xl border-b pb-2">3. Protecting Your Information</h2>
+                        <h2 className="mt-8 text-2xl border-b pb-2">4. Third Parties Involved</h2>
                         <p>
-                            While PesanPro is built with modern security practices, the ultimate safety of your data depends on your hosting environment. We strongly recommend:
+                            Using PesanPro means messages are exchanged through <strong>WhatsApp, operated by Meta</strong> — your use of WhatsApp remains subject to Meta&apos;s own terms and privacy policy. Our service also runs on third-party hosting infrastructure operated on behalf of the service provider. We do not otherwise forward your data to parties outside the service.
                         </p>
-                        <ul>
-                            <li>Deploying the application behind a reverse proxy with enforced <strong>SSL/TLS encryption</strong> (HTTPS).</li>
-                            <li>Securing the host server with firewalls and SSH key authentication.</li>
-                            <li>Keeping the underlying operating system and Node.js environment constantly updated.</li>
-                        </ul>
 
-                        <h2 className="mt-8 text-2xl border-b pb-2">4. Third-Party Integrations</h2>
-                        <p>
-                            PesanPro utilizes the <code>@whiskeysockets/baileys</code> library to communicate directly with WhatsApp&apos;s servers. By using this gateway, your server will establish a direct web-socket connection to WhatsApp. Please be aware that your use of WhatsApp is still subject to Meta&apos;s Privacy Policy.
-                        </p>
+                        <h2 className="mt-8 text-2xl border-b pb-2">5. Security and Your Controls</h2>
+                        <ul>
+                            <li>Access to the service is protected by session authentication, per-device ownership checks, and optional API keys with limited permissions.</li>
+                            <li>You can revoke API keys and integration tokens yourself at any time from the dashboard; revocation takes effect immediately.</li>
+                            <li>You can disconnect a WhatsApp device from the dashboard at any time; disconnection removes the linked session.</li>
+                            <li>Requests to review or delete your account data can be addressed to the service administrator.</li>
+                        </ul>
 
                         <div className="mt-12 p-6 bg-blue-500/5 rounded-2xl border border-blue-500/10">
                             <p className="font-semibold mb-2">Need Further Details?</p>

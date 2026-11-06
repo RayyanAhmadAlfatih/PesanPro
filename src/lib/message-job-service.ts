@@ -232,6 +232,41 @@ export async function cancelMessageJob(actor: MessageJobActor, jobId: string) {
   return publicJob(job);
 }
 
+// Only finished jobs may be removed. QUEUED/PROCESSING stay cancellable via
+// the normal cancel flow because a live dispatch must never be deleted out
+// from under the worker; deletion is a cleanup action for history rows.
+const DELETABLE_JOB_STATUSES: MessageJobStatus[] = ["SENT", "DELIVERED", "READ", "FAILED", "CANCELLED"];
+
+/**
+ * Permanently remove a terminal message job (SENT/DELIVERED/READ/FAILED/
+ * CANCELLED) and its attempt/delivery-event history. The media reference is
+ * released first because media rows are protected (onDelete: Restrict) while a
+ * job references them, and a terminal job is no longer a retryable or active
+ * workflow. Deleting the row also drops its idempotency record, so replaying
+ * the same Idempotency-Key after deletion would enqueue a new message instead
+ * of returning the deleted job — the same behaviour the 7-day key expiry
+ * already produces, just earlier.
+ */
+export async function deleteMessageJob(actor: MessageJobActor, jobId: string) {
+  const tenantId = await resolveTenantId(actor.id);
+  if (!tenantId) throw new MessageJobNotFoundError();
+  const deleted = await prisma.$transaction(async (tx) => {
+    await tx.messageJob.updateMany({
+      where: { id: jobId, tenantId, status: { in: DELETABLE_JOB_STATUSES }, mediaId: { not: null } },
+      data: { mediaId: null },
+    });
+    return tx.messageJob.deleteMany({
+      where: { id: jobId, tenantId, status: { in: DELETABLE_JOB_STATUSES } },
+    });
+  });
+  if (deleted.count === 0) {
+    const existing = await prisma.messageJob.findFirst({ where: { id: jobId, tenantId }, select: { status: true } });
+    if (!existing) throw new MessageJobNotFoundError();
+    throw new MessageJobStateError("Only a sent, delivered, read, failed, or cancelled message can be deleted; cancel a queued message instead");
+  }
+  return { id: jobId, deleted: true as const };
+}
+
 export async function retryMessageJob(actor: MessageJobActor, jobId: string) {
   const tenantId = await resolveTenantId(actor.id);
   if (!tenantId) throw new MessageJobNotFoundError();

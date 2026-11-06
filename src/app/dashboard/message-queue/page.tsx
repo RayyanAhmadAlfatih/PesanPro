@@ -1,8 +1,18 @@
 "use client";
 
 import { useEffect, useEffectEvent, useState } from "react";
-import { Ban, CheckCheck, Clock3, LoaderCircle, RefreshCw, RotateCcw, Send, XCircle } from "lucide-react";
+import { Ban, CheckCheck, Clock3, LoaderCircle, RefreshCw, RotateCcw, Send, Trash2, XCircle } from "lucide-react";
 import { toast } from "sonner";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
 
 type JobStatus = "QUEUED" | "PROCESSING" | "SENT" | "DELIVERED" | "READ" | "FAILED" | "CANCELLED";
 type MessageJob = {
@@ -16,6 +26,10 @@ type MessageJob = {
   createdAt: string;
   updatedAt: string;
 };
+
+// Terminal jobs can be deleted as an explicit cleanup action; QUEUED stays
+// cancellable and PROCESSING is untouchable while the worker holds it.
+const DELETABLE_JOB_STATUSES: JobStatus[] = ["SENT", "DELIVERED", "READ", "FAILED", "CANCELLED"];
 
 const statusStyle: Record<JobStatus, string> = {
   QUEUED: "border-amber-200 bg-amber-50 text-amber-800",
@@ -40,6 +54,7 @@ export default function MessageQueuePage() {
   const [jobs, setJobs] = useState<MessageJob[]>([]);
   const [loading, setLoading] = useState(true);
   const [busyId, setBusyId] = useState<string | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<MessageJob | null>(null);
 
   async function loadJobs(silent = false) {
     try {
@@ -79,6 +94,25 @@ export default function MessageQueuePage() {
     }
   }
 
+  async function deleteJob(job: MessageJob) {
+    setBusyId(job.id);
+    try {
+      // mode=delete: permanently remove a terminal job. Without it the API
+      // cancels a QUEUED job instead — deletion never silently cancels a
+      // message that is still waiting or running.
+      const response = await fetch(`/api/v1/messages/${job.id}?mode=delete`, { method: "DELETE" });
+      const payload = await response.json() as { error?: { message?: string } };
+      if (!response.ok) throw new Error(payload.error?.message || "Could not delete message");
+      toast.success("Riwayat pesan dihapus dari antrean");
+      await loadJobs(true);
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Could not delete message");
+    } finally {
+      setBusyId(null);
+      setDeleteTarget(null);
+    }
+  }
+
   const activeCount = jobs.filter((job) => job.status === "QUEUED" || job.status === "PROCESSING").length;
   const failedCount = jobs.filter((job) => job.status === "FAILED").length;
 
@@ -105,6 +139,10 @@ export default function MessageQueuePage() {
       </div>
 
       <section className="overflow-hidden rounded-2xl border bg-card shadow-sm">
+        <div className="border-b bg-muted/30 px-5 py-3 text-xs leading-5 text-muted-foreground">
+          <p className="font-bold text-foreground">Arti status, dalam bahasa sehari-hari</p>
+          <p><strong className="text-foreground">SENT</strong> — pesan sudah diserahkan ke WhatsApp. <strong className="text-foreground">DELIVERED</strong> — sudah sampai di HP penerima (bukti kirim), tapi belum tentu dilihat. <strong className="text-foreground">READ</strong> — penerima sudah membuka/baca pesan itu di WhatsApp (centang biru). Pesan yang tidak pernah dibaca penerimanya akan berhenti di DELIVERED — itu bukan gagal kirim.</p>
+        </div>
         {loading ? (
           <div className="flex min-h-56 items-center justify-center gap-2 text-sm text-muted-foreground"><LoaderCircle className="h-5 w-5 animate-spin" /> Loading queue...</div>
         ) : jobs.length === 0 ? (
@@ -122,8 +160,21 @@ export default function MessageQueuePage() {
                     <td className="px-5 py-4 text-muted-foreground">{new Date(job.createdAt).toLocaleString("id-ID")}</td>
                     <td className="max-w-xs px-5 py-4">{job.error ? <><p className="font-mono text-xs font-bold text-red-700">{job.error.code}</p><p className="mt-1 text-xs leading-5 text-muted-foreground">{job.error.message}</p></> : <span className="text-muted-foreground">No error</span>}</td>
                     <td className="px-5 py-4 text-right">
-                      {job.status === "QUEUED" && <button disabled={busyId === job.id} onClick={() => void mutateJob(job, "cancel")} className="rounded-lg border px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-red-300 hover:text-red-700 disabled:opacity-50">Cancel</button>}
-                      {job.status === "FAILED" && <button disabled={busyId === job.id} onClick={() => void mutateJob(job, "retry")} className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--pp-ink)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--pp-ink)] disabled:opacity-50"><RotateCcw className="h-3.5 w-3.5" /> Retry</button>}
+                      <div className="flex flex-wrap justify-end gap-2">
+                        {job.status === "QUEUED" && <button disabled={busyId === job.id} onClick={() => void mutateJob(job, "cancel")} className="rounded-lg border px-3 py-1.5 text-xs font-bold text-slate-700 hover:border-red-300 hover:text-red-700 disabled:opacity-50">Cancel</button>}
+                        {job.status === "FAILED" && <button disabled={busyId === job.id} onClick={() => void mutateJob(job, "retry")} className="inline-flex items-center gap-1.5 rounded-lg bg-[var(--pp-ink)] px-3 py-1.5 text-xs font-bold text-white hover:bg-[var(--pp-ink)] disabled:opacity-50"><RotateCcw className="h-3.5 w-3.5" /> Retry</button>}
+                        {DELETABLE_JOB_STATUSES.includes(job.status) && (
+                          <button
+                            disabled={busyId === job.id}
+                            onClick={() => setDeleteTarget(job)}
+                            aria-label={`Hapus riwayat pesan ke ${job.recipient}`}
+                            title="Hapus riwayat pesan"
+                            className="inline-flex items-center gap-1.5 rounded-lg border border-slate-200 px-3 py-1.5 text-xs font-bold text-red-700 hover:border-red-300 hover:bg-red-50 disabled:opacity-50"
+                          >
+                            <Trash2 className="h-3.5 w-3.5" /> Hapus
+                          </button>
+                        )}
+                      </div>
                     </td>
                   </tr>
                 ))}
@@ -132,6 +183,26 @@ export default function MessageQueuePage() {
           </div>
         )}
       </section>
+
+      <AlertDialog open={deleteTarget !== null} onOpenChange={(open) => !open && setDeleteTarget(null)}>
+        <AlertDialogContent>
+          <AlertDialogHeader>
+            <AlertDialogTitle>Hapus riwayat pesan ini?</AlertDialogTitle>
+            <AlertDialogDescription>
+              Pesan ke {deleteTarget?.recipient} berstatus {deleteTarget?.status} sudah selesai diproses. Menghapusnya hanya membersihkan riwayat dari daftar — pesan yang sudah terkirim tidak bisa ditarik, dan pesan yang masih antre tidak terpengaruh. Tindakan ini tidak bisa dibatalkan.
+            </AlertDialogDescription>
+          </AlertDialogHeader>
+          <AlertDialogFooter>
+            <AlertDialogCancel>Batal</AlertDialogCancel>
+            <AlertDialogAction
+              onClick={() => deleteTarget && void deleteJob(deleteTarget)}
+              className="bg-red-600 hover:bg-red-700"
+            >
+              Hapus
+            </AlertDialogAction>
+          </AlertDialogFooter>
+        </AlertDialogContent>
+      </AlertDialog>
     </div>
   );
 }

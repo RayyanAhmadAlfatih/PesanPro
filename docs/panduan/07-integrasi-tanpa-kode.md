@@ -243,13 +243,19 @@ add_action('woocommerce_order_status_changed', function ($orderId, $from, $to, $
 
 ## Google Forms
 
-Connector tersedia di folder `integrations/google-forms/`.
+Connector di distribusikan sebagai ZIP yang bisa diunduh langsung, sama seperti plugin WordPress:
+
+```
+https://wagateway.kingofcoding.my.id/api/public/integration/google-forms
+```
+
+Berkas ZIP berisi folder `pesanpro-google-forms/` dengan `Code.gs`, `appsscript.json`, dan README ringkas.
 
 ### Langkah
 
 1. Buat integration token tipe **Google Forms** di menu **Integrasi → Token Integrasi**.
 2. Buka form target → **Extensions → Apps Script**.
-3. Ganti isi `Code.gs` dan `appsscript.json` dengan file dari folder `integrations/google-forms/`.
+3. Ganti isi `Code.gs` dan `appsscript.json` dengan isi file dari ZIP connector di atas.
 4. Buka **Project Settings → Script Properties** dan isi:
    - `PESANPRO_BASE_URL` — `https://wagateway.kingofcoding.my.id`.
    - `PESANPRO_TOKEN` — token `ppint_...`.

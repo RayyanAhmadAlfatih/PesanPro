@@ -2,6 +2,11 @@
 
 PesanPro bisa mengirim gambar, video, audio, dan dokumen sebagai lampiran pesan atau balasan auto-reply. Setiap paket punya batas ukuran file dan ruang penyimpanan sendiri.
 
+> **Dua "upload" yang berbeda — jangan tertukar.**
+>
+> 1. **Upload bukti transfer** — satu gambar kecil (maksimal 5 MB) yang Anda lampirkan saat memilih paket di halaman pendaftaran atau halaman **Tagihan**, supaya admin memverifikasi pembayaran. Ini bukan media pesan dan tidak memakai kuota penyimpanan media.
+> 2. **Upload media** — file (gambar/video/audio/dokumen) yang diunggah di dashboard untuk dikirim sebagai lampiran pesan atau balasan otomatis. Inilah yang dibahas di panduan ini: mengikuti batas ukuran per paket, dikompres otomatis, dan memakai kuota penyimpanan media.
+
 ## Ringkasan batas per paket
 
 | Paket | Ukuran maksimal per file | Penyimpanan media | Retensi |
@@ -72,7 +77,7 @@ Perintah di atas menurunkan resolusi ke 720p dan mengompres audio. Ukuran biasan
 4. Tunggu sampai nama file muncul; tombolnya berubah menjadi **Ganti**.
 5. Kalau file terlalu besar, pesan error muncul sebelum upload dikirim ke server.
 
-Kalau paket belum aktif, tombol upload dinonaktifkan dan muncul pesan "Paket Anda belum aktif. Pilih paket di halaman Billing untuk mengunggah media."
+Kalau paket belum aktif, tombol **upload media** di dashboard dinonaktifkan dan muncul pesan "Paket Anda belum aktif. Pilih paket di halaman Billing untuk mengunggah media." Upload **bukti transfer** di halaman pendaftaran/Tagihan tetap berjalan normal — itu bagian dari proses aktivasi, bukan media pesan.
 
 ## Upload lewat API
 

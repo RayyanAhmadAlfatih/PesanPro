@@ -41,7 +41,35 @@ Admin memeriksa bukti transfer. Setelah disetujui:
 
 Kalau akun sudah terlanjur dibuat tetapi pembayaran belum dikirim, buka menu **Tagihan** dan kirim bukti dari sana.
 
-> **Belum tahu paket mana?** Mulai dari Starter kalau hanya satu nomor dan volume pesan di bawah 3.000/bulan. Naik ke Bisnis kalau butuh 2–3 nomor atau broadcast lebih sering. Lihat perbandingan lengkap di [09 — Paket, harga, dan margin](09-paket-dan-margin.md).
+> **Belum tahu paket mana?** Mulai dari Starter kalau hanya satu nomor dan volume pesan di bawah 3.000/bulan. Naik ke Bisnis kalau butuh 2–3 nomor atau broadcast lebih sering. Batas tiap paket (nomor, pesan, ukuran file, penyimpanan) tampil di halaman pendaftaran dan halaman Tagihan di dashboard.
+
+## Masuk dengan Email OTP (kode sekali pakai)
+
+Selain email dan kata sandi, halaman **Masuk** menyediakan tab **Email OTP**. OTP (one-time password) adalah kode angka sekali pakai yang dikirim ke email Anda, jadi Anda bisa masuk tanpa mengetik kata sandi. Ini bukan kode verifikasi pendaftaran dan bukan kode pairing WhatsApp.
+
+Cara pakainya: buka `https://wagateway.kingofcoding.my.id/auth/login`, pilih tab **Email OTP**, isi alamat email akun, klik **Kirim kode ke email**, lalu masukkan 6 angka yang masuk ke kotak masuk Anda dan klik **Masuk**.
+
+| Perilaku OTP | Yang berlaku | Rujukan kode |
+| --- | --- | --- |
+| Tab **Email OTP** di halaman masuk | Tab kedua di halaman login, di sebelah **Email dan kata sandi** | `src/app/auth/login/page.tsx` (`TabsTrigger value="otp"`, komponen `OtpPanel`); provider `email-otp` di `src/lib/auth.ts` |
+| Lama berlaku kode OTP | **10 menit** sejak kode dibuat | `src/lib/otp-policy.ts` (`OTP_TTL_MS`), `src/lib/otp-service.ts` (`expiresAt`), `src/lib/otp-email.ts` (isi email) |
+| Kode OTP sekali pakai | **Ya.** Kode yang berhasil dipakai langsung ditandai terpakai, dan meminta kode baru menonaktifkan kode lama | `src/lib/otp-service.ts` (`verifyLoginOtp`, `requestLoginOtp`), `src/lib/otp-policy.ts` (`isOtpChallengeActive`) |
+| Bentuk kode OTP | **6 digit angka**, maksimal **3 kali** percobaan salah per kode | `src/lib/otp-policy.ts` (`OTP_CODE_LENGTH`, `OTP_MAX_ATTEMPTS`), `src/lib/otp-input.ts` |
+| Cooldown kirim ulang OTP | **60 detik** antar permintaan kode; selama menunggu, tombol kirim ulang menampilkan hitung mundur dan tidak bisa diklik | `src/lib/otp-policy.ts` (`OTP_RESEND_COOLDOWN_MS`, `otpResendWaitMs`), `src/app/api/auth/otp/request/route.ts`, `src/app/auth/login/page.tsx` (hitung mundur) |
+| Pesan error login yang generik (tab kata sandi maupun tab OTP) | Di tab kata sandi, email tidak terdaftar dan kata sandi sama-sama memunculkan **"Invalid email or password"**, tanpa petunjuk mana yang salah. Di tab Email OTP, pesan kegagalan OTP juga tidak pernah menyebut apakah alamat email terdaftar | `src/lib/auth.ts` (`authorize` mengembalikan `null` untuk semua kegagalan), `src/app/auth/login/page.tsx` (`setError("Invalid email or password")` dan peta `OTP_ERROR_MESSAGES`) |
+| Anti-enumerasi pada permintaan OTP | Email yang **tidak terdaftar** (atau akun nonaktif) tetap dijawab sukses generik **"Code sent."** dengan status yang sama seperti email terdaftar. Server tidak pernah mengatakan "email tidak ditemukan" | `src/app/api/auth/otp/request/route.ts` (cabang `undeliverable`), `src/lib/otp-service.ts` (`reason: "undeliverable"`) |
+
+Karena anti-enumerasi di atas, layar tidak bisa memberi tahu apakah alamat yang Anda ketik benar-benar punya akun. Karena itu di layar permintaan **Email OTP** tertulis satu kalimat netral, bukan vonis untuk alamat Anda:
+
+> **Kalau email tidak terdaftar, kode tidak akan terkirim.**
+
+Kalimat yang sama juga tercantum di sini agar panduan dan tampilan konsisten. Kalau kode tak kunjung datang, periksa ejaan email dan folder spam, lalu minta kode baru setelah cooldown OTP selesai. Rujukan: `src/app/auth/login/page.tsx` (kalimat netral), `src/app/api/auth/otp/request/route.ts` (respons generik).
+
+Hal yang **BELUM TERVERIFIKASI** dari sisi agen (butuh lingkungan live / akun uji pemilik):
+
+- Apakah email OTP benar-benar sampai ke kotak masuk dan berapa lama waktu tempuhnya. Kode hanya dikirim kalau SMTP dikonfigurasi; kalau tidak, permintaan dijawab 503 "Email delivery is not configured" (`src/lib/otp-email.ts`, `src/app/api/auth/otp/request/route.ts`).
+- Perilaku klik nyata pada tab dan tombol OTP **di situs live**. Sesi verifikasi 5 November memakai pemicu JavaScript, bukan klik pointer, sehingga bukan bukti klik. Di salinan kerja lokal, klik pointer sungguhan sudah memunculkan kalimat netral di atas; setelah perubahan dirilis, pemilik/penguji perlu mengulang klik yang sama di situs live.
+- Pembatasan laju (rate limit 429) dan batas 3 percobaan secara live. Aturannya ada di `src/lib/otp-policy.ts` dan `src/lib/otp-service.ts`.
 
 ## Langkah 3 — Hubungkan WhatsApp
 

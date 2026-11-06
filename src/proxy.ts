@@ -7,14 +7,19 @@ import { checkPersistentRateLimit, getClientIp, rateLimitHeaders } from "@/lib/r
 import { consumeUsage, QuotaExceededError } from "@/lib/usage";
 import { EntitlementDeniedError, requireEntitlement, SubscriptionInactiveError } from "@/lib/billing";
 import { canAccessDashboardPath } from "@/lib/access-policy";
+import { isSameOriginRequest } from "@/lib/api-auth";
 
 export async function proxy(request: NextRequest) {
     const { pathname } = request.nextUrl;
 
     // Infrastructure probes must work without a user session or API quota.
+    // `/api/health` is the bare liveness endpoint most uptime checkers and load
+    // balancers probe by default; keep the match exact so no sibling route is
+    // accidentally opened. The route handler answers with a single status field
+    // and nothing about tenants, sessions, storage, workers, or versions.
     if (
         (request.method === "GET" || request.method === "HEAD") &&
-        (pathname === "/api/health/live" || pathname === "/api/health/ready")
+        (pathname === "/api/health" || pathname === "/api/health/live" || pathname === "/api/health/ready")
     ) {
         return NextResponse.next();
     }
@@ -70,6 +75,12 @@ export async function proxy(request: NextRequest) {
         // the public guide before they have an account, and the plugin is an
         // open integration artifact, not tenant data.
         if (pathname.startsWith("/api/public/plugin/")) {
+            return NextResponse.next();
+        }
+
+        // Public download of the Google Forms Apps Script connector, with the
+        // same rationale as the WordPress plugin archive above.
+        if (pathname.startsWith("/api/public/integration/")) {
             return NextResponse.next();
         }
 
@@ -158,6 +169,19 @@ export async function proxy(request: NextRequest) {
         const session = await auth();
         if (!session?.user || session.user.accountActive === false) {
             return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+        }
+
+        // CSRF defence at the edge: a browser silently attaches the session
+        // cookie to cross-site requests too, so every cookie-authenticated
+        // state-changing API call must originate from this app. API-key
+        // requests (handled above) never reach this branch, and requests
+        // without Origin/Referer are non-browser clients and stay allowed.
+        // Route handlers enforce the same rule again (defence in depth).
+        if (!isSameOriginRequest(request)) {
+            return NextResponse.json(
+                { error: "Cross-origin state-changing request with session cookie is rejected", code: "CSRF_ORIGIN_REJECTED" },
+                { status: 403 },
+            );
         }
 
         // Session-authenticated traffic gets the same per-minute ceiling as the

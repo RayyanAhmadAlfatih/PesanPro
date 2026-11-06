@@ -282,7 +282,7 @@ export default function WebhooksPage() {
                 setNewEvents(["message.received", "message.sent"]);
                 fetchWebhooks();
             } else {
-                toast.error("Failed to create webhook");
+                await mutationErrorToast(res, "Failed to create webhook");
             }
         } catch {
             toast.error("An error occurred");
@@ -310,7 +310,7 @@ export default function WebhooksPage() {
                 setEditingId(null);
                 fetchWebhooks();
             } else {
-                toast.error("Failed to update webhook");
+                await mutationErrorToast(res, "Failed to update webhook");
             }
         } catch {
             toast.error("An error occurred");
@@ -382,14 +382,30 @@ export default function WebhooksPage() {
         try {
             const webhook = webhooks.find(w => w.id === deleteId);
             const targetSessionId = webhook?.sessionId || sessionId;
-            await fetch(`/api/webhooks/${targetSessionId}/${deleteId}`, { method: "DELETE" });
+            const response = await fetch(`/api/webhooks/${targetSessionId}/${deleteId}`, { method: "DELETE" });
+            const body = await response.json() as { error?: { message?: string } };
+            if (!response.ok) throw new Error(body.error?.message || "Failed to delete webhook");
             setWebhooks(webhooks.filter(w => w.id !== deleteId));
             toast.success("Webhook deleted");
-        } catch {
-            toast.error("Failed to delete webhook");
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Failed to delete webhook");
         } finally {
             setDeleteId(null);
         }
+    };
+
+    // Surface the API's safe validation message instead of a generic toast, so
+    // the user learns WHY a create/update failed (short secret, invalid URL,
+    // missing events) without exposing secrets or internals.
+    const mutationErrorToast = async (response: Response, fallback: string) => {
+        let message = fallback;
+        try {
+            const body = await response.json() as { error?: { message?: string }; message?: string };
+            message = body.error?.message || body.message || fallback;
+        } catch {
+            // Response had no JSON body; keep the fallback text.
+        }
+        toast.error(message);
     };
 
     const copyToClipboard = (text: string) => {
@@ -608,10 +624,10 @@ export default function WebhooksPage() {
                                                         onCheckedChange={(checked) => toggleWebhookActive(webhook.id, checked)}
                                                     />
                                                     <Button variant="ghost" size="sm" onClick={() => handleEdit(webhook)}>Edit</Button>
-                                                    <Button variant="ghost" size="icon" title="Rotate signing secret" onClick={() => rotateSecret(webhook)}>
+                                                    <Button variant="ghost" size="icon" title="Rotate signing secret" aria-label="Rotate signing secret" onClick={() => rotateSecret(webhook)}>
                                                         <Key className="h-4 w-4" />
                                                     </Button>
-                                                    <Button variant="ghost" size="icon" onClick={() => deleteWebhook(webhook.id)}>
+                                                    <Button variant="ghost" size="icon" title="Delete webhook" aria-label="Delete webhook" onClick={() => deleteWebhook(webhook.id)}>
                                                         <Trash2 className="h-4 w-4 text-destructive" />
                                                     </Button>
                                                 </div>

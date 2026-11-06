@@ -126,7 +126,7 @@ Lihat kode error pada detail pesan.
 | `INVALID_RECIPIENT` | Format nomor salah | Gunakan `08...`, `62...`, atau `+62...` |
 | `SESSION_NOT_CONNECTED` | Perangkat tidak terhubung | Sambungkan perangkat |
 | `SESSION_LOGGED_OUT` | Sesi berakhir | Pindai QR ulang |
-| `QUOTA_EXCEEDED` | Kuota pesan habis | Tunggu periode baru atau naik paket |
+| `QUOTA_EXCEEDED` | Kuota pesan atau penyimpanan media habis | Lihat pesan errornya: kalau tentang media, hapus media tidak terpakai atau naik paket; kalau tentang pesan, tunggu periode baru atau naik paket |
 | `ENTITLEMENT_DENIED` | Paket tidak aktif / fitur tidak tersedia | Selesaikan pembayaran |
 | `MEDIA_TOO_LARGE` | Media melebihi batas | Kecilkan file |
 | `RATE_LIMITED` | Terlalu cepat | Beri jeda, coba lagi |
@@ -140,6 +140,20 @@ Lihat kode error pada detail pesan.
 3. Penerima tidak memblokir nomor Anda.
 4. Penerima tidak memakai WhatsApp versi modifikasi.
 5. Pesan tidak mengandung link yang diblokir.
+
+### Arti status pesan, dalam bahasa sehari-hari
+
+| Status | Artinya |
+| --- | --- |
+| `QUEUED` | Pesan masih mengantri di PesanPro, belum diserahkan ke WhatsApp. |
+| `PROCESSING` | Sedang diproses sekarang. |
+| `SENT` | Pesan sudah diserahkan ke WhatsApp. Belum tentu sampai ke HP penerima. |
+| `DELIVERED` | Pesan sudah **sampai di HP penerima** (ada centang dua). Penerima belum tentu melihatnya — bisa juga HP sedang mati atau notifikasi belum dibuka. |
+| `READ` | Penerima **sudah membuka pesan itu** di WhatsApp (centang dua biru). |
+| `FAILED` | Gagal terkirim. Periksa kode error pada baris tersebut. |
+| `CANCELLED` | Dibatalkan sebelum sempat dikirim. |
+
+Penting untuk operator: `READ` hanya berarti pesan dibuka di aplikasi WhatsApp, bukan berarti permintaan pelanggan sudah ditangani manusia. Pesan yang tidak pernah dibuka penerimanya akan berhenti di `DELIVERED` — itu bukan gagal kirim.
 
 ### Pesan terkirim dua kali
 
@@ -169,7 +183,7 @@ Kuota dihitung per periode langganan, bukan per tanggal kalender. Periode dimula
 ### Fitur terkunci padahal paket aktif
 
 1. Pastikan status paket `ACTIVE`, bukan `GRACE_PERIOD` atau `EXPIRED`.
-2. Periksa apakah fitur termasuk paket (lihat [09 — Paket, harga, dan margin](09-paket-dan-margin.md)).
+2. Periksa apakah fitur termasuk paket di halaman **Tagihan** di dashboard (daftar hak paket dan kuota tampil di sana).
 3. Kalau baru upgrade, tunggu beberapa detik lalu muat ulang.
 4. Kalau memakai API, pastikan scope API key mencakup fitur tersebut.
 

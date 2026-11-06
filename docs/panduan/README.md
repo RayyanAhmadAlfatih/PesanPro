@@ -19,7 +19,14 @@ Mulai dari panduan yang paling cocok dengan pekerjaan Anda. Semua panduan memaka
 | [06 — Webhook](06-webhook.md) | Developer | Event, bentuk payload, verifikasi signature, retry, replay, keamanan |
 | [07 — Integrasi tanpa kode](07-integrasi-tanpa-kode.md) | Pemilik toko online | WordPress/Contact Form 7, WooCommerce, Google Forms |
 | [08 — Troubleshooting dan FAQ](08-troubleshooting-faq.md) | Semua | Arti status, error umum, kuota, perangkat terputus, 413, 429 |
-| [09 — Paket, harga, dan margin](09-paket-dan-margin.md) | Pemilik bisnis | Matriks paket, biaya VPS/domain, titik impas, rekomendasi margin |
+| [11 — Model autentikasi API](11-model-autentikasi-api.md) | Developer | Kapan memakai x-api-key, kapan cookie sesi dashboard, dan permintaan lintas-origin yang ditolak |
+| [12 — Menu Pengiriman](12-menu-pengiriman.md) | Operator, pemilik usaha | Isi menu Pengiriman: Antrian Pesan, Kirim Massal, Jadwal Kirim, Balasan Otomatis — dan kapan memakai yang mana |
+
+Panduan berikut **internal** — hanya terlihat oleh superadmin di `/docs`, tidak untuk pelanggan:
+
+| Panduan | Untuk siapa | Isi |
+| --- | --- | --- |
+| [09 — Paket, harga, dan margin](09-paket-dan-margin.md) | Pemilik bisnis (internal) | Matriks paket, biaya VPS/domain, titik impas, rekomendasi margin |
 | [10 — Panduan admin](10-panduan-admin.md) | Superadmin | Verifikasi pembayaran, assign paket, override, pemantauan |
 
 ## Alamat layanan
@@ -58,7 +65,9 @@ Jangan menukar kedua domain. Website marketing hanya menjelaskan produk; aplikas
 ## Cara cepat memilih jalur
 
 - Saya hanya ingin mengirim pesan dan broadcast dari dashboard → mulai dari [01 — Memulai untuk UMKM](01-memulai-umkm.md).
+- Saya bingung isi menu Pengiriman dan kapan memakai yang mana → baca [12 — Menu Pengiriman](12-menu-pengiriman.md).
 - Saya ingin aplikasi saya mengirim WhatsApp otomatis → mulai dari [05 — API untuk developer](05-api-developer.md).
 - Saya ingin menerima notifikasi saat ada pesan masuk → mulai dari [06 — Webhook](06-webhook.md).
 - Saya punya toko WordPress/WooCommerce atau form Google → mulai dari [07 — Integrasi tanpa kode](07-integrasi-tanpa-kode.md).
-- Saya ingin tahu paket mana yang cocok dan marginnya → [09 — Paket, harga, dan margin](09-paket-dan-margin.md).
+- Saya bingung soal kunci API, cookie login, dan aturan keamanan → baca [11 — Model autentikasi API](11-model-autentikasi-api.md).
+- Perbandingan paket dan harga untuk pelanggan → lihat halaman Tagihan di dashboard atau halaman harga di `https://pesanpro.kingofcoding.my.id`.

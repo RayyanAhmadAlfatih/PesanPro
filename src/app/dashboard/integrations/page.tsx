@@ -180,6 +180,18 @@ export default function IntegrationsPage() {
       }
       setTokens((current) => current.map((token) => token.id === id ? { ...token, revokedAt: new Date().toISOString() } : token));
       toast.success("Token dicabut. Secret lama tidak bisa dipakai lagi.");
+      // The optimistic flip must match the server's truth. Refetch the token
+      // list quietly (no spinner) so the card shows REVOKED immediately even
+      // if the optimistic update ever races a re-render — no reload needed.
+      try {
+        const refreshed = await fetch("/api/v1/integration-tokens", { cache: "no-store" });
+        if (refreshed.ok) {
+          const body = await refreshed.json() as { data?: TokenItem[] };
+          if (Array.isArray(body.data)) setTokens(body.data);
+        }
+      } catch {
+        // Keep the optimistic REVOKED state; the next Refresh recovers.
+      }
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Gagal mencabut token");
     } finally {
