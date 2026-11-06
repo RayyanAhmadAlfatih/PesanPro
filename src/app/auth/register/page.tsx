@@ -260,7 +260,9 @@ export default function RegisterPage() {
             <CheckCircle2 className="h-10 w-10 text-[var(--pp-ink)]" aria-hidden="true" />
             <h1 className="mt-3 text-2xl font-bold">Pendaftaran terkirim</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Akun <strong>{success.email}</strong> sudah dibuat. Bukti transfer Anda sedang diperiksa admin.
+              Terima kasih sudah membeli paket <strong>{success.planName}</strong>. Akun{" "}
+              <strong>{success.email}</strong> sudah dibuat. Mohon tunggu, admin sedang memeriksa
+              bukti transfer Anda.
             </p>
             <dl className="mt-4 space-y-2 rounded-lg border border-[var(--pp-line)] bg-[var(--pp-paper)] p-4 text-sm">
               <div className="flex justify-between gap-3">
