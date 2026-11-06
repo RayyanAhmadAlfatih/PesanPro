@@ -2,11 +2,18 @@ import { prisma } from "@/lib/prisma";
 import { Card, CardContent } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { Plus, Wifi, WifiOff, QrCode, ArrowRight, CreditCard } from "lucide-react";
+import { Plus, Wifi, WifiOff, QrCode, ArrowRight, CreditCard, MessageCircle } from "lucide-react";
 import { auth } from "@/lib/auth";
 import { getAccessibleSessions } from "@/lib/api-auth";
 import { getBillingSnapshot } from "@/lib/billing";
 import { subscriptionStatusView } from "@/lib/billing-status";
+import {
+  activationCycleLabel,
+  formatActivationAmount,
+  shouldShowActivationWait,
+} from "@/lib/pending-activation";
+import { RefreshStatusButton } from "@/components/dashboard/refresh-status-button";
+import { parseUserWhatsapp } from "@/lib/whatsapp-number";
 import { redirect } from "next/navigation";
 import { canAccessDashboardPath } from "@/lib/access-policy";
 
@@ -20,13 +27,42 @@ export default async function DashboardPage() {
   const session = await auth();
   if (!session?.user) redirect("/login");
 
+  // Same billing source the Tagihan page reads — no hardcoded plan values.
+  const billing = await getBillingSnapshot(session.user.id!).catch(() => null);
+
+  // Keputusan pemilik 6 Nov 2026: akun dengan paket PENDING yang buktinya
+  // masih diperiksa berhenti di halaman tunggu, bukan dashboard kerja.
+  const pendingVerification =
+    billing?.plan.code === "PENDING"
+      ? await prisma.paymentVerification
+          .findFirst({
+            where: { userId: session.user.id!, status: "PENDING" },
+            orderBy: { createdAt: "desc" },
+            include: { plan: true, bankAccount: true },
+          })
+          .catch(() => null)
+      : null;
+
+  if (shouldShowActivationWait(billing?.plan.code, pendingVerification !== null) && pendingVerification) {
+    const config = await prisma.systemConfig
+      .findUnique({ where: { id: "default" }, select: { supportWhatsapp: true } })
+      .catch(() => null);
+    return (
+      <ActivationWaitView
+        planName={pendingVerification.plan?.name ?? "paket"}
+        amountLabel={formatActivationAmount(Number(pendingVerification.amount))}
+        cycleLabel={activationCycleLabel(pendingVerification.billingCycle)}
+        bank={pendingVerification.bankAccount}
+        supportWhatsapp={config?.supportWhatsapp ?? ""}
+      />
+    );
+  }
+
   const sessions = await getAccessibleSessions(session.user.id!, session.user.role || "USER");
   const totalSessions = sessions.length;
   const connectedSessions = sessions.filter((item) => item.status === "CONNECTED").length;
   const disconnectedSessions = totalSessions - connectedSessions;
 
-  // Same billing source the Tagihan page reads — no hardcoded plan values.
-  const billing = await getBillingSnapshot(session.user.id!).catch(() => null);
   const planView = subscriptionStatusView(billing ? { status: billing.status, plan: billing.plan } : null);
   const planName = billing?.plan.name ?? null;
   const planEndsAt = billing && "endsAt" in billing && billing.endsAt ? new Date(billing.endsAt) : null;
@@ -122,6 +158,77 @@ export default async function DashboardPage() {
           </div>
         )}
       </section>
+    </div>
+  );
+}
+
+/** Satu-satunya halaman yang dilihat tenant selama bukti pembayarannya belum diputuskan admin. */
+function ActivationWaitView({
+  planName,
+  amountLabel,
+  cycleLabel,
+  bank,
+  supportWhatsapp,
+}: {
+  planName: string;
+  amountLabel: string;
+  cycleLabel: string;
+  bank: { bankName: string; accountNumber: string; accountHolder: string } | null;
+  supportWhatsapp: string;
+}) {
+  const support = parseUserWhatsapp(supportWhatsapp);
+  return (
+    <div className="space-y-6">
+      <header className="pp-page-head">
+        <div>
+          <span className="pp-eyebrow">Status pembayaran</span>
+          <h1 className="pp-page-title">Terima kasih sudah membeli paket {planName}!</h1>
+          <p className="pp-page-description">
+            Mohon tunggu, admin sedang memeriksa bukti pembayaran Anda. Tinggal di halaman ini sampai
+            pemeriksaan selesai; dashboard utama terbuka sendiri begitu admin menyetujui pembayaran Anda.
+          </p>
+        </div>
+      </header>
+
+      <Card className="border-[var(--pp-ink)] bg-[var(--pp-highlight)]/25">
+        <CardContent className="space-y-4 p-5">
+          <dl className="space-y-2 text-sm">
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Paket</dt>
+              <dd className="font-semibold">{planName}</dd>
+            </div>
+            <div className="flex justify-between gap-3">
+              <dt className="text-muted-foreground">Total bayar</dt>
+              <dd className="text-right font-semibold tabular-nums">
+                {amountLabel} · {cycleLabel}
+              </dd>
+            </div>
+            {bank ? (
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Rekening tujuan</dt>
+                <dd className="text-right font-semibold">
+                  {bank.bankName} {bank.accountNumber.replace(/(\d{4})(?=\d)/g, "$1 ")} a.n. {bank.accountHolder}
+                </dd>
+              </div>
+            ) : null}
+          </dl>
+          <p className="text-sm text-muted-foreground">
+            Anda tidak perlu mengirim bukti lagi. Kalau pemeriksaan terasa lama, tanya admin lewat
+            WhatsApp atau klik Perbarui status untuk mengecek ulang.
+          </p>
+          <div className="flex flex-col gap-2 sm:flex-row">
+            {support.ok ? (
+              <Button asChild className="w-full sm:w-auto">
+                <a href={`https://wa.me/${support.normalized}`} target="_blank" rel="noreferrer">
+                  <MessageCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Tanya admin lewat WhatsApp
+                </a>
+              </Button>
+            ) : null}
+            <RefreshStatusButton />
+          </div>
+        </CardContent>
+      </Card>
     </div>
   );
 }
