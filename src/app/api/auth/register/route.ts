@@ -12,14 +12,23 @@ import { queuePaymentSubmittedEmails } from "@/lib/email-notifications";
 import { MessageJobError } from "@/lib/message-job-errors";
 import { deleteStoredPaymentProof, storePaymentProof } from "@/lib/payment-proof";
 import { parseRegistrationUpload } from "@/lib/registration-upload";
+import { getPaymentMethodsSnapshot } from "@/lib/payment-methods";
+import { parseUserWhatsapp } from "@/lib/whatsapp-number";
 
 const registrationSchema = z.object({
   name: z.string().trim().min(2).max(120),
   email: z.string().trim().toLowerCase().email().max(320),
+  // Nomor WhatsApp kontak (bukan nomor device). Wajib; bentuk akhirnya 62…
+  // diverifikasi ulang lewat parseUserWhatsapp setelah zod membatasi bentuk
+  // mentahnya, jadi aturan panjang/prefix hanya hidup di satu tempat.
+  whatsappNumber: z.string().trim().min(1).max(40),
   password: passwordSchema,
   planId: z.string().min(1),
   reference: z.string().trim().min(3).max(120),
   billingCycle: z.enum(["MONTHLY", "YEARLY"]).default("MONTHLY"),
+  // Rekening yang dipilih pembayar. Opsional di API supaya klien lama tidak
+  // rusak; UI selalu mengirimnya saat daftar rekening tampil.
+  bankAccountId: z.string().trim().max(64).optional(),
 });
 
 export async function POST(req: NextRequest) {
@@ -46,29 +55,34 @@ export async function POST(req: NextRequest) {
   const parsed = registrationSchema.safeParse({
     ...upload.fields,
     billingCycle: upload.fields.billingCycle.trim() || undefined,
+    bankAccountId: upload.fields.bankAccountId?.trim() || undefined,
   });
   if (!parsed.success) {
     return NextResponse.json({ error: "Invalid registration data provided" }, { status: 400 });
   }
   const { name, email, password, planId, reference, billingCycle } = parsed.data;
 
-  const config = await prisma.systemConfig.findUnique({
-    where: { id: "default" },
-    select: {
-      enableRegistration: true,
-      bankName: true,
-      bankAccountNumber: true,
-      bankAccountHolder: true,
-    },
-  });
+  const whatsapp = parseUserWhatsapp(parsed.data.whatsappNumber);
+  if (!whatsapp.ok) {
+    return NextResponse.json({ error: whatsapp.reason, code: "WHATSAPP_INVALID" }, { status: 400 });
+  }
+
+  const [config, methods] = await Promise.all([
+    prisma.systemConfig.findUnique({
+      where: { id: "default" },
+      select: { enableRegistration: true, supportWhatsapp: true },
+    }),
+    getPaymentMethodsSnapshot(),
+  ]);
   if (config && config.enableRegistration === false) {
     return NextResponse.json(
       { error: "Registration is currently disabled by the administrator" },
       { status: 403 },
     );
   }
-  const paymentReady = Boolean(config?.bankName && config.bankAccountNumber && config.bankAccountHolder);
-  if (!paymentReady) {
+  // Penjaga lama diperbarui (F1.4): terblokir hanya kalau TIDAK ADA cara bayar
+  // yang siap sama sekali — bukan lagi kalau kolom rekening tunggal kosong.
+  if (!methods.anyReady) {
     return NextResponse.json(
       {
         error: "Payment details are not configured yet. Contact the administrator.",
@@ -76,6 +90,41 @@ export async function POST(req: NextRequest) {
       },
       { status: 503 },
     );
+  }
+  // Manual belum siap tapi ada cara lain yang siap: alur transfer manual
+  // tidak boleh dipakai, jadi rekening pilihan wajib ditolak.
+  if (!methods.manual.ready) {
+    return NextResponse.json(
+      {
+        error: "Transfer manual sedang tidak tersedia. Gunakan cara bayar lain yang tampil di halaman pendaftaran.",
+        code: "MANUAL_TRANSFER_UNAVAILABLE",
+      },
+      { status: 503 },
+    );
+  }
+
+  // Rekening pilihan harus rekening aktif yang memang ditampilkan ke user.
+  let bankAccount: { id: string; bankName: string; accountNumber: string; accountHolder: string } | null = null;
+  if (parsed.data.bankAccountId) {
+    const account = await prisma.paymentAccount.findFirst({
+      where: { id: parsed.data.bankAccountId, isActive: true },
+      select: { id: true, bankName: true, accountNumber: true, accountHolder: true },
+    });
+    if (!account) {
+      return NextResponse.json(
+        { error: "Rekening tujuan tidak tersedia. Pilih salah satu rekening yang tercantum.", code: "BANK_ACCOUNT_UNAVAILABLE" },
+        { status: 400 },
+      );
+    }
+    bankAccount = account;
+  } else if (methods.manual.ready) {
+    // Tidak dikirim tapi alur manual dipakai: pakai rekening default agar
+    // riwayat pembayaran tetap terhubung ke rekening yang ditampilkan.
+    bankAccount = await prisma.paymentAccount.findFirst({
+      where: { isActive: true },
+      orderBy: [{ isDefault: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true, bankName: true, accountNumber: true, accountHolder: true },
+    });
   }
 
   // Return the same generic rejection as any other validation failure so the
@@ -115,7 +164,7 @@ export async function POST(req: NextRequest) {
 
     const created = await prisma.$transaction(async (tx) => {
       const user = await tx.user.create({
-        data: { id: userId, name, email, password: hashedPassword },
+        data: { id: userId, name, email, password: hashedPassword, whatsappNumber: whatsapp.normalized },
       });
       await provisionDefaultSubscriptionInTransaction(tx, user.id);
       const verification = await tx.paymentVerification.create({
@@ -123,6 +172,7 @@ export async function POST(req: NextRequest) {
           id: verificationId,
           userId: user.id,
           planId: plan.id,
+          bankAccountId: bankAccount?.id ?? null,
           amount,
           billingCycle,
           currency: plan.currency,
@@ -165,7 +215,15 @@ export async function POST(req: NextRequest) {
         planName: plan.name,
         amount: amount.toString(),
         currency: plan.currency,
+        // Ditampilkan ulang di layar PENDING supaya pembayar bisa mencocokkan
+        // transfernya tanpa membuka halaman lain.
+        account: bankAccount
+          ? { bankName: bankAccount.bankName, accountNumber: bankAccount.accountNumber, accountHolder: bankAccount.accountHolder }
+          : null,
       },
+      // Nomor bantuan yang sama dengan halaman Bantuan dashboard (F1.2),
+      // bukan nomor admin kedua.
+      supportWhatsapp: config?.supportWhatsapp ?? "",
     });
   } catch (error) {
     if (storedProof) {

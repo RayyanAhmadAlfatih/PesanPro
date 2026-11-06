@@ -1,14 +1,43 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useCallback, useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardHeader, CardTitle, CardDescription } from "@/components/ui/card";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
-import { RefreshCw, Save } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import {
+    AlertDialog,
+    AlertDialogAction,
+    AlertDialogCancel,
+    AlertDialogContent,
+    AlertDialogDescription,
+    AlertDialogFooter,
+    AlertDialogHeader,
+    AlertDialogTitle,
+} from "@/components/ui/alert-dialog";
+import { AlertTriangle, ArrowDown, ArrowUp, Loader2, Plus, RefreshCw, Save, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatWhatsappDisplay, whatsappHref } from "@/lib/support-contact";
+import { formatAccountNumberDisplay } from "@/lib/bank-list";
+
+interface PaymentMethodsSnapshot {
+    manual: { key: string; enabled: boolean; ready: boolean; label: string; missing: string[] };
+    midtrans: { key: string; enabled: boolean; ready: boolean; label: string; missing: string[] };
+    anyReady: boolean;
+    activeManualAccountCount: number;
+}
+
+interface AccountRow {
+    id: string;
+    bankName: string;
+    accountNumber: string;
+    accountHolder: string;
+    isActive: boolean;
+    isDefault: boolean;
+    usedCount: number;
+}
 
 export default function SettingsPage() {
     const { data: authSession } = useSession();
@@ -20,9 +49,8 @@ export default function SettingsPage() {
         faviconUrl: "/favicon.ico",
         timezone: "Asia/Jakarta",
         enableRegistration: true,
-        bankName: "",
-        bankAccountNumber: "",
-        bankAccountHolder: "",
+        manualTransferEnabled: true,
+        midtransEnabled: false,
         paymentNote: "",
         supportWhatsapp: ""
     });
@@ -31,6 +59,17 @@ export default function SettingsPage() {
     const [pluginZip, setPluginZip] = useState<{ customUploaded: boolean; sizeBytes: number | null }>({ customUploaded: false, sizeBytes: null });
     const [pluginZipFile, setPluginZipFile] = useState<File | null>(null);
     const [pluginUploading, setPluginUploading] = useState(false);
+
+    // Multi-bank (F1.3)
+    const [accounts, setAccounts] = useState<AccountRow[]>([]);
+    const [methods, setMethods] = useState<PaymentMethodsSnapshot | null>(null);
+    const [bankOptions, setBankOptions] = useState<string[]>([]);
+    const [accountsLoading, setAccountsLoading] = useState(true);
+    const [accountBusy, setAccountBusy] = useState(false);
+    const [newAccount, setNewAccount] = useState({ bankName: "", accountNumber: "", accountHolder: "" });
+    const [editingId, setEditingId] = useState<string | null>(null);
+    const [editDraft, setEditDraft] = useState({ bankName: "", accountNumber: "", accountHolder: "" });
+    const [deleteTarget, setDeleteTarget] = useState<AccountRow | null>(null);
 
     useEffect(() => {
         try {
@@ -59,9 +98,8 @@ export default function SettingsPage() {
                         faviconUrl: data.faviconUrl || "/favicon.ico",
                         timezone: data.timezone || "Asia/Jakarta",
                         enableRegistration: data.enableRegistration !== undefined ? data.enableRegistration : true,
-                        bankName: data.bankName || "",
-                        bankAccountNumber: data.bankAccountNumber || "",
-                        bankAccountHolder: data.bankAccountHolder || "",
+                        manualTransferEnabled: data.manualTransferEnabled !== undefined ? data.manualTransferEnabled : true,
+                        midtransEnabled: data.midtransEnabled !== undefined ? data.midtransEnabled : false,
                         paymentNote: data.paymentNote || "",
                         supportWhatsapp: data.supportWhatsapp || ""
                     });
@@ -69,6 +107,27 @@ export default function SettingsPage() {
             })
             .catch(() => { });
     }, []);
+
+    const loadAccounts = useCallback(async () => {
+        setAccountsLoading(true);
+        try {
+            const response = await fetch("/api/admin/payment-accounts", { cache: "no-store" });
+            const body = await response.json();
+            if (!response.ok) throw new Error(body.error ?? "Gagal memuat daftar rekening.");
+            setAccounts(body.data?.accounts ?? []);
+            setMethods(body.data?.methods ?? null);
+            setBankOptions(body.data?.bankOptions ?? []);
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Gagal memuat daftar rekening.");
+        } finally {
+            setAccountsLoading(false);
+        }
+    }, []);
+
+    useEffect(() => {
+        if (!isSuperAdmin) return;
+        void loadAccounts();
+    }, [isSuperAdmin, loadAccounts]);
 
     useEffect(() => {
         if (!isSuperAdmin) return;
@@ -128,6 +187,7 @@ export default function SettingsPage() {
 
             if (res.ok) {
                 toast.success("System settings updated. Refresh to see changes.");
+                await loadAccounts();
             } else {
                 toast.error("Failed to update system settings");
             }
@@ -139,20 +199,108 @@ export default function SettingsPage() {
         }
     };
 
+    const createAccount = async () => {
+        if (!newAccount.bankName || !newAccount.accountNumber.trim() || !newAccount.accountHolder.trim()) {
+            toast.error("Lengkapi bank, nomor rekening, dan nama pemilik rekening.");
+            return;
+        }
+        setAccountBusy(true);
+        try {
+            const response = await fetch("/api/admin/payment-accounts", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ...newAccount, isActive: true, isDefault: accounts.length === 0 }),
+            });
+            const body = await response.json();
+            if (!response.ok) throw new Error(body.error ?? "Gagal menambah rekening.");
+            toast.success("Rekening ditambahkan.");
+            setNewAccount({ bankName: "", accountNumber: "", accountHolder: "" });
+            await loadAccounts();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Gagal menambah rekening.");
+        } finally {
+            setAccountBusy(false);
+        }
+    };
+
+    const patchAccount = async (id: string, data: Record<string, unknown>) => {
+        setAccountBusy(true);
+        try {
+            const response = await fetch(`/api/admin/payment-accounts/${id}`, {
+                method: "PATCH",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify(data),
+            });
+            const body = await response.json();
+            if (!response.ok) throw new Error(body.error ?? "Gagal menyimpan perubahan rekening.");
+            await loadAccounts();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Gagal menyimpan perubahan rekening.");
+        } finally {
+            setAccountBusy(false);
+        }
+    };
+
+    const deleteAccount = async (account: AccountRow) => {
+        setAccountBusy(true);
+        try {
+            const response = await fetch(`/api/admin/payment-accounts/${account.id}`, { method: "DELETE" });
+            const body = await response.json();
+            if (!response.ok) throw new Error(body.error ?? "Gagal menghapus rekening.");
+            toast.success("Rekening dihapus.");
+            setDeleteTarget(null);
+            await loadAccounts();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Gagal menghapus rekening.");
+        } finally {
+            setAccountBusy(false);
+        }
+    };
+
+    const moveAccount = async (index: number, direction: -1 | 1) => {
+        const targetIndex = index + direction;
+        if (targetIndex < 0 || targetIndex >= accounts.length) return;
+        const next = [...accounts];
+        const [moved] = next.splice(index, 1);
+        next.splice(targetIndex, 0, moved);
+        setAccountBusy(true);
+        try {
+            const response = await fetch("/api/admin/payment-accounts/reorder", {
+                method: "POST",
+                headers: { "Content-Type": "application/json" },
+                body: JSON.stringify({ ids: next.map((account) => account.id) }),
+            });
+            const body = await response.json();
+            if (!response.ok) throw new Error(body.error ?? "Gagal mengubah urutan.");
+            await loadAccounts();
+        } catch (error) {
+            toast.error(error instanceof Error ? error.message : "Gagal mengubah urutan.");
+        } finally {
+            setAccountBusy(false);
+        }
+    };
+
+    const startEdit = (account: AccountRow) => {
+        setEditingId(account.id);
+        setEditDraft({ bankName: account.bankName, accountNumber: account.accountNumber, accountHolder: account.accountHolder });
+    };
+
+    const saveEdit = async () => {
+        if (!editingId) return;
+        await patchAccount(editingId, editDraft);
+        setEditingId(null);
+    };
+
     const inputClass = "flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50";
     const formatBytes = (bytes: number) => {
         if (!Number.isFinite(bytes) || bytes <= 0) return "0 KB";
         if (bytes < 1024 * 1024) return `${Math.round(bytes / 1024)} KB`;
         return `${(bytes / (1024 * 1024)).toFixed(1)} MB`;
     };
-    const bankReady = Boolean(
-        systemConfig.bankName.trim() &&
-        systemConfig.bankAccountNumber.trim() &&
-        systemConfig.bankAccountHolder.trim()
-    );
     const supportHref = whatsappHref(systemConfig.supportWhatsapp, "Halo admin PesanPro, saya butuh bantuan.");
     const supportDisplay = formatWhatsappDisplay(systemConfig.supportWhatsapp);
     const supportInvalid = systemConfig.supportWhatsapp.trim().length > 0 && !supportHref;
+    const bothSwitchesOff = !systemConfig.manualTransferEnabled && !systemConfig.midtransEnabled;
 
     return (
         <div className="space-y-6">
@@ -246,74 +394,250 @@ export default function SettingsPage() {
                 </CardContent>
             </Card>
 
-            {/* Payment destination used by the registration onboarding */}
+            {/* Saklar utama cara bayar (F1.4) */}
             <Card>
                 <CardHeader>
-                    <CardTitle className="text-xl">Payment destination</CardTitle>
+                    <CardTitle className="text-xl">Cara pembayaran</CardTitle>
                     <CardDescription>
-                        Shown on the sign-up screen. New accounts choose a plan, transfer to this account, and upload the proof before they can finish registering.
+                        Pilih cara bayar yang tersedia untuk user: Transfer Bank Manual, Midtrans, atau keduanya. Cara yang NONAKTIF tidak tampil di halaman daftar dan Tagihan.
                     </CardDescription>
                 </CardHeader>
                 <CardContent className="space-y-4">
-                    <div className="grid gap-4 sm:grid-cols-3">
-                        <div className="grid gap-2">
-                            <Label>Bank name</Label>
-                            <input
-                                className={inputClass}
-                                placeholder="BCA"
-                                value={systemConfig.bankName}
-                                onChange={(e) => setSystemConfig(prev => ({ ...prev, bankName: e.target.value }))}
-                                disabled={!isSuperAdmin}
-                                maxLength={120}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Account number</Label>
-                            <input
-                                className={inputClass}
-                                placeholder="1234567890"
-                                value={systemConfig.bankAccountNumber}
-                                onChange={(e) => setSystemConfig(prev => ({ ...prev, bankAccountNumber: e.target.value }))}
-                                disabled={!isSuperAdmin}
-                                maxLength={60}
-                            />
-                        </div>
-                        <div className="grid gap-2">
-                            <Label>Account holder</Label>
-                            <input
-                                className={inputClass}
-                                placeholder="Nama pemilik rekening"
-                                value={systemConfig.bankAccountHolder}
-                                onChange={(e) => setSystemConfig(prev => ({ ...prev, bankAccountHolder: e.target.value }))}
-                                disabled={!isSuperAdmin}
-                                maxLength={160}
-                            />
-                        </div>
-                    </div>
-
-                    <div className="grid gap-2">
-                        <Label>Payment note (optional)</Label>
-                        <textarea
-                            className={`${inputClass} h-auto min-h-24 py-2`}
-                            placeholder="Transfer only to this account. We never ask you to pay a different one."
-                            value={systemConfig.paymentNote}
-                            onChange={(e) => setSystemConfig(prev => ({ ...prev, paymentNote: e.target.value }))}
+                    <div className="flex items-center justify-between space-x-2 rounded-lg border p-4">
+                        <Label htmlFor="switch-manual" className="flex flex-col space-y-1">
+                            <span>Transfer Bank Manual</span>
+                            <span className="font-normal text-xs text-muted-foreground">
+                                User transfer ke rekening yang Anda kelola di bawah, lalu unggah bukti. Anda persetujui manual.
+                            </span>
+                        </Label>
+                        <Switch
+                            id="switch-manual"
+                            checked={systemConfig.manualTransferEnabled}
+                            onCheckedChange={c => setSystemConfig(prev => ({ ...prev, manualTransferEnabled: c }))}
                             disabled={!isSuperAdmin}
-                            maxLength={500}
                         />
-                        <p className="text-xs text-muted-foreground">Extra instruction shown under the account number on the sign-up screen.</p>
+                    </div>
+                    <div className="flex items-center justify-between space-x-2 rounded-lg border p-4">
+                        <Label htmlFor="switch-midtrans" className="flex flex-col space-y-1">
+                            <span>Midtrans (Snap)</span>
+                            <span className="font-normal text-xs text-muted-foreground">
+                                QRIS, e-wallet, VA, dan kartu lewat halaman bayar Midtrans. Konfigurasi kunci dan metode menyusul di Fase 2.
+                            </span>
+                        </Label>
+                        <Switch
+                            id="switch-midtrans"
+                            checked={systemConfig.midtransEnabled}
+                            onCheckedChange={c => setSystemConfig(prev => ({ ...prev, midtransEnabled: c }))}
+                            disabled={!isSuperAdmin}
+                        />
                     </div>
 
-                    {!bankReady ? (
-                        <p className="rounded-md border border-[var(--pp-danger)] bg-[var(--pp-paper)] px-3 py-2 text-sm text-[var(--pp-danger)]">
-                            Registrations are blocked until bank name, account number, and account holder are filled in.
+                    {bothSwitchesOff ? (
+                        <p className="rounded-md border border-[var(--pp-danger)] bg-[var(--pp-paper)] px-3 py-2 text-sm font-medium text-[var(--pp-danger)]">
+                            Kedua cara bayar NONAKTIF — pendaftaran dan checkout terblokir dengan pesan &quot;Pembayaran belum siap&quot;.
                         </p>
+                    ) : null}
+
+                    {/* Peringatan readiness: persis apa yang kurang per cara bayar */}
+                    {methods ? (
+                        <div className="space-y-2">
+                            {[methods.manual, methods.midtrans].map((method) =>
+                                method.enabled && !method.ready ? (
+                                    <p key={method.key} className="flex items-start gap-2 rounded-md border border-[var(--pp-terracotta)] bg-[var(--pp-paper)] px-3 py-2 text-sm">
+                                        <AlertTriangle className="mt-0.5 h-4 w-4 shrink-0 text-[var(--pp-terracotta)]" aria-hidden="true" />
+                                        <span>{method.missing.join(" ")}</span>
+                                    </p>
+                                ) : null,
+                            )}
+                        </div>
                     ) : null}
 
                     <div className="pt-2">
                         <Button onClick={handleSaveSystem} disabled={systemLoading || !isSuperAdmin}>
                             {systemLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
-                            Save Payment Destination
+                            Save Payment Methods
+                        </Button>
+                    </div>
+                </CardContent>
+            </Card>
+
+            {/* Daftar rekening multi-bank (F1.3) */}
+            <Card>
+                <CardHeader>
+                    <CardTitle className="text-xl">Rekening tujuan transfer</CardTitle>
+                    <CardDescription>
+                        Tampil ke user saat saklar Transfer Bank Manual AKTIF. Rekening yang pernah dipakai pembayaran tidak bisa dihapus — nonaktifkan saja supaya riwayat lama tetap bisa dicocokkan.
+                    </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                    {!systemConfig.manualTransferEnabled ? (
+                        <p className="rounded-md border border-[var(--pp-terracotta)] bg-[var(--pp-paper)] px-3 py-2 text-sm">
+                            Saklar Transfer Bank Manual sedang NONAKTIF: daftar ini tidak tampil ke user, tetapi tetap bisa Anda kelola di sini.
+                        </p>
+                    ) : null}
+
+                    {accountsLoading ? (
+                        <div className="flex justify-center py-6">
+                            <Loader2 className="h-6 w-6 animate-spin" aria-label="Memuat rekening" />
+                        </div>
+                    ) : accounts.length === 0 ? (
+                        <p className="rounded-lg border border-dashed p-4 text-sm text-muted-foreground">
+                            Belum ada rekening. Transfer manual dianggap belum siap sampai ada satu rekening aktif.
+                        </p>
+                    ) : (
+                        <div className="space-y-2">
+                            {accounts.map((account, index) => (
+                                <div key={account.id} className="rounded-lg border p-4">
+                                    {editingId === account.id ? (
+                                        <div className="grid gap-2 sm:grid-cols-3">
+                                            <select
+                                                className={inputClass}
+                                                value={editDraft.bankName}
+                                                onChange={(e) => setEditDraft((current) => ({ ...current, bankName: e.target.value }))}
+                                            >
+                                                <option value="">Pilih bank</option>
+                                                {bankOptions.map((bank) => (
+                                                    <option key={bank} value={bank}>{bank}</option>
+                                                ))}
+                                            </select>
+                                            <Input
+                                                value={editDraft.accountNumber}
+                                                onChange={(e) => setEditDraft((current) => ({ ...current, accountNumber: e.target.value }))}
+                                                placeholder="Nomor rekening (angka)"
+                                                inputMode="numeric"
+                                            />
+                                            <Input
+                                                value={editDraft.accountHolder}
+                                                onChange={(e) => setEditDraft((current) => ({ ...current, accountHolder: e.target.value }))}
+                                                placeholder="Nama pemilik rekening"
+                                            />
+                                            <div className="flex gap-2 sm:col-span-3">
+                                                <Button size="sm" onClick={() => void saveEdit()} disabled={accountBusy}>Simpan</Button>
+                                                <Button size="sm" variant="outline" onClick={() => setEditingId(null)} disabled={accountBusy}>Batal</Button>
+                                            </div>
+                                        </div>
+                                    ) : (
+                                        <div className="flex flex-wrap items-start justify-between gap-3">
+                                            <div className="min-w-0">
+                                                <div className="flex flex-wrap items-center gap-2">
+                                                    <p className="font-bold">{account.bankName}</p>
+                                                    {account.isDefault ? (
+                                                        <span className="inline-flex items-center gap-1 rounded-full bg-[var(--pp-mint)] px-2 py-0.5 text-xs font-semibold">
+                                                            <Star className="h-3 w-3" aria-hidden="true" /> Utama
+                                                        </span>
+                                                    ) : null}
+                                                    <span className={`rounded-full px-2 py-0.5 text-xs font-semibold ${account.isActive ? "bg-[var(--pp-mint)]" : "bg-[var(--pp-paper)] text-muted-foreground"}`}>
+                                                        {account.isActive ? "AKTIF" : "NONAKTIF"}
+                                                    </span>
+                                                </div>
+                                                <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-extrabold tabular-nums">
+                                                    {formatAccountNumberDisplay(account.accountNumber)}
+                                                </p>
+                                                <p className="text-sm text-muted-foreground">a.n. {account.accountHolder}</p>
+                                                {account.usedCount > 0 ? (
+                                                    <p className="mt-1 text-xs text-muted-foreground">
+                                                        Sudah dipakai {account.usedCount} pembayaran — tidak bisa dihapus permanen.
+                                                    </p>
+                                                ) : null}
+                                            </div>
+                                            <div className="flex flex-wrap gap-1.5">
+                                                <Button size="sm" variant="outline" disabled={accountBusy || index === 0} onClick={() => void moveAccount(index, -1)} aria-label={`Naikkan urutan ${account.bankName}`}>
+                                                    <ArrowUp className="h-4 w-4" />
+                                                </Button>
+                                                <Button size="sm" variant="outline" disabled={accountBusy || index === accounts.length - 1} onClick={() => void moveAccount(index, 1)} aria-label={`Turunkan urutan ${account.bankName}`}>
+                                                    <ArrowDown className="h-4 w-4" />
+                                                </Button>
+                                                {!account.isDefault ? (
+                                                    <Button size="sm" variant="outline" disabled={accountBusy} onClick={() => void patchAccount(account.id, { isDefault: true })}>
+                                                        Jadikan utama
+                                                    </Button>
+                                                ) : null}
+                                                <Button size="sm" variant="outline" disabled={accountBusy} onClick={() => startEdit(account)}>
+                                                    Edit
+                                                </Button>
+                                                <Button
+                                                    size="sm"
+                                                    variant="outline"
+                                                    disabled={accountBusy || (account.isDefault && account.isActive)}
+                                                    onClick={() => void patchAccount(account.id, { isActive: !account.isActive })}
+                                                >
+                                                    {account.isActive ? "Nonaktifkan" : "Aktifkan"}
+                                                </Button>
+                                                {account.usedCount === 0 ? (
+                                                    <Button
+                                                        size="sm"
+                                                        variant="outline"
+                                                        className="text-destructive hover:text-destructive"
+                                                        disabled={accountBusy}
+                                                        onClick={() => setDeleteTarget(account)}
+                                                    >
+                                                        <Trash2 className="h-4 w-4" />
+                                                    </Button>
+                                                ) : null}
+                                            </div>
+                                        </div>
+                                    )}
+                                </div>
+                            ))}
+                        </div>
+                    )}
+
+                    {/* Tambah rekening */}
+                    <div className="rounded-lg border border-dashed p-4">
+                        <p className="text-sm font-semibold">Tambah rekening</p>
+                        <div className="mt-3 grid gap-2 sm:grid-cols-3">
+                            <select
+                                className={inputClass}
+                                value={newAccount.bankName}
+                                onChange={(e) => setNewAccount((current) => ({ ...current, bankName: e.target.value }))}
+                                disabled={!isSuperAdmin || accountBusy}
+                                aria-label="Bank"
+                            >
+                                <option value="">Pilih bank</option>
+                                {bankOptions.map((bank) => (
+                                    <option key={bank} value={bank}>{bank}</option>
+                                ))}
+                            </select>
+                            <Input
+                                value={newAccount.accountNumber}
+                                onChange={(e) => setNewAccount((current) => ({ ...current, accountNumber: e.target.value }))}
+                                placeholder="Nomor rekening (6-20 angka)"
+                                inputMode="numeric"
+                                disabled={!isSuperAdmin || accountBusy}
+                                aria-label="Nomor rekening"
+                            />
+                            <Input
+                                value={newAccount.accountHolder}
+                                onChange={(e) => setNewAccount((current) => ({ ...current, accountHolder: e.target.value }))}
+                                placeholder="Nama pemilik rekening"
+                                maxLength={160}
+                                disabled={!isSuperAdmin || accountBusy}
+                                aria-label="Nama pemilik rekening"
+                            />
+                        </div>
+                        <Button className="mt-3" onClick={() => void createAccount()} disabled={!isSuperAdmin || accountBusy}>
+                            <Plus className="mr-2 h-4 w-4" />
+                            Tambah rekening
+                        </Button>
+                    </div>
+
+                    <div className="grid gap-2">
+                        <Label>Catatan pembayaran (opsional)</Label>
+                        <textarea
+                            className={`${inputClass} h-auto min-h-24 py-2`}
+                            placeholder="Transfer hanya ke rekening yang tercantum. Kami tidak pernah meminta transfer ke rekening lain."
+                            value={systemConfig.paymentNote}
+                            onChange={(e) => setSystemConfig((prev) => ({ ...prev, paymentNote: e.target.value }))}
+                            disabled={!isSuperAdmin}
+                            maxLength={500}
+                        />
+                        <p className="text-xs text-muted-foreground">Tampil di bawah daftar rekening pada halaman pendaftaran dan Tagihan.</p>
+                    </div>
+
+                    <div className="pt-2">
+                        <Button onClick={handleSaveSystem} disabled={systemLoading || !isSuperAdmin}>
+                            {systemLoading ? <RefreshCw className="h-4 w-4 animate-spin mr-2" /> : <Save className="h-4 w-4 mr-2" />}
+                            Save Catatan Pembayaran
                         </Button>
                     </div>
                 </CardContent>
@@ -404,6 +728,28 @@ export default function SettingsPage() {
                     </CardContent>
                 </Card>
             ) : null}
+
+            {/* Konfirmasi hapus rekening: hanya untuk rekening yang belum pernah dipakai */}
+            <AlertDialog open={!!deleteTarget} onOpenChange={(open) => !open && !accountBusy && setDeleteTarget(null)}>
+                <AlertDialogContent>
+                    <AlertDialogHeader>
+                        <AlertDialogTitle>Hapus rekening {deleteTarget?.bankName}?</AlertDialogTitle>
+                        <AlertDialogDescription>
+                            Rekening ini belum pernah dipakai pembayaran, jadi boleh dihapus permanen. Kalau nanti sudah pernah dipakai, nonaktifkan saja — jangan dihapus.
+                        </AlertDialogDescription>
+                    </AlertDialogHeader>
+                    <AlertDialogFooter>
+                        <AlertDialogCancel disabled={accountBusy}>Batal</AlertDialogCancel>
+                        <AlertDialogAction
+                            disabled={accountBusy}
+                            className="bg-red-600 hover:bg-red-700"
+                            onClick={() => deleteTarget && void deleteAccount(deleteTarget)}
+                        >
+                            Hapus permanen
+                        </AlertDialogAction>
+                    </AlertDialogFooter>
+                </AlertDialogContent>
+            </AlertDialog>
         </div>
     );
 }

@@ -8,10 +8,12 @@ const MULTIPART_OVERHEAD_BYTES = 256 * 1024;
 export type RegistrationFields = {
   name: string;
   email: string;
+  whatsappNumber: string;
   password: string;
   planId: string;
   reference: string;
   billingCycle: string;
+  bankAccountId: string;
 };
 
 export type ParsedRegistrationUpload = {
@@ -47,10 +49,12 @@ export async function parseRegistrationUpload(request: Request): Promise<ParsedR
     const fields: RegistrationFields = {
       name: "",
       email: "",
+      whatsappNumber: "",
       password: "",
       planId: "",
       reference: "",
       billingCycle: "",
+      bankAccountId: "",
     };
     let fileResult: Omit<ParsedRegistrationUpload, "fields"> | null = null;
     let fileCount = 0;
@@ -66,7 +70,11 @@ export async function parseRegistrationUpload(request: Request): Promise<ParsedR
     try {
       parser = Busboy({
         headers: Object.fromEntries(request.headers.entries()),
-        limits: { fileSize: PAYMENT_PROOF_MAX_BYTES, files: 1, fields: 6, parts: 8 },
+        // 8 field teks: name, email, whatsappNumber, password, planId,
+        // reference, billingCycle, bankAccountId (Fase 1 pembayaran).
+        // parts diberi headroom 3 di atas field+file: busboy 1.6 memicu
+        // partsLimit pada batas pas, jadi batas persis 9 sudah terlalu ketat.
+        limits: { fileSize: PAYMENT_PROOF_MAX_BYTES, files: 1, fields: 8, parts: 12 },
       });
     } catch {
       fail(new MessageJobError("INVALID_MULTIPART_BODY", "Registration body is invalid", 400, false));

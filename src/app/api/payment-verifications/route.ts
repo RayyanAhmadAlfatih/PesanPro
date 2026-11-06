@@ -9,6 +9,8 @@ import { deleteStoredPaymentProof, parsePaymentProofUpload, storePaymentProof } 
 import { MessageJobError } from "@/lib/message-job-errors";
 import { queuePaymentSubmittedEmails } from "@/lib/email-notifications";
 import { logger } from "@/lib/logger";
+import { getPaymentMethodsSnapshot } from "@/lib/payment-methods";
+import { parseUserWhatsapp } from "@/lib/whatsapp-number";
 
 const submissionSchema = z.object({
   planId: z.string().min(1),
@@ -16,6 +18,12 @@ const submissionSchema = z.object({
   // Omitted means monthly, which is what every submission meant before the
   // yearly option existed.
   billingCycle: z.enum(["MONTHLY", "YEARLY"]).default("MONTHLY"),
+  // Rekening pilihan pembayar (opsional di API; UI selalu mengirim saat
+  // daftar rekening tampil). Divalidasi harus rekening aktif di bawah.
+  bankAccountId: z.string().trim().max(64).optional(),
+  // Nomor WA kontak untuk user lama yang belum menyimpannya (F1.1). Wajib
+  // lewat UI kalau profilnya kosong; server menegakkan hal yang sama.
+  whatsappNumber: z.string().trim().max(40).optional(),
 });
 
 function publicSubmission<T extends {
@@ -88,8 +96,59 @@ export async function POST(request: NextRequest) {
     planId: upload.planId,
     reference: upload.reference,
     billingCycle: upload.billingCycle.trim() || undefined,
+    bankAccountId: upload.bankAccountId.trim() || undefined,
+    whatsappNumber: upload.whatsappNumber.trim() || undefined,
   });
   if (!parsed.success) return NextResponse.json({ error: "Invalid payment proof", details: parsed.error.flatten() }, { status: 400 });
+
+  // F1.4: alur transfer manual hanya boleh dipakai saat Manual siap. Kalau
+  // superadmin mematikan saklar Manual, bukti baru lewat transfer ditolak;
+  // bukti PENDING lama tetap bisa ditinjau admin.
+  const methods = await getPaymentMethodsSnapshot();
+  if (!methods.manual.ready) {
+    return NextResponse.json(
+      { error: "Transfer manual sedang tidak tersedia. Gunakan cara bayar lain yang tampil di halaman Tagihan.", code: "MANUAL_TRANSFER_UNAVAILABLE" },
+      { status: 503 },
+    );
+  }
+
+  // F1.1: user lama yang belum punya nomor WA tersimpan wajib mengisinya di
+  // checkout yang sama, dengan aturan validasi yang sama dengan pendaftaran.
+  const profile = await prisma.user.findUnique({
+    where: { id: session.user.id },
+    select: { whatsappNumber: true },
+  });
+  let whatsappToSave: string | null = null;
+  if (!profile?.whatsappNumber) {
+    const whatsapp = parseUserWhatsapp(parsed.data.whatsappNumber ?? "");
+    if (!whatsapp.ok) {
+      return NextResponse.json({ error: whatsapp.reason, code: "WHATSAPP_INVALID" }, { status: 400 });
+    }
+    whatsappToSave = whatsapp.normalized;
+  }
+
+  // Rekening pilihan harus rekening aktif yang memang tercantum ke user.
+  let bankAccountId: string | null = null;
+  if (parsed.data.bankAccountId) {
+    const account = await prisma.paymentAccount.findFirst({
+      where: { id: parsed.data.bankAccountId, isActive: true },
+      select: { id: true },
+    });
+    if (!account) {
+      return NextResponse.json(
+        { error: "Rekening tujuan tidak tersedia. Pilih salah satu rekening yang tercantum.", code: "BANK_ACCOUNT_UNAVAILABLE" },
+        { status: 400 },
+      );
+    }
+    bankAccountId = account.id;
+  } else {
+    const fallback = await prisma.paymentAccount.findFirst({
+      where: { isActive: true },
+      orderBy: [{ isDefault: "desc" }, { sortOrder: "asc" }, { createdAt: "asc" }],
+      select: { id: true },
+    });
+    bankAccountId = fallback?.id ?? null;
+  }
 
   const plan = await prisma.plan.findFirst({ where: { id: parsed.data.planId, isActive: true, priceMonthly: { gt: 0 } } });
   if (!plan) return NextResponse.json({ error: "Active plan not found" }, { status: 404 });
@@ -115,11 +174,18 @@ export async function POST(request: NextRequest) {
     });
     const proofRecord = storedProof;
     const created = await prisma.$transaction(async (tx) => {
+      if (whatsappToSave) {
+        await tx.user.update({
+          where: { id: session.user.id },
+          data: { whatsappNumber: whatsappToSave },
+        });
+      }
       const record = await tx.paymentVerification.create({
         data: {
           id: verificationId,
           userId: session.user.id,
           planId: plan.id,
+          bankAccountId,
           amount,
           billingCycle: parsed.data.billingCycle,
           currency: plan.currency,
@@ -159,7 +225,7 @@ export async function POST(request: NextRequest) {
     resourceId: submission.id,
     ip,
     userAgent: request.headers.get("user-agent"),
-    meta: { planId: plan.id, amount: amount.toString(), billingCycle: parsed.data.billingCycle, currency: plan.currency, queuedEmailCount },
+    meta: { planId: plan.id, amount: amount.toString(), billingCycle: parsed.data.billingCycle, currency: plan.currency, bankAccountId, queuedEmailCount },
   });
   if (queuedEmailCount === 0) {
     logger.warn("PaymentVerification", `No active superadmin recipient was found for payment ${submission.id}`);

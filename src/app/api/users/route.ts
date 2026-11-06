@@ -17,6 +17,9 @@ export async function GET(request: NextRequest) {
                 id: true,
                 name: true,
                 email: true,
+                // Nomor WA kontak (F1.1): hanya untuk superadmin, untuk
+                // konfirmasi pembayaran/bantuan lewat wa.me.
+                whatsappNumber: true,
                 role: true,
                 status: true,
                 deviceLimit: true,

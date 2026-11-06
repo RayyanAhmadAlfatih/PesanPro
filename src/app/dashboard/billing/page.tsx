@@ -20,6 +20,8 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { isCommercialFeatureVisible } from "@/lib/access-policy";
 import { cn } from "@/lib/utils";
+import { BankAccountPicker, type BankAccountOption } from "@/components/payment/bank-account-picker";
+import { parseUserWhatsapp } from "@/lib/whatsapp-number";
 
 interface BillingSummary {
   role: string;
@@ -27,6 +29,9 @@ interface BillingSummary {
   startsAt?: string;
   endsAt?: string | null;
   graceEndsAt?: string | null;
+  // Nomor WA kontak user sendiri (F1.1). Null/empty berarti belum tersimpan,
+  // maka checkout memintanya dengan validasi yang sama seperti pendaftaran.
+  whatsappNumber?: string | null;
   plan: { code: string; name: string; unlimited: boolean };
   entitlements: Array<{ feature: string; enabled: boolean; limit: string | null }>;
   usage: Array<{ feature: string; consumed: string; reserved: string; periodEnd: string }>;
@@ -56,11 +61,16 @@ interface PaymentSubmission {
   plan: { code: string; name: string } | null;
 }
 
+interface PaymentMethods {
+  manual: { enabled: boolean; ready: boolean; label: string };
+  midtrans: { enabled: boolean; ready: boolean; label: string };
+  anyReady: boolean;
+}
+
 interface PaymentInfo {
-  bankName: string;
-  bankAccountNumber: string;
-  bankAccountHolder: string;
   note: string;
+  accounts: BankAccountOption[];
+  methods: PaymentMethods;
   ready: boolean;
 }
 
@@ -305,19 +315,22 @@ export default function BillingPage() {
   const [paymentReference, setPaymentReference] = useState("");
   const [paymentProof, setPaymentProof] = useState<File | null>(null);
   const [proofInputKey, setProofInputKey] = useState(0);
+  const [paymentBankAccountId, setPaymentBankAccountId] = useState("");
+  const [paymentWhatsapp, setPaymentWhatsapp] = useState("");
+  const [supportWhatsapp, setSupportWhatsapp] = useState("");
 
   const load = useCallback(async () => {
     setLoading(true);
     try {
-      const [billingResponse, planResponse, paymentResponse, nextPaymentInfo] = await Promise.all([
+      const [billingResponse, planResponse, paymentResponse, onboardingResponse] = await Promise.all([
         fetch("/api/billing/summary", { cache: "no-store" }),
         fetch("/api/plans", { cache: "no-store" }),
         fetch("/api/payment-verifications", { cache: "no-store" }),
         fetch("/api/public/onboarding", { cache: "no-store" })
           .then(async (response) => {
             if (!response.ok) return null;
-            const payload = await response.json() as { data?: { payment?: PaymentInfo } };
-            return payload.data?.payment ?? null;
+            const payload = await response.json() as { data?: { payment?: PaymentInfo; supportWhatsapp?: string } };
+            return payload.data ? { payment: payload.data.payment ?? null, supportWhatsapp: payload.data.supportWhatsapp ?? "" } : null;
           })
           .catch(() => null),
       ]);
@@ -332,7 +345,18 @@ export default function BillingPage() {
         entitlements: summary.entitlements.filter((item) => isCommercialFeatureVisible(item.feature)),
         usage: summary.usage.filter((item) => isCommercialFeatureVisible(item.feature)),
       } : null);
-      setPaymentInfo(nextPaymentInfo);
+      setPaymentInfo(onboardingResponse?.payment ?? null);
+      setSupportWhatsapp(onboardingResponse?.supportWhatsapp ?? "");
+      // Preselect rekening utama supaya user tidak harus memilih kalau cuma
+      // ada satu rekening.
+      const accounts = onboardingResponse?.payment?.accounts ?? [];
+      if (accounts.length > 0) {
+        setPaymentBankAccountId((current) =>
+          current && accounts.some((account) => account.id === current)
+            ? current
+            : (accounts.find((account) => account.isDefault) ?? accounts[0]).id,
+        );
+      }
       if (planResponse.ok) setPlans((await planResponse.json()).data ?? []);
       if (paymentResponse.ok) setPayments((await paymentResponse.json()).data ?? []);
     } catch (error) {
@@ -354,6 +378,10 @@ export default function BillingPage() {
       form.set("planId", paymentPlanId);
       form.set("billingCycle", paymentCycle);
       form.set("reference", paymentReference);
+      if (paymentBankAccountId) form.set("bankAccountId", paymentBankAccountId);
+      // F1.1: user lama tanpa nomor WA tersimpan mengisinya di checkout yang
+      // sama; server memvalidasi dengan aturan yang sama seperti pendaftaran.
+      if (needWhatsapp && paymentWhatsapp.trim()) form.set("whatsappNumber", paymentWhatsapp.trim());
       if (paymentProof) form.set("proof", paymentProof);
       const response = await fetch("/api/payment-verifications", {
         method: "POST",
@@ -365,6 +393,7 @@ export default function BillingPage() {
       setPaymentPlanId("");
       setPaymentReference("");
       setPaymentProof(null);
+      setPaymentWhatsapp("");
       setProofInputKey((current) => current + 1);
       await load();
     } catch (error) {
@@ -396,10 +425,29 @@ export default function BillingPage() {
   const paymentAmountMissing = selectedPlan !== null && paymentAmount === "";
   const proofTooLarge = paymentProof !== null && paymentProof.size > 5 * 1024 * 1024;
   const referenceReady = paymentReference.trim().length >= 3;
-  const formReady = Boolean(paymentPlanId) && !paymentAmountMissing && referenceReady && Boolean(paymentProof) && !proofTooLarge && !pendingPayment;
+  // F1.4: transfer manual hanya tersedia saat saklar Manual AKTIF dan ada
+  // rekening aktif. Midtrans (Fase 2) tidak pernah siap di PR ini.
+  const manualReady = Boolean(paymentInfo?.methods.manual.ready);
+  const needWhatsapp = !billing?.whatsappNumber;
+  const whatsapp = needWhatsapp ? parseUserWhatsapp(paymentWhatsapp) : null;
+  const whatsappOk = !needWhatsapp || Boolean(whatsapp?.ok);
+  const whatsappTouched = needWhatsapp && paymentWhatsapp.length > 0;
+  const formReady = Boolean(
+    manualReady &&
+    paymentPlanId &&
+    !paymentAmountMissing &&
+    paymentBankAccountId &&
+    referenceReady &&
+    Boolean(paymentProof) &&
+    !proofTooLarge &&
+    whatsappOk &&
+    !pendingPayment,
+  );
 
   const requirements = [
     { done: Boolean(paymentPlanId), label: "Paket sudah dipilih" },
+    { done: Boolean(paymentBankAccountId) && manualReady, label: "Rekening tujuan sudah dipilih" },
+    { done: whatsappOk && (!needWhatsapp || whatsappTouched), label: "Nomor WhatsApp untuk konfirmasi sudah diisi" },
     { done: referenceReady, label: "Nama pengirim atau kode referensi sudah diisi" },
     { done: Boolean(paymentProof) && !proofTooLarge, label: "Bukti transfer sudah dilampirkan, maksimal 5 MB" },
   ];
@@ -423,15 +471,7 @@ export default function BillingPage() {
     }
   };
 
-  const copyAccountNumber = async () => {
-    if (!paymentInfo?.bankAccountNumber) return;
-    try {
-      await navigator.clipboard.writeText(paymentInfo.bankAccountNumber);
-      toast.success("Nomor rekening disalin.");
-    } catch {
-      toast.error("Nomor rekening tidak bisa disalin. Tulis manual dari angka di atas.");
-    }
-  };
+  // Salin nomor rekening kini ditangani BankAccountPicker per rekening.
 
   const selectPlan = (planId: string) => {
     setPaymentPlanId(planId);
@@ -668,6 +708,19 @@ export default function BillingPage() {
                     <p className="mt-1 text-sm leading-relaxed text-[var(--pp-muted)]">
                       Admin akan memeriksa bukti yang sudah Anda kirim. Kirim bukti baru setelah ada keputusan.
                     </p>
+                    {(() => {
+                      const support = parseUserWhatsapp(supportWhatsapp);
+                      return support.ok ? (
+                        <a
+                          href={`https://wa.me/${support.normalized}`}
+                          target="_blank"
+                          rel="noreferrer"
+                          className="mt-2 inline-block text-sm font-semibold underline underline-offset-4"
+                        >
+                          Tanya admin lewat WhatsApp
+                        </a>
+                      ) : null;
+                    })()}
                   </div>
                 ) : null}
 
@@ -751,9 +804,9 @@ export default function BillingPage() {
                     ) : null}
                   </div>
                   <p className="mt-2 text-xs leading-relaxed text-[var(--pp-muted)]">
-                    {paymentInfo?.ready
-                      ? "Transfer tepat sebesar ini ke rekening di atas. Jangan ditambah atau dikurangi agar admin mudah mencocokkan."
-                      : "Transfer tepat sebesar ini. Nomor rekening belum diatur, jadi tanyakan ke admin sebelum transfer."}
+                    {manualReady
+                      ? "Transfer tepat sebesar ini ke rekening yang Anda pilih. Jangan ditambah atau dikurangi agar admin mudah mencocokkan."
+                      : "Transfer manual sedang tidak tersedia. Gunakan cara bayar lain yang admin sediakan, atau hubungi admin."}
                   </p>
                   {paymentAmountMissing ? (
                     <p className="mt-2 text-xs font-medium text-[var(--pp-danger)]">
@@ -762,32 +815,58 @@ export default function BillingPage() {
                   ) : null}
                 </div>
 
-                {paymentInfo?.ready ? (
-                  <div className="rounded-lg border border-[var(--pp-line)] bg-[var(--pp-paper)] p-4">
+                {manualReady ? (
+                  <div className="space-y-2">
                     <p className="text-xs font-semibold uppercase tracking-wide text-[var(--pp-muted)]">Rekening tujuan</p>
-                    <p className="mt-1 text-lg font-bold">{paymentInfo.bankName}</p>
-                    <div className="mt-1 flex flex-wrap items-center gap-2">
-                      <p className="font-[family-name:var(--font-display)] text-2xl font-extrabold tabular-nums">
-                        {paymentInfo.bankAccountNumber}
-                      </p>
-                      <Button type="button" variant="outline" size="sm" className="min-h-11" onClick={() => void copyAccountNumber()}>
-                        <Copy className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                        Salin
-                      </Button>
-                    </div>
-                    <p className="text-sm text-[var(--pp-muted)]">a.n. {paymentInfo.bankAccountHolder}</p>
-                    {paymentInfo.note ? (
-                      <p className="mt-2 text-xs leading-relaxed text-[var(--pp-muted)]">{paymentInfo.note}</p>
+                    <BankAccountPicker
+                      accounts={paymentInfo?.accounts ?? []}
+                      value={paymentBankAccountId}
+                      onChange={setPaymentBankAccountId}
+                      name="billing-bank-account"
+                    />
+                    {paymentInfo?.note ? (
+                      <p className="text-xs leading-relaxed text-[var(--pp-muted)]">{paymentInfo.note}</p>
                     ) : null}
                   </div>
                 ) : (
                   <div className="rounded-lg border border-dashed border-[var(--pp-line)] p-4">
-                    <p className="text-sm font-semibold">Rekening tujuan belum diatur</p>
+                    <p className="text-sm font-semibold">
+                      {paymentInfo?.ready ? "Transfer manual sedang ditutup" : "Rekening tujuan belum diatur"}
+                    </p>
                     <p className="mt-1 text-xs leading-relaxed text-[var(--pp-muted)]">
-                      Hubungi admin untuk nomor rekening sebelum transfer.
+                      {paymentInfo?.ready
+                        ? "Admin sedang menutup transfer manual. Gunakan cara bayar lain yang tampil, atau hubungi admin."
+                        : "Hubungi admin untuk nomor rekening sebelum transfer."}
                     </p>
                   </div>
                 )}
+
+                {needWhatsapp ? (
+                  <div className="space-y-2">
+                    <Label htmlFor="payment-whatsapp">Nomor WhatsApp (untuk konfirmasi pembayaran dan bantuan)</Label>
+                    <Input
+                      id="payment-whatsapp"
+                      type="tel"
+                      inputMode="tel"
+                      autoComplete="tel"
+                      value={paymentWhatsapp}
+                      onChange={(event) => setPaymentWhatsapp(event.target.value)}
+                      placeholder="0812-3456-7890 atau +62 812-3456-7890"
+                      maxLength={40}
+                      aria-invalid={whatsappTouched && !whatsappOk ? "true" : undefined}
+                      aria-describedby={whatsappTouched && !whatsappOk ? "payment-whatsapp-error" : undefined}
+                    />
+                    {whatsappTouched && !whatsappOk ? (
+                      <p id="payment-whatsapp-error" className="text-xs font-medium text-[var(--pp-danger)]">
+                        {whatsapp?.ok === false ? whatsapp.reason : "Nomor WhatsApp tidak valid."}
+                      </p>
+                    ) : (
+                      <p id="payment-whatsapp-help" className="text-xs text-[var(--pp-muted)]">
+                        Nomor WhatsApp Anda untuk dihubungi admin, bukan nomor perangkat gateway. Disimpan sebagai 62… dan hanya terlihat oleh Anda dan admin.
+                      </p>
+                    )}
+                  </div>
+                ) : null}
 
                 <div className="space-y-2">
                   <Label htmlFor="payment-reference">Nama pengirim atau kode referensi</Label>

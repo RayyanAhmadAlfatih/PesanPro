@@ -2,11 +2,13 @@
 
 import { useEffect, useMemo, useState, type FormEvent } from 'react';
 import Link from 'next/link';
-import { CheckCircle2, Copy, FileUp, Loader2 } from 'lucide-react';
+import { CheckCircle2, FileUp, Loader2, MessageCircle } from 'lucide-react';
 import { Button } from '@/components/ui/button';
 import { Input } from '@/components/ui/input';
 import { Label } from '@/components/ui/label';
+import { BankAccountPicker, type BankAccountOption } from '@/components/payment/bank-account-picker';
 import { cn } from '@/lib/utils';
+import { parseUserWhatsapp } from '@/lib/whatsapp-number';
 
 interface PlanEntitlement {
   feature: string;
@@ -25,16 +27,22 @@ interface Plan {
   entitlements: PlanEntitlement[];
 }
 
+interface PaymentMethods {
+  manual: { enabled: boolean; ready: boolean; label: string };
+  midtrans: { enabled: boolean; ready: boolean; label: string };
+  anyReady: boolean;
+}
+
 interface PaymentInfo {
-  bankName: string;
-  bankAccountNumber: string;
-  bankAccountHolder: string;
   note: string;
+  accounts: BankAccountOption[];
+  methods: PaymentMethods;
   ready: boolean;
 }
 
 interface OnboardingPayload {
   registrationEnabled: boolean;
+  supportWhatsapp: string;
   payment: PaymentInfo;
   plans: Plan[];
 }
@@ -105,17 +113,24 @@ export default function RegisterPage() {
   const [form, setForm] = useState({
     name: '',
     email: '',
+    whatsappNumber: '',
     password: '',
     confirmPassword: '',
     planId: '',
     billingCycle: 'MONTHLY' as 'MONTHLY' | 'YEARLY',
     reference: '',
+    bankAccountId: '',
   });
   const [proof, setProof] = useState<File | null>(null);
   const [error, setError] = useState<string | null>(null);
   const [submitting, setSubmitting] = useState(false);
-  const [success, setSuccess] = useState<{ email: string; planName: string } | null>(null);
-  const [copied, setCopied] = useState(false);
+  const [success, setSuccess] = useState<{
+    email: string;
+    planName: string;
+    amount: string;
+    account: BankAccountOption | null;
+    supportWhatsapp: string;
+  } | null>(null);
 
   useEffect(() => {
     let cancelled = false;
@@ -124,9 +139,16 @@ export default function RegisterPage() {
         const body = await response.json().catch(() => null);
         if (!response.ok || !body?.data) throw new Error('Data pendaftaran tidak bisa dimuat.');
         if (cancelled) return;
-        setData(body.data as OnboardingPayload);
-        const firstPlan = (body.data as OnboardingPayload).plans[0];
-        if (firstPlan) setForm((current) => ({ ...current, planId: firstPlan.id }));
+        const payload = body.data as OnboardingPayload;
+        setData(payload);
+        const firstPlan = payload.plans[0];
+        const defaultAccount =
+          payload.payment.accounts.find((account) => account.isDefault) ?? payload.payment.accounts[0];
+        setForm((current) => ({
+          ...current,
+          planId: current.planId || firstPlan?.id || '',
+          bankAccountId: current.bankAccountId || defaultAccount?.id || '',
+        }));
       })
       .catch((cause: unknown) => {
         if (!cancelled) setLoadError(cause instanceof Error ? cause.message : 'Data pendaftaran tidak bisa dimuat.');
@@ -145,15 +167,21 @@ export default function RegisterPage() {
     ? (form.billingCycle === 'YEARLY' ? selectedPlan.priceYearly : selectedPlan.priceMonthly)
     : null;
 
+  const manualReady = Boolean(data?.payment.methods.manual.ready);
+  const whatsapp = parseUserWhatsapp(form.whatsappNumber);
+  const whatsappOk = whatsapp.ok;
+  const whatsappTouched = form.whatsappNumber.length > 0;
+
   const proofTooLarge = proof !== null && proof.size > MAX_PROOF_BYTES;
   const emailValid = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email.trim());
   const passwordProblem = passwordIssue(form.password);
   const passwordsMatch = form.password.length > 0 && form.password === form.confirmPassword;
-  const accountReady = form.name.trim().length >= 2 && emailValid && !passwordProblem && passwordsMatch;
+  const accountReady = form.name.trim().length >= 2 && emailValid && !passwordProblem && passwordsMatch && whatsappOk;
   const paymentReady = Boolean(
-    data?.payment.ready &&
+    manualReady &&
     selectedPlan &&
     amount &&
+    form.bankAccountId &&
     form.reference.trim().length >= 3 &&
     proof &&
     !proofTooLarge,
@@ -162,16 +190,10 @@ export default function RegisterPage() {
 
   const update = (patch: Partial<typeof form>) => setForm((current) => ({ ...current, ...patch }));
 
-  const copyAccountNumber = async () => {
-    if (!data?.payment.bankAccountNumber) return;
-    try {
-      await navigator.clipboard.writeText(data.payment.bankAccountNumber);
-      setCopied(true);
-      window.setTimeout(() => setCopied(false), 2000);
-    } catch {
-      setCopied(false);
-    }
-  };
+  const selectedAccount = useMemo(
+    () => data?.payment.accounts.find((account) => account.id === form.bankAccountId) ?? null,
+    [data, form.bankAccountId],
+  );
 
   const onSubmit = async (event: FormEvent) => {
     event.preventDefault();
@@ -182,17 +204,25 @@ export default function RegisterPage() {
       const body = new FormData();
       body.set('name', form.name.trim());
       body.set('email', form.email.trim());
+      body.set('whatsappNumber', form.whatsappNumber.trim());
       body.set('password', form.password);
       body.set('planId', form.planId);
       body.set('billingCycle', form.billingCycle);
       body.set('reference', form.reference.trim());
+      if (form.bankAccountId) body.set('bankAccountId', form.bankAccountId);
       body.set('proof', proof);
       const response = await fetch('/api/auth/register', { method: 'POST', body });
       const payload = await response.json().catch(() => null);
       if (!response.ok) {
         throw new Error(payload?.error ?? 'Pendaftaran gagal. Coba lagi.');
       }
-      setSuccess({ email: form.email.trim(), planName: selectedPlan?.name ?? 'paket' });
+      setSuccess({
+        email: form.email.trim(),
+        planName: selectedPlan?.name ?? 'paket',
+        amount: amount ?? '',
+        account: selectedAccount,
+        supportWhatsapp: payload?.supportWhatsapp ?? data?.supportWhatsapp ?? '',
+      });
     } catch (cause) {
       setError(cause instanceof Error ? cause.message : 'Pendaftaran gagal. Coba lagi.');
     } finally {
@@ -201,6 +231,7 @@ export default function RegisterPage() {
   };
 
   if (success) {
+    const supportHref = parseUserWhatsapp(success.supportWhatsapp);
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--pp-paper)] px-4 py-10">
         <div className="w-full max-w-md">
@@ -208,9 +239,34 @@ export default function RegisterPage() {
             <CheckCircle2 className="h-10 w-10 text-[var(--pp-ink)]" aria-hidden="true" />
             <h1 className="mt-3 text-2xl font-bold">Pendaftaran terkirim</h1>
             <p className="mt-2 text-sm text-muted-foreground">
-              Akun <strong>{success.email}</strong> sudah dibuat dengan paket <strong>{success.planName}</strong>.
-              Bukti transfer Anda sedang diperiksa admin.
+              Akun <strong>{success.email}</strong> sudah dibuat. Bukti transfer Anda sedang diperiksa admin.
             </p>
+            <dl className="mt-4 space-y-2 rounded-lg border border-[var(--pp-line)] bg-[var(--pp-paper)] p-4 text-sm">
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Paket</dt>
+                <dd className="font-semibold">{success.planName}</dd>
+              </div>
+              <div className="flex justify-between gap-3">
+                <dt className="text-muted-foreground">Total</dt>
+                <dd className="font-semibold tabular-nums">{formatRupiah(success.amount)}</dd>
+              </div>
+              {success.account ? (
+                <div className="flex justify-between gap-3">
+                  <dt className="text-muted-foreground">Rekening</dt>
+                  <dd className="text-right font-semibold">
+                    {success.account.bankName} {success.account.accountNumber.replace(/(\d{4})(?=\d)/g, '$1 ')}
+                  </dd>
+                </div>
+              ) : null}
+            </dl>
+            {supportHref.ok ? (
+              <Button asChild className="mt-4 w-full">
+                <a href={`https://wa.me/${supportHref.normalized}`} target="_blank" rel="noreferrer">
+                  <MessageCircle className="mr-2 h-4 w-4" aria-hidden="true" />
+                  Tanya admin lewat WhatsApp
+                </a>
+              </Button>
+            ) : null}
             <p className="mt-4 text-sm text-muted-foreground">
               Setelah disetujui, masuk dengan email dan kata sandi Anda. Pengiriman pesan aktif setelah pembayaran disetujui.
             </p>
@@ -265,13 +321,14 @@ export default function RegisterPage() {
     );
   }
 
+  // Penjaga lama (F1.4): terblokir hanya kalau tidak ada cara bayar yang siap.
   if (!data.payment.ready) {
     return (
       <div className="flex min-h-screen items-center justify-center bg-[var(--pp-paper)] px-4 py-10">
         <div className="w-full max-w-md rounded-xl border border-[var(--pp-danger)] bg-[var(--pp-white)] p-6">
           <h1 className="text-xl font-bold">Pembayaran belum siap</h1>
           <p className="mt-2 text-sm text-muted-foreground">
-            Admin belum mengisi rekening tujuan, jadi pendaftaran belum bisa dilanjutkan. Hubungi admin untuk info rekening.
+            Admin belum menyiapkan cara pembayaran, jadi pendaftaran belum bisa dilanjutkan. Hubungi admin untuk info pembayaran.
           </p>
           <p className="mt-6 text-center text-sm">
             <Link href="/auth/login" className="font-semibold underline-offset-4 hover:underline">
@@ -322,6 +379,28 @@ export default function RegisterPage() {
                 {form.email.length > 0 && !emailValid ? (
                   <p className="text-xs text-[var(--pp-danger)]">Format email belum benar.</p>
                 ) : null}
+              </div>
+              <div className="grid gap-2 sm:col-span-2">
+                <Label htmlFor="whatsappNumber">Nomor WhatsApp (untuk konfirmasi pembayaran dan bantuan)</Label>
+                <Input
+                  id="whatsappNumber"
+                  type="tel"
+                  inputMode="tel"
+                  autoComplete="tel"
+                  placeholder="0812-3456-7890 atau +62 812-3456-7890"
+                  value={form.whatsappNumber}
+                  onChange={(event) => update({ whatsappNumber: event.target.value })}
+                  maxLength={40}
+                  aria-invalid={whatsappTouched && !whatsappOk ? 'true' : undefined}
+                  aria-describedby={whatsappTouched && !whatsappOk ? 'whatsappNumber-error' : undefined}
+                />
+                {whatsappTouched && !whatsappOk ? (
+                  <p id="whatsappNumber-error" className="text-xs text-[var(--pp-danger)]">{whatsapp.reason}</p>
+                ) : (
+                  <p className="text-xs text-muted-foreground">
+                    Ini nomor WhatsApp Anda untuk dihubungi admin, bukan nomor perangkat gateway. Disimpan sebagai 62…
+                  </p>
+                )}
               </div>
               <div className="grid gap-2">
                 <Label htmlFor="password">Kata sandi</Label>
@@ -425,26 +504,27 @@ export default function RegisterPage() {
           <section className="rounded-xl border border-[var(--pp-ink)] bg-[var(--pp-white)] p-6">
             <h2 className="text-lg font-semibold">3. Transfer dan unggah bukti</h2>
             <p className="mt-1 text-sm text-muted-foreground">
-              Transfer tepat sebesar nominal di bawah ke rekening ini, lalu unggah bukti transfernya.
+              Pilih rekening tujuan, transfer tepat sebesar nominal di bawah, lalu unggah bukti transfernya.
             </p>
 
-            <div className="mt-4 rounded-lg border border-[var(--pp-ink)] bg-[var(--pp-highlight)]/25 p-4">
-              <p className="text-xs font-semibold uppercase tracking-wide text-[var(--pp-muted)]">Rekening tujuan</p>
-              <p className="mt-1 text-lg font-bold">{data.payment.bankName}</p>
-              <div className="mt-1 flex flex-wrap items-center gap-2">
-                <p className="font-[family-name:var(--font-display)] text-2xl font-extrabold tabular-nums">
-                  {data.payment.bankAccountNumber}
-                </p>
-                <Button type="button" size="sm" variant="outline" onClick={() => void copyAccountNumber()}>
-                  <Copy className="mr-1.5 h-4 w-4" aria-hidden="true" />
-                  {copied ? 'Tersalin' : 'Salin'}
-                </Button>
+            {manualReady ? (
+              <div className="mt-4">
+                <p className="mb-2 text-xs font-semibold uppercase tracking-wide text-[var(--pp-muted)]">Rekening tujuan</p>
+                <BankAccountPicker
+                  accounts={data.payment.accounts}
+                  value={form.bankAccountId}
+                  onChange={(bankAccountId) => update({ bankAccountId })}
+                  name="register-bank-account"
+                />
+                {data.payment.note ? (
+                  <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{data.payment.note}</p>
+                ) : null}
               </div>
-              <p className="text-sm text-muted-foreground">a.n. {data.payment.bankAccountHolder}</p>
-              {data.payment.note ? (
-                <p className="mt-2 text-xs leading-relaxed text-muted-foreground">{data.payment.note}</p>
-              ) : null}
-            </div>
+            ) : (
+              <p className="mt-4 rounded-lg border border-dashed border-[var(--pp-line)] p-4 text-sm text-muted-foreground">
+                Transfer manual sedang tidak tersedia. Gunakan cara bayar lain yang admin sediakan, atau hubungi admin.
+              </p>
+            )}
 
             <div className="mt-4 rounded-lg border border-[var(--pp-line)] bg-[var(--pp-paper)] p-4">
               <p className="text-xs font-semibold uppercase tracking-wide text-[var(--pp-muted)]">Jumlah transfer</p>

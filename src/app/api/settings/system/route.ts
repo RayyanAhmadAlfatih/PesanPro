@@ -1,6 +1,8 @@
 import { NextResponse, NextRequest } from "next/server";
 import { prisma } from "@/lib/prisma";
 import { getAuthenticatedUser } from "@/lib/api-auth";
+import { recordAudit } from "@/lib/audit";
+import { getClientIp } from "@/lib/rate-limit";
 import moment from "moment-timezone";
 import { z } from "zod";
 
@@ -10,6 +12,13 @@ const systemSettingsSchema = z.object({
     faviconUrl: z.string().trim().max(2_048).nullish(),
     timezone: z.string().trim().refine((value) => moment.tz.zone(value) !== null, "Invalid timezone"),
     enableRegistration: z.boolean(),
+    // Saklar utama cara bayar (F1.4). Keduanya boleh AKTIF bersamaan; nilai
+    // awal migrasi: Manual AKTIF, Midtrans NONAKTIF.
+    manualTransferEnabled: z.boolean().default(true),
+    midtransEnabled: z.boolean().default(false),
+    // LEGACY (F1.3): kolom rekening tunggal sudah digantikan daftar
+    // PaymentAccount. Field masih diterima agar klien lama tidak rusak, tetapi
+    // tidak lagi dipakai oleh alur pendaftaran/checkout.
     bankName: z.string().trim().max(120).default(""),
     bankAccountNumber: z.string().trim().max(60).default(""),
     bankAccountHolder: z.string().trim().max(160).default(""),
@@ -28,7 +37,7 @@ export async function GET(request: NextRequest) {
             where: { id: "default" }
         });
 
-        return NextResponse.json({ status: true, message: "System config fetched", data: config || { appName: "PesanPro", faviconUrl: "/favicon.ico", timezone: "Asia/Jakarta", enableRegistration: true, bankName: "", bankAccountNumber: "", bankAccountHolder: "", paymentNote: "", supportWhatsapp: "" } });
+        return NextResponse.json({ status: true, message: "System config fetched", data: config || { appName: "PesanPro", faviconUrl: "/favicon.ico", timezone: "Asia/Jakarta", enableRegistration: true, manualTransferEnabled: true, midtransEnabled: false, bankName: "", bankAccountNumber: "", bankAccountHolder: "", paymentNote: "", supportWhatsapp: "" } });
     } catch {
         return NextResponse.json({ status: false, message: "Failed to fetch settings", error: "Failed to fetch settings" }, { status: 500 });
     }
@@ -45,13 +54,39 @@ export async function POST(req: NextRequest) {
         if (!parsed.success) {
             return NextResponse.json({ status: false, message: "Invalid system settings", error: parsed.error.flatten() }, { status: 400 });
         }
-        const { appName, logoUrl, faviconUrl, timezone, enableRegistration, bankName, bankAccountNumber, bankAccountHolder, paymentNote, supportWhatsapp } = parsed.data;
+        const { appName, logoUrl, faviconUrl, timezone, enableRegistration, manualTransferEnabled, midtransEnabled, bankName, bankAccountNumber, bankAccountHolder, paymentNote, supportWhatsapp } = parsed.data;
 
+        const previous = await prisma.systemConfig.findUnique({ where: { id: "default" } });
         const config = await prisma.systemConfig.upsert({
             where: { id: "default" },
-            update: { appName, logoUrl, faviconUrl, timezone, enableRegistration, bankName, bankAccountNumber, bankAccountHolder, paymentNote: paymentNote || null, supportWhatsapp },
-            create: { id: "default", appName, logoUrl: logoUrl || "", faviconUrl: faviconUrl || "/favicon.ico", timezone, enableRegistration, bankName, bankAccountNumber, bankAccountHolder, paymentNote: paymentNote || null, supportWhatsapp }
+            update: { appName, logoUrl, faviconUrl, timezone, enableRegistration, manualTransferEnabled, midtransEnabled, bankName, bankAccountNumber, bankAccountHolder, paymentNote: paymentNote || null, supportWhatsapp },
+            create: { id: "default", appName, logoUrl: logoUrl || "", faviconUrl: faviconUrl || "/favicon.ico", timezone, enableRegistration, manualTransferEnabled, midtransEnabled, bankName, bankAccountNumber, bankAccountHolder, paymentNote: paymentNote || null, supportWhatsapp }
         });
+
+        // Audit saklar cara bayar (F1.4): superadmin harus bisa melihat kapan
+        // alur bayar diganti, siapa yang menggantinya.
+        const switchChanged =
+            previous === null
+            || previous.manualTransferEnabled !== manualTransferEnabled
+            || previous.midtransEnabled !== midtransEnabled;
+        if (switchChanged) {
+            await recordAudit({
+                userId: user.id,
+                userEmail: user.email,
+                action: "payment_method.switch",
+                resource: "system_config",
+                resourceId: "default",
+                ip: getClientIp(req.headers),
+                userAgent: req.headers.get("user-agent"),
+                meta: {
+                    manualTransferEnabled,
+                    midtransEnabled,
+                    previous: previous
+                        ? { manualTransferEnabled: previous.manualTransferEnabled, midtransEnabled: previous.midtransEnabled }
+                        : null,
+                },
+            });
+        }
 
         return NextResponse.json({ status: true, message: "System settings updated", data: config });
     } catch {
