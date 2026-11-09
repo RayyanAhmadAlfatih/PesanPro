@@ -23,8 +23,9 @@ export function operationalRetentionBoundaries(now = new Date(), autoReplyRetent
     autoReplyLogBefore: new Date(now.getTime() - autoReplyRetentionDays * DAY_MS),
     staleQrBefore: new Date(now.getTime() - QR_STALE_MS),
     otpChallengeBefore: new Date(now.getTime() - OTP_CHALLENGE_RETENTION_MS),
-    // null means the operator has not enabled message retention (MESSAGE_RETENTION_DAYS=0),
-    // so stored message history must be left untouched.
+    // null means the operator disabled message retention (MESSAGE_RETENTION_DAYS=0);
+    // unset defaults to 30 days per the 2026-11-09 retention decision, so message
+    // history and every content-bearing artifact is dropped past the window.
     messageBefore: messageRetentionDays > 0 ? new Date(now.getTime() - messageRetentionDays * DAY_MS) : null,
   };
 }
@@ -32,7 +33,14 @@ export function operationalRetentionBoundaries(now = new Date(), autoReplyRetent
 export async function runOperationalMaintenance(now = new Date()) {
   const env = getEnv();
   const boundaries = operationalRetentionBoundaries(now, env.AUTOREPLY_TRIGGER_LOG_RETENTION_DAYS, env.MESSAGE_RETENTION_DAYS);
-  const [audit, heartbeats, alerts, autoReplyLogs, overrides, rateLimits, privateMedia, idempotency, messages, pairingCodes, otpChallenges] = await Promise.all([
+  // The message-content window (30 days by default) also governs every place
+  // that still carries the text of a customer message: webhook payloads,
+  // delivery attempt logs, outbound jobs, finished schedules, and stories.
+  // Each purge only touches rows past the window AND in a terminal state, so
+  // queued or in-flight work is never dropped by a retention sweep.
+  const contentBefore = boundaries.messageBefore;
+  const skip = () => Promise.resolve({ count: 0 });
+  const [audit, heartbeats, alerts, autoReplyLogs, overrides, rateLimits, privateMedia, idempotency, messages, pairingCodes, otpChallenges, webhookEvents, webhookDeliveries, webhookAttempts, webhookLogs, messageJobs, scheduledMessages, stories] = await Promise.all([
     purgeExpiredAuditLogs(env.AUDIT_RETENTION_DAYS, now),
     prisma.runtimeHeartbeat.deleteMany({ where: { heartbeatAt: { lt: boundaries.heartbeatBefore } } }),
     prisma.operationalAlert.deleteMany({
@@ -51,9 +59,9 @@ export async function runOperationalMaintenance(now = new Date()) {
     // reclaimed, so the table grew without bound. Reclaim the expired rows here;
     // the message job itself is retained for audit history.
     prisma.idempotencyRecord.deleteMany({ where: { expiresAt: { lte: now } } }),
-    boundaries.messageBefore
-      ? prisma.message.deleteMany({ where: { timestamp: { lt: boundaries.messageBefore } } })
-      : Promise.resolve({ count: 0 }),
+    contentBefore
+      ? prisma.message.deleteMany({ where: { timestamp: { lt: contentBefore } } })
+      : skip(),
     prisma.session.updateMany({
       where: {
         qr: { not: null },
@@ -62,6 +70,53 @@ export async function runOperationalMaintenance(now = new Date()) {
       data: { qr: null },
     }),
     prisma.otpChallenge.deleteMany({ where: { expiresAt: { lt: boundaries.otpChallengeBefore } } }),
+    // Webhook payloads embed the full message text. Dispatched/dead-lettered
+    // events past the window are dropped unless a newer (possibly replayed)
+    // delivery still references them — that guard lives in the relation filter.
+    contentBefore
+      ? prisma.webhookOutboxEvent.deleteMany({
+          where: {
+            createdAt: { lt: contentBefore },
+            status: { in: ["DISPATCHED", "DEAD_LETTER"] },
+            deliveries: { none: { createdAt: { gte: contentBefore } } },
+          },
+        })
+      : skip(),
+    contentBefore
+      ? prisma.webhookDelivery.deleteMany({
+          where: {
+            createdAt: { lt: contentBefore },
+            status: { in: ["SUCCEEDED", "DEAD_LETTER", "CANCELLED"] },
+          },
+        })
+      : skip(),
+    contentBefore
+      ? prisma.webhookDeliveryAttempt.deleteMany({
+          where: { startedAt: { lt: contentBefore }, status: { not: "PROCESSING" } },
+        })
+      : skip(),
+    contentBefore
+      ? prisma.webhookLog.deleteMany({ where: { createdAt: { lt: contentBefore } } })
+      : skip(),
+    contentBefore
+      ? prisma.messageJob.deleteMany({
+          where: {
+            availableAt: { lt: contentBefore },
+            status: { in: ["SENT", "DELIVERED", "READ", "FAILED", "CANCELLED"] },
+          },
+        })
+      : skip(),
+    contentBefore
+      ? prisma.scheduledMessage.deleteMany({
+          where: {
+            createdAt: { lt: contentBefore },
+            status: { in: ["COMPLETED", "CANCELLED", "FAILED"] },
+          },
+        })
+      : skip(),
+    contentBefore
+      ? prisma.story.deleteMany({ where: { timestamp: { lt: contentBefore } } })
+      : skip(),
   ]);
 
   return {
@@ -76,6 +131,13 @@ export async function runOperationalMaintenance(now = new Date()) {
     expiredMessages: messages.count,
     expiredPairingCodes: pairingCodes.count,
     expiredOtpChallenges: otpChallenges.count,
+    expiredWebhookEvents: webhookEvents.count,
+    expiredWebhookDeliveries: webhookDeliveries.count,
+    expiredWebhookAttempts: webhookAttempts.count,
+    expiredWebhookLogs: webhookLogs.count,
+    expiredMessageJobs: messageJobs.count,
+    expiredScheduledMessages: scheduledMessages.count,
+    expiredStories: stories.count,
     boundaries,
   };
 }
