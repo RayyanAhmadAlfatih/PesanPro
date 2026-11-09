@@ -177,5 +177,5 @@ Bisa. Gunakan variabel nama dari daftar CSV. Pastikan kolom nama terisi, karena 
 - Verifikasi ulang nama menu dashboard setelah v0.2.0 live: Perangkat & QR, Kirim Massal, Antrian Pesan.
 - Konfirmasi format CSV final dan nama kolom sebelum menambahkan contoh file.
 - Pastikan tautan `/harga` dan `/docs/02-broadcast` aktif.
-- Konfirmasi CTA "Daftar" ke https://wagateway.kingofcoding.my.id/auth/register.
+- Konfirmasi CTA "Daftar" ke https://pesanpro.kingofcoding.my.id/auth/register.
 - Jangan menambahkan klaim tingkat keberanian atau statistik tanpa data.

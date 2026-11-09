@@ -59,7 +59,7 @@ Authorization: Bearer ppint_xxxxxxxxxxxxxxxx
 Plugin tersedia sebagai ZIP langsung dari aplikasi. Buka menu **Integrasi → Kunci API** (judul halamannya **Developer**), cari kartu **Plugin WordPress**, lalu klik **Unduh ZIP plugin**. URL unduhannya juga bisa dipakai langsung:
 
 ```
-https://wagateway.kingofcoding.my.id/api/public/plugin/wordpress
+https://pesanpro.kingofcoding.my.id/api/public/plugin/wordpress
 ```
 
 ### Yang dibutuhkan
@@ -77,7 +77,7 @@ https://wagateway.kingofcoding.my.id/api/public/plugin/wordpress
 4. Aktifkan plugin di **Plugins**.
 5. Buka **Settings → PesanPro CF7**.
 6. Isi:
-   - **PesanPro base URL** — `https://wagateway.kingofcoding.my.id` (tanpa slash di akhir).
+   - **PesanPro base URL** — `https://pesanpro.kingofcoding.my.id` (tanpa slash di akhir).
    - **Form ID** — opsional; kosongkan untuk semua form.
    - **Recipient field** — nama field Contact Form 7 yang berisi nomor WhatsApp, misalnya `whatsapp`. Nama field yang tersedia di formulir ditampilkan tepat di bawah kolom ini; salin dari situ, jangan dikira-kira. Kalau namanya tidak cocok, nomor tujuan kosong dan kiriman gagal.
    - **Static recipient** — isi kalau semua notifikasi dikirim ke nomor admin. Kalau kolom ini terisi, nama field penerima diabaikan.
@@ -130,7 +130,7 @@ Baris **Queue** di halaman **Settings → PesanPro CF7** menghitung submission: 
 - **422 — data ditolak.** Biasanya **Recipient field name** tidak cocok dengan nama field di form, sehingga nomor tujuan kosong. Samakan dengan nama field Contact Form 7 Anda (misalnya `whatsapp`), atau isi **Static recipient**.
 - **recipient_missing — nomor tujuan kosong.** Sama penyebabnya dengan 422, tetapi plugin kini menangkapnya di WordPress dan tidak mengirim sama sekali. Sejak versi 1.1.1, nama field yang benar-benar ada di formulir ditampilkan di bawah pesan; salin satu ke **Recipient field name**.
 - **403 — paket tidak mencakup integrasi.** Periksa menu **Tagihan**.
-- **404 — base URL salah.** Pastikan **PesanPro base URL** = `https://wagateway.kingofcoding.my.id`.
+- **404 — base URL salah.** Pastikan **PesanPro base URL** = `https://pesanpro.kingofcoding.my.id`.
 - **network_error — server tidak bisa dihubungi.** Biasanya firewall hosting memblokir koneksi keluar.
 
 Setelah penyebabnya diperbaiki, klik **Coba kirim ulang yang gagal**. Submission yang gagal tidak dicoba ulang otomatis — tanpa tombol ini baris tersebut akan tetap berstatus failed sampai masa retensi berakhir.
@@ -168,7 +168,7 @@ Payload:
 2. Tambahkan di `wp-config.php`:
    ```php
    define( 'PESANPRO_WOO_TOKEN', 'ppint_xxxxxxxxxxxxxxxx' );
-   define( 'PESANPRO_BASE_URL', 'https://wagateway.kingofcoding.my.id' );
+   define( 'PESANPRO_BASE_URL', 'https://pesanpro.kingofcoding.my.id' );
    ```
 3. Buat file `/wp-content/mu-plugins/pesanpro-woocommerce.php`:
 
@@ -246,7 +246,7 @@ add_action('woocommerce_order_status_changed', function ($orderId, $from, $to, $
 Connector di distribusikan sebagai ZIP yang bisa diunduh langsung, sama seperti plugin WordPress:
 
 ```
-https://wagateway.kingofcoding.my.id/api/public/integration/google-forms
+https://pesanpro.kingofcoding.my.id/api/public/integration/google-forms
 ```
 
 Berkas ZIP berisi folder `pesanpro-google-forms/` dengan `Code.gs`, `appsscript.json`, dan README ringkas.
@@ -257,7 +257,7 @@ Berkas ZIP berisi folder `pesanpro-google-forms/` dengan `Code.gs`, `appsscript.
 2. Buka form target → **Extensions → Apps Script**.
 3. Ganti isi `Code.gs` dan `appsscript.json` dengan isi file dari ZIP connector di atas.
 4. Buka **Project Settings → Script Properties** dan isi:
-   - `PESANPRO_BASE_URL` — `https://wagateway.kingofcoding.my.id`.
+   - `PESANPRO_BASE_URL` — `https://pesanpro.kingofcoding.my.id`.
    - `PESANPRO_TOKEN` — token `ppint_...`.
    - `PESANPRO_RECIPIENT_FIELD` — judul pertanyaan nomor WhatsApp.
    - atau `PESANPRO_STATIC_RECIPIENT` — nomor tetap.
@@ -304,7 +304,7 @@ Idempotency-Key: form-12345
 Contoh PHP:
 
 ```php
-wp_remote_post('https://wagateway.kingofcoding.my.id/api/v1/integrations/wordpress', [
+wp_remote_post('https://pesanpro.kingofcoding.my.id/api/v1/integrations/wordpress', [
     'timeout' => 15,
     'headers' => [
         'Content-Type'        => 'application/json',

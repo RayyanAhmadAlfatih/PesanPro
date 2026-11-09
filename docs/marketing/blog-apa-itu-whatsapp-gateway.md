@@ -110,5 +110,5 @@ Tidak. PesanPro berbayar sejak awal.
 
 - Cari artikel lama "apa itu WhatsApp gateway" di CMS. Kalau ada, gunakan sebagai basis dan jangan membuat URL duplikat.
 - Pastikan `/harga` dan `/docs/mulai-cepat` aktif setelah deploy.
-- Konfirmasi CTA "Daftar" ke https://wagateway.kingofcoding.my.id/auth/register.
+- Konfirmasi CTA "Daftar" ke https://pesanpro.kingofcoding.my.id/auth/register.
 - Tambahkan meta description final saat implementasi.

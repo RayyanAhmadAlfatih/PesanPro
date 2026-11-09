@@ -22,7 +22,7 @@ export const metadata = {
     description:
       "Kirim dan terima WhatsApp lewat REST API. Antrian pesan yang tahan restart, webhook untuk pesan masuk, dan isi pesan tidak disimpan.",
     type: "website",
-    url: process.env.NEXT_PUBLIC_APP_URL || "https://wagateway.kingofcoding.my.id",
+    url: process.env.NEXT_PUBLIC_APP_URL || "https://pesanpro.kingofcoding.my.id",
   },
   twitter: {
     card: "summary_large_image",

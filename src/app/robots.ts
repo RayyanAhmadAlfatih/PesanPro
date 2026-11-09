@@ -2,7 +2,7 @@ import { MetadataRoute } from "next";
 
 export default function robots(): MetadataRoute.Robots {
     const allowIndexing = process.env.NEXT_PUBLIC_ALLOW_INDEXING === "true";
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://wagateway.kingofcoding.my.id";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pesanpro.kingofcoding.my.id";
 
     return {
         rules: {

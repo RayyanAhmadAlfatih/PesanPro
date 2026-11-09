@@ -15,7 +15,7 @@ Panduan ini untuk pemilik usaha yang ingin memakai PesanPro lewat dashboard, tan
 
 Pendaftaran dan pembayaran dilakukan sekaligus. Form daftar tidak bisa dikirim sebelum paket dipilih dan bukti transfer dilampirkan.
 
-1. Buka `https://wagateway.kingofcoding.my.id/auth/register`.
+1. Buka `https://pesanpro.kingofcoding.my.id/auth/register`.
 2. Isi nama lengkap, email, kata sandi, dan ulangi kata sandi.
 3. Kata sandi minimal 10 karakter dan harus mengandung huruf besar, huruf kecil, dan angka.
 4. Pilih paket:
@@ -47,7 +47,7 @@ Kalau akun sudah terlanjur dibuat tetapi pembayaran belum dikirim, buka menu **T
 
 Selain email dan kata sandi, halaman **Masuk** menyediakan tab **Email OTP**. OTP (one-time password) adalah kode angka sekali pakai yang dikirim ke email Anda, jadi Anda bisa masuk tanpa mengetik kata sandi. Ini bukan kode verifikasi pendaftaran dan bukan kode pairing WhatsApp.
 
-Cara pakainya: buka `https://wagateway.kingofcoding.my.id/auth/login`, pilih tab **Email OTP**, isi alamat email akun, klik **Kirim kode ke email**, lalu masukkan 6 angka yang masuk ke kotak masuk Anda dan klik **Masuk**.
+Cara pakainya: buka `https://pesanpro.kingofcoding.my.id/auth/login`, pilih tab **Email OTP**, isi alamat email akun, klik **Kirim kode ke email**, lalu masukkan 6 angka yang masuk ke kotak masuk Anda dan klik **Masuk**.
 
 | Perilaku OTP | Yang berlaku | Rujukan kode |
 | --- | --- | --- |

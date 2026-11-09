@@ -4,7 +4,7 @@ Panduan ini untuk **SUPERADMIN** yang mengelola platform: menyetujui pembayaran,
 
 ## Masuk sebagai superadmin
 
-1. Buka `https://wagateway.kingofcoding.my.id/auth/login`.
+1. Buka `https://pesanpro.kingofcoding.my.id/auth/login`.
 2. Masuk dengan akun superadmin.
 3. Sidebar menampilkan grup **Operasi** berisi menu tambahan: **Pengguna**, **Operasi Komersial**, **Monitor Sistem**, **Kirim Pengumuman**, dan **Pengumuman Pop-up**. Grup **Akun** juga menampilkan **Pengaturan**.
 

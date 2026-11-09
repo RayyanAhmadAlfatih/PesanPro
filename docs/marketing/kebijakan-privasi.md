@@ -22,7 +22,7 @@ Kebijakan ini menjelaskan data apa yang diproses PesanPro, untuk apa, dan hak An
 
 ## 1. Ruang lingkup
 
-Kebijakan ini berlaku untuk situs marketing PesanPro dan aplikasi dashboard di wagateway.kingofcoding.my.id. Kebijakan ini tidak berlaku untuk situs pihak lain yang ditautkan dari layanan kami.
+Kebijakan ini berlaku untuk situs marketing PesanPro dan aplikasi dashboard di pesanpro.kingofcoding.my.id. Kebijakan ini tidak berlaku untuk situs pihak lain yang ditautkan dari layanan kami.
 
 ## 2. Data yang diproses
 

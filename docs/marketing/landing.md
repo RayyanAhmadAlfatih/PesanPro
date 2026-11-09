@@ -24,7 +24,7 @@
 **Tombol utama:** Daftar
 **Tautan kedua:** Lihat harga
 
-*Catatan untuk desainer: tombol "Daftar" mengarah ke https://wagateway.kingofcoding.my.id/auth/register. Jangan memakai teks "Mulai Gratis".*
+*Catatan untuk desainer: tombol "Daftar" mengarah ke https://pesanpro.kingofcoding.my.id/auth/register. Jangan memakai teks "Mulai Gratis".*
 
 ### Masalah yang dialami UMKM
 

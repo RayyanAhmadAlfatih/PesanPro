@@ -41,7 +41,7 @@ Alurnya tiga langkah:
 Contoh berikut memakai Node.js. Anda butuh kunci API, ID perangkat dari dashboard, dan nomor tujuan.
 
 ```javascript
-const res = await fetch('https://wagateway.kingofcoding.my.id/api/v1/messages/text', {
+const res = await fetch('https://pesanpro.kingofcoding.my.id/api/v1/messages/text', {
   method: 'POST',
   headers: {
     'x-api-key': process.env.PESANPRO_API_KEY,
@@ -94,5 +94,5 @@ Setelah pesan otomatis pertama berjalan, Anda bisa menambah balasan otomatis ber
 
 - Ganti artikel lama di CMS, bukan menambah artikel baru di URL yang berbeda.
 - Pastikan tautan `/harga` dan `/docs/mulai-cepat` sudah aktif setelah deploy.
-- Konfirmasi CTA "Daftar" mengarah ke https://wagateway.kingofcoding.my.id/auth/register.
+- Konfirmasi CTA "Daftar" mengarah ke https://pesanpro.kingofcoding.my.id/auth/register.
 - Tambahkan meta description final saat implementasi.

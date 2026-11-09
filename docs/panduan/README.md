@@ -33,9 +33,9 @@ Panduan berikut **internal** — hanya terlihat oleh superadmin di `/docs`, tida
 
 | Keperluan | Alamat |
 | --- | --- |
-| Aplikasi gateway (dashboard + API) | `https://wagateway.kingofcoding.my.id` |
+| Aplikasi gateway (dashboard + API) | `https://pesanpro.kingofcoding.my.id` |
 | Website marketing dan halaman harga | `https://pesanpro.kingofcoding.my.id` |
-| Basis URL API | `https://wagateway.kingofcoding.my.id/api/v1` |
+| Basis URL API | `https://pesanpro.kingofcoding.my.id/api/v1` |
 
 Jangan menukar kedua domain. Website marketing hanya menjelaskan produk; aplikasi gateway adalah tempat akun, perangkat, dan API benar-benar berjalan.
 
