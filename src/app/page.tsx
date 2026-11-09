@@ -327,54 +327,41 @@ export default async function Home() {
 
       <main className="flex-1">
         <section className="mx-auto w-full max-w-5xl px-4 pb-14 pt-14 sm:px-6 sm:pt-20">
-          <div className="grid items-center gap-10 lg:grid-cols-[1.15fr_0.85fr]">
-            <div>
-              <h1 className="text-4xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
-                Gateway WhatsApp yang tidak menyimpan pesanmu.
-              </h1>
-              <p className="mt-6 max-w-xl text-lg leading-relaxed text-[var(--pp-muted)]">
-                Hubungkan nomor WhatsApp lewat QR, lalu kirim notifikasi, broadcast, dan balasan
-                otomatis dari dashboard atau sistem Anda sendiri.
-              </p>
-              <div className="mt-8 flex flex-wrap items-center gap-4">
-                <Link href="/auth/register">
-                  <Button size="lg" className="pp-accent-yellow rounded-lg px-6 text-base">
-                    Daftar sekarang
+          <div className="mx-auto max-w-3xl text-center">
+            <h1 className="text-4xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
+              Gateway WhatsApp yang tidak menyimpan pesanmu.
+            </h1>
+            <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[var(--pp-muted)]">
+              Hubungkan nomor WhatsApp lewat QR, lalu kirim notifikasi, broadcast, dan balasan
+              otomatis dari dashboard atau sistem Anda sendiri.
+            </p>
+            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
+              <Link href="/auth/register">
+                <Button size="lg" className="rounded-lg px-6 text-base">
+                  Daftar sekarang
+                </Button>
+              </Link>
+              {plans.length > 0 && (
+                <Link href="#harga">
+                  <Button variant="outline" size="lg" className="rounded-lg px-6 text-base">
+                    Lihat harga
                   </Button>
                 </Link>
-                {plans.length > 0 && (
-                  <Link href="#harga">
-                    <Button variant="outline" size="lg" className="rounded-lg px-6 text-base">
-                      Lihat harga
-                    </Button>
-                  </Link>
-                )}
-              </div>
-              <ul className="mt-8 grid max-w-xl gap-2 text-sm text-[var(--pp-muted)] sm:grid-cols-2">
-                {[
-                  "Isi pesan tidak disimpan",
-                  "Verifikasi pembayaran oleh admin",
-                  "REST API dan webhook",
-                  "Aktif setelah pembayaran disetujui",
-                ].map((item) => (
-                  <li key={item} className="flex items-center gap-2">
-                    <Check aria-hidden="true" className="h-4 w-4 flex-none text-[var(--pp-ink)]" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-              </ul>
+              )}
             </div>
-
-            <div className="justify-self-center">
-              <Image
-                src="/brand/maskot-kirim.png"
-                alt="Maskot PesanPro, burung merpati, membawa amplop tertutup di paruhnya"
-                width={293}
-                height={319}
-                className="h-auto w-52 sm:w-64 lg:w-full lg:max-w-[320px]"
-                priority
-              />
-            </div>
+            <ul className="mx-auto mt-8 grid max-w-xl gap-2 text-sm text-[var(--pp-muted)] sm:grid-cols-2">
+              {[
+                "Isi pesan tidak disimpan",
+                "Verifikasi pembayaran oleh admin",
+                "REST API dan webhook",
+                "Aktif setelah pembayaran disetujui",
+              ].map((item) => (
+                <li key={item} className="flex items-center justify-center gap-2 sm:justify-start">
+                  <Check aria-hidden="true" className="h-4 w-4 flex-none text-[var(--pp-ink)]" />
+                  <span>{item}</span>
+                </li>
+              ))}
+            </ul>
           </div>
 
           {/* Ilustrasi antarmuka. Angka dan nama di bawah adalah contoh, bukan
@@ -694,7 +681,7 @@ export default async function Home() {
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-4">
                 <Link href="/auth/register">
-                  <Button size="lg" className="pp-accent-yellow rounded-lg px-8 text-base">
+                  <Button size="lg" className="pp-accent-yellow rounded-lg px-8 text-base text-[var(--pp-ink)]">
                     Daftar sekarang
                   </Button>
                 </Link>
