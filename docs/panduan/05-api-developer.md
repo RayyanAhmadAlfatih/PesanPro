@@ -7,7 +7,7 @@ PesanPro menyediakan REST API untuk mengirim pesan, mengelola media, menjadwalka
 Semua contoh di sini memakai domain gateway:
 
 ```
-https://wagateway.kingofcoding.my.id
+https://pesanpro.kingofcoding.my.id
 ```
 
 ## Autentikasi
@@ -268,7 +268,7 @@ Aturan:
 ### cURL
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/messages/text" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/messages/text" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: order-1042-notify" \
@@ -305,7 +305,7 @@ QUEUED → PROCESSING → SENT → DELIVERED → READ
 ### Node.js (fetch, Node 18+)
 
 ```js
-const BASE_URL = "https://wagateway.kingofcoding.my.id";
+const BASE_URL = "https://pesanpro.kingofcoding.my.id";
 const API_KEY = process.env.PESANPRO_API_KEY;
 
 async function sendText({ sessionId, recipient, text, idempotencyKey }) {
@@ -344,7 +344,7 @@ await sendText({
 
 function pesanpro_send_text(string $sessionId, string $recipient, string $text, string $idempotencyKey): array
 {
-    $baseUrl = 'https://wagateway.kingofcoding.my.id';
+    $baseUrl = 'https://pesanpro.kingofcoding.my.id';
     $apiKey = getenv('PESANPRO_API_KEY');
 
     $ch = curl_init("$baseUrl/api/v1/messages/text");
@@ -379,7 +379,7 @@ function pesanpro_send_text(string $sessionId, string $recipient, string $text, 
 ## Kirim media
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/messages/media" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/messages/media" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: invoice-1042-pdf" \
@@ -411,7 +411,7 @@ Batas ukuran dan format ada di [04 — Media dan batas upload](04-media-dan-limi
 ### Satu kali
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/schedules" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/schedules" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -429,7 +429,7 @@ curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/schedules" \
 ### Berulang (cron)
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/schedules" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/schedules" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -469,7 +469,7 @@ curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/schedules" \
 Contoh lengkap ada di [02 — Broadcast](02-broadcast.md). Ringkasnya:
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/broadcasts" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/broadcasts" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: promo-oktober-2026" \
@@ -488,7 +488,7 @@ curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/broadcasts" \
 Contoh lengkap ada di [03 — Auto-reply](03-auto-reply.md).
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/autoreplies" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/autoreplies" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -507,7 +507,7 @@ curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/autoreplies" \
 ## Suppression
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/suppressions" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/suppressions" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{ "recipient": "628123456789", "reason": "MANUAL" }'
@@ -525,7 +525,7 @@ Integration token dipakai oleh integrasi form/toko online. Berbeda dari API key:
 - Bisa punya mapping penerima dan template pesan.
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/integration-tokens" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/integration-tokens" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -549,7 +549,7 @@ Simpan sebagai `pesanpro.js`. Tidak perlu dependensi eksternal.
 import crypto from "node:crypto";
 
 export class PesanProClient {
-  constructor({ apiKey, baseUrl = "https://wagateway.kingofcoding.my.id" }) {
+  constructor({ apiKey, baseUrl = "https://pesanpro.kingofcoding.my.id" }) {
     if (!apiKey) throw new Error("apiKey is required");
     this.apiKey = apiKey;
     this.baseUrl = baseUrl.replace(/\/$/, "");
@@ -648,7 +648,7 @@ final class PesanProClient
 {
     public function __construct(
         private string $apiKey,
-        private string $baseUrl = 'https://wagateway.kingofcoding.my.id'
+        private string $baseUrl = 'https://pesanpro.kingofcoding.my.id'
     ) {
         $this->baseUrl = rtrim($this->baseUrl, '/');
     }
@@ -727,8 +727,8 @@ final class PesanProClient
 ## Uji cepat dengan health check
 
 ```bash
-curl "https://wagateway.kingofcoding.my.id/api/health/live"
-curl "https://wagateway.kingofcoding.my.id/api/health/ready"
+curl "https://pesanpro.kingofcoding.my.id/api/health/live"
+curl "https://pesanpro.kingofcoding.my.id/api/health/ready"
 ```
 
 `live` menandakan proses hidup. `ready` menandakan database dan worker siap.

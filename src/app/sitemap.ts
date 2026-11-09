@@ -6,7 +6,7 @@ export default function sitemap(): MetadataRoute.Sitemap {
         return [];
     }
 
-    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://wagateway.kingofcoding.my.id";
+    const baseUrl = process.env.NEXT_PUBLIC_APP_URL || "https://pesanpro.kingofcoding.my.id";
 
     return [
         {

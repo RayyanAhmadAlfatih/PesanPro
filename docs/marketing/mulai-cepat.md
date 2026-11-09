@@ -5,7 +5,7 @@
 - Alur akun: daftar, pilih paket, transfer, unggah bukti, lalu menunggu persetujuan admin.
 - Akun PENDING belum bisa mengirim pesan, auto-reply, webhook, atau upload media.
 - Setelah disetujui: login, hubungkan WhatsApp lewat QR, buat kunci API, kirim pesan.
-- Endpoint kirim teks: `POST https://wagateway.kingofcoding.my.id/api/v1/messages/text`.
+- Endpoint kirim teks: `POST https://pesanpro.kingofcoding.my.id/api/v1/messages/text`.
 - Header wajib: `x-api-key`, `idempotency-key` (8 sampai 128 karakter URL-safe), `Content-Type: application/json`.
 - Body wajib: `sessionId`, `recipient`, `text`.
 - Nomor penerima memakai format internasional tanpa tanda plus, contoh `6281234567890`.
@@ -33,7 +33,7 @@ Panduan ini mengantar Anda dari akun yang sudah aktif sampai pesan pertama terki
 
 ## Langkah 1: Masuk ke dashboard
 
-Buka `https://wagateway.kingofcoding.my.id/auth/login`, lalu masuk dengan email dan kata sandi yang Anda daftarkan.
+Buka `https://pesanpro.kingofcoding.my.id/auth/login`, lalu masuk dengan email dan kata sandi yang Anda daftarkan.
 
 Kalau akun masih PENDING, selesaikan pembayaran di menu **Tagihan**. Setelah admin menyetujui, status paket berubah menjadi aktif.
 
@@ -60,7 +60,7 @@ Simpan kunci di environment variable server, bukan di kode yang berjalan di brow
 Ganti `wag_...` dengan kunci API Anda, `sesi_anda` dengan ID perangkat dari dashboard, dan nomor penerima dengan nomor tujuan.
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/messages/text" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/messages/text" \
   -H "x-api-key: wag_..." \
   -H "idempotency-key: mulai-cepat-001" \
   -H "Content-Type: application/json" \
@@ -86,7 +86,7 @@ Respons sukses adalah `202 Accepted` karena pesan masuk antrean dulu. Catat `id`
 ## Langkah 5: Periksa status pengiriman
 
 ```bash
-curl "https://wagateway.kingofcoding.my.id/api/v1/messages/<id>" \
+curl "https://pesanpro.kingofcoding.my.id/api/v1/messages/<id>" \
   -H "x-api-key: wag_..."
 ```
 

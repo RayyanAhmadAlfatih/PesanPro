@@ -3,13 +3,13 @@
 Folder ini berisi draf materi untuk situs marketing PesanPro. Semua file adalah **draf untuk review**, bukan bukti bahwa fitur sudah live.
 
 - Situs marketing: https://pesanpro.kingofcoding.my.id
-- Aplikasi: https://wagateway.kingofcoding.my.id
+- Aplikasi: https://pesanpro.kingofcoding.my.id
 - Versi acuan: v0.2.0 (GitHub)
 - Status produksi: **v0.2.0 belum di-deploy**
 
 ## Aturan yang dipakai
 
-- CTA selalu **"Daftar"** ke https://wagateway.kingofcoding.my.id/auth/register.
+- CTA selalu **"Daftar"** ke https://pesanpro.kingofcoding.my.id/auth/register.
 - Tidak ada "Mulai Gratis", trial, paket gratis, atau lifetime.
 - Tidak ada klaim privasi, termasuk "tidak menyimpan pesanmu".
 - Tidak ada Chat UI, Label, atau Campaign.

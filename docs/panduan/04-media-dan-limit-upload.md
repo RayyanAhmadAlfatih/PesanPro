@@ -84,7 +84,7 @@ Kalau paket belum aktif, tombol **upload media** di dashboard dinonaktifkan dan 
 ### 1. Upload file
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/media" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/media" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -F "file=@katalog.pdf" \
   -F "sessionId=cs-utama"
@@ -112,7 +112,7 @@ Contoh respons:
 ### 2. Kirim media
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/messages/media" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/messages/media" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: kirim-katalog-001" \
@@ -130,7 +130,7 @@ curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/messages/media" \
 ### 3. Kirim dari URL publik
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/messages/media" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/messages/media" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: kirim-gambar-001" \
@@ -158,7 +158,7 @@ Aturan URL:
 Kalau ingin file dari URL disimpan ke media library (sehingga terkena batas paket dan retensi):
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/media/import" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/media/import" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -172,15 +172,15 @@ curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/media/import" \
 
 ```bash
 # Daftar media
-curl "https://wagateway.kingofcoding.my.id/api/v1/media?limit=50" \
+curl "https://pesanpro.kingofcoding.my.id/api/v1/media?limit=50" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx"
 
 # Metadata satu media
-curl "https://wagateway.kingofcoding.my.id/api/v1/media/MEDIA_ID?metadata=1" \
+curl "https://pesanpro.kingofcoding.my.id/api/v1/media/MEDIA_ID?metadata=1" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx"
 
 # Hapus media
-curl -X DELETE "https://wagateway.kingofcoding.my.id/api/v1/media/MEDIA_ID" \
+curl -X DELETE "https://pesanpro.kingofcoding.my.id/api/v1/media/MEDIA_ID" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx"
 ```
 

@@ -384,14 +384,14 @@ Aturan ini aktif setiap hari 18.00–07.00:
 ### Daftar aturan
 
 ```bash
-curl "https://wagateway.kingofcoding.my.id/api/v1/autoreplies?sessionId=cs-utama" \
+curl "https://pesanpro.kingofcoding.my.id/api/v1/autoreplies?sessionId=cs-utama" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx"
 ```
 
 ### Membuat aturan
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/autoreplies" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/autoreplies" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -414,19 +414,19 @@ curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/autoreplies" \
 ### Mengubah dan menghapus
 
 ```bash
-curl -X PUT "https://wagateway.kingofcoding.my.id/api/v1/autoreplies/RULE_ID" \
+curl -X PUT "https://pesanpro.kingofcoding.my.id/api/v1/autoreplies/RULE_ID" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{ "sessionId": "cs-utama", "keyword": "harga", "matchType": "CONTAINS", "response": "Harga baru: ...", "isEnabled": true }'
 
-curl -X DELETE "https://wagateway.kingofcoding.my.id/api/v1/autoreplies/RULE_ID" \
+curl -X DELETE "https://pesanpro.kingofcoding.my.id/api/v1/autoreplies/RULE_ID" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx"
 ```
 
 ### Mengaktifkan / menonaktifkan
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/autoreplies/RULE_ID/toggle" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/autoreplies/RULE_ID/toggle" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{ "sessionId": "cs-utama", "isEnabled": false }'
@@ -435,7 +435,7 @@ curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/autoreplies/RULE_ID/to
 ### Uji tanpa mengirim
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/autoreplies/preview" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/autoreplies/preview" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -450,7 +450,7 @@ Respons menunjukkan aturan yang menang dan alasan aturan lain tidak dipakai. Gun
 ### Log pemicu
 
 ```bash
-curl "https://wagateway.kingofcoding.my.id/api/v1/autoreplies/logs?sessionId=cs-utama&limit=50" \
+curl "https://pesanpro.kingofcoding.my.id/api/v1/autoreplies/logs?sessionId=cs-utama&limit=50" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx"
 ```
 

@@ -93,5 +93,5 @@ Rincian paket ada di [halaman harga](/harga).
 
 - Ganti artikel lama di CMS, bukan menambah artikel baru.
 - Pastikan tautan `/harga` dan `/docs/06-webhook` aktif setelah deploy.
-- Konfirmasi CTA "Daftar" ke https://wagateway.kingofcoding.my.id/auth/register.
+- Konfirmasi CTA "Daftar" ke https://pesanpro.kingofcoding.my.id/auth/register.
 - Jangan menambahkan klaim bahwa PesanPro menyediakan model AI bawaan. Artikel ini memakai model AI pihak ketiga milik pembaca.

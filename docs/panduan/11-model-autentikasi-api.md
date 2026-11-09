@@ -34,7 +34,7 @@ Permintaan yang memakai **`x-api-key` tidak terpengaruh aturan origin** — serv
 ### Benar — API key dengan scope cukup
 
 ```bash
-curl -X POST https://wagateway.kingofcoding.my.id/api/v1/messages/text \
+curl -X POST https://pesanpro.kingofcoding.my.id/api/v1/messages/text \
   -H "x-api-key: wag_XXXX..." \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: order-1042-notify" \

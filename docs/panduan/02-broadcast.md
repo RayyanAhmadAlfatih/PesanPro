@@ -130,7 +130,7 @@ Broadcast berstatus `QUEUED` atau `RUNNING` bisa dijeda dengan tombol **Jeda** d
 ### Membuat broadcast
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/broadcasts" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/broadcasts" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -H "Idempotency-Key: promo-2026-10-31-001" \
@@ -172,24 +172,24 @@ Aturan penting:
 ### Melihat daftar broadcast
 
 ```bash
-curl "https://wagateway.kingofcoding.my.id/api/v1/broadcasts?sessionId=cs-utama&limit=25" \
+curl "https://pesanpro.kingofcoding.my.id/api/v1/broadcasts?sessionId=cs-utama&limit=25" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx"
 ```
 
 ### Menjeda dan melanjutkan
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/broadcasts/BROADCAST_ID/pause" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/broadcasts/BROADCAST_ID/pause" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx"
 
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/broadcasts/BROADCAST_ID/resume" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/broadcasts/BROADCAST_ID/resume" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx"
 ```
 
 ### Import CSV lewat API
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/broadcasts/recipients/import" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/broadcasts/recipients/import" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: text/csv" \
   --data-binary @penerima.csv
@@ -200,7 +200,7 @@ Respons berisi `recipients`, `recipientData`, `rowsRead`, `duplicatesRemoved`, `
 ### Pratinjau spintax
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/broadcasts/spintax/preview" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/broadcasts/spintax/preview" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{
@@ -233,7 +233,7 @@ Suppression adalah daftar nomor yang **tidak boleh** dikirimi broadcast. Tambahk
 Di dashboard, buka tab **Jangan kirim** pada halaman Kirim Massal, lalu tambahkan nomor dengan tombol **Blokir**. Perintah `STOP`, `UNSUBSCRIBE`, `BERHENTI`, atau `BATAL LANGGANAN` dari pesan masuk juga otomatis masuk daftar ini. Di API:
 
 ```bash
-curl -X POST "https://wagateway.kingofcoding.my.id/api/v1/suppressions" \
+curl -X POST "https://pesanpro.kingofcoding.my.id/api/v1/suppressions" \
   -H "x-api-key: wag_xxxxxxxxxxxxxxxx" \
   -H "Content-Type: application/json" \
   -d '{ "recipient": "628123456789", "reason": "MANUAL" }'

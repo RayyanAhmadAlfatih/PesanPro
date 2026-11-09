@@ -69,7 +69,7 @@ Selama PENDING, dashboard dan Tagihan bisa dibuka, tetapi pengiriman, auto-reply
 | "Coba Gratis" | **"Daftar"** |
 | "Uji coba 1 minggu" | **Dihapus** |
 
-Semua CTA mengarah ke `https://wagateway.kingofcoding.my.id/auth/register`.
+Semua CTA mengarah ke `https://pesanpro.kingofcoding.my.id/auth/register`.
 
 ## Klaim yang dihapus
 

@@ -85,5 +85,5 @@ Lihat rincian batas paket di [halaman harga](/harga).
 
 - Ganti artikel lama di CMS, bukan menambah artikel baru.
 - Pastikan tautan `/harga` dan `/docs/03-auto-reply` aktif setelah deploy.
-- Konfirmasi CTA "Daftar" ke https://wagateway.kingofcoding.my.id/auth/register.
+- Konfirmasi CTA "Daftar" ke https://pesanpro.kingofcoding.my.id/auth/register.
 - Verifikasi ulang nama field webhook sebelum menambah contoh payload.
