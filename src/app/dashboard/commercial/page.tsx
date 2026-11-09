@@ -53,10 +53,24 @@ interface OverrideItem {
   reason: string; expiresAt: string | null; updatedAt: string;
 }
 
+interface RevenueSummary {
+  monthStart: string;
+  approved: { count: number; total: string };
+  approvedThisMonth: { count: number; total: string };
+  pending: { count: number; total: string };
+  byPlan: Array<{ planId: string | null; planName: string | null; planCode: string | null; billingCycle: string; currency: string; count: number; total: string }>;
+}
+
+function formatIdr(total: string, currency: string) {
+  const formatted = Number(total).toLocaleString("id-ID");
+  return currency === "IDR" ? `Rp${formatted}` : `${formatted} ${currency}`;
+}
+
 export default function CommercialPage() {
   const [plans, setPlans] = useState<PlanItem[]>([]);
   const [owners, setOwners] = useState<OwnerItem[]>([]);
   const [payments, setPayments] = useState<PaymentItem[]>([]);
+  const [summary, setSummary] = useState<RevenueSummary | null>(null);
   const [overrides, setOverrides] = useState<OverrideItem[]>([]);
   const [loading, setLoading] = useState(true);
   const [busy, setBusy] = useState(false);
@@ -101,6 +115,7 @@ export default function CommercialPage() {
       })));
       setOwners((userBody.data ?? []).filter((user: OwnerItem) => user.role === "USER"));
       setPayments(paymentBody.data ?? []);
+      setSummary(paymentBody.summary ?? null);
     } catch (error) {
       toast.error(error instanceof Error ? error.message : "Unable to load commercial controls");
     } finally {
@@ -256,6 +271,28 @@ export default function CommercialPage() {
 
   if (loading) return <div className="flex min-h-[50vh] items-center justify-center"><Loader2 className="h-8 w-8 animate-spin" /></div>;
 
+  const planAggregates = (() => {
+    if (!summary) return [];
+    const map = new Map<string, { planName: string; currency: string; monthlyCount: number; monthlyTotal: number; yearlyCount: number; yearlyTotal: number; count: number; total: number }>();
+    for (const row of summary.byPlan) {
+      // Kunci memasukkan currency supaya campuran mata uang tidak pernah
+      // dijumlahkan silang; dalam praktik hanya IDR yang dipakai.
+      const key = `${row.planId ?? "unknown"}|${row.currency}`;
+      const entry = map.get(key) ?? {
+        planName: row.planName ?? row.planCode ?? "Paket tidak dikenal",
+        currency: row.currency,
+        monthlyCount: 0, monthlyTotal: 0, yearlyCount: 0, yearlyTotal: 0, count: 0, total: 0,
+      };
+      const total = Number(row.total);
+      if (row.billingCycle === "YEARLY") { entry.yearlyCount += row.count; entry.yearlyTotal += total; }
+      else { entry.monthlyCount += row.count; entry.monthlyTotal += total; }
+      entry.count += row.count;
+      entry.total += total;
+      map.set(key, entry);
+    }
+    return [...map.values()].sort((a, b) => b.total - a.total);
+  })();
+
   return (
     <div className="space-y-6 p-4 md:p-8">
       <div className="flex flex-col gap-3 md:flex-row md:items-end md:justify-between"><div><p className="text-sm font-semibold uppercase tracking-[0.2em] text-amber-600">Superadmin control plane</p><h1 className="text-3xl font-bold tracking-tight">Commercial Operations</h1><p className="text-muted-foreground">Plans, tenant subscriptions, and manual payment verification.</p></div><Button variant="outline" onClick={() => void load()}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button></div>
@@ -285,6 +322,39 @@ export default function CommercialPage() {
       </Card>
 
       <Card><CardHeader><CardTitle>Plans</CardTitle><CardDescription>{plans.length} configured commercial packages.</CardDescription></CardHeader><CardContent className="grid gap-3 md:grid-cols-2 xl:grid-cols-3">{plans.map((plan) => <div key={plan.id} className="rounded-xl border p-4"><div className="flex items-center justify-between"><p className="font-semibold">{plan.name}</p><Badge variant={plan.isActive ? "outline" : "secondary"}>{plan.isDefault ? "DEFAULT" : plan.isActive ? "ACTIVE" : "INACTIVE"}</Badge></div><p className="text-sm text-muted-foreground">{plan.code} · {plan.priceMonthly ?? "0"} {plan.currency}/month · {plan.priceYearly ? `${plan.priceYearly} ${plan.currency}/year` : "no yearly price"}</p><p className="mt-2 text-xs text-muted-foreground">{plan.entitlements.length} entitlements</p><div className="mt-3 flex gap-2">{!plan.isActive && <Button size="sm" variant="outline" onClick={() => void updatePlan(plan.id, { isActive: true })}>Activate</Button>}{plan.isActive && !plan.isDefault && <Button size="sm" variant="outline" onClick={() => void updatePlan(plan.id, { isDefault: true })}>Make default</Button>}</div></div>)}</CardContent></Card>
+
+      {summary && (
+        <Card className="border-[var(--pp-ink)] bg-[var(--pp-highlight)]/15">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2"><BadgeDollarSign className="h-5 w-5 text-[var(--pp-ink)]" />Laporan pendapatan</CardTitle>
+            <CardDescription>Semua angka dihitung langsung dari database untuk pembayaran berstatus APPROVED — termasuk yang di luar 200 baris daftar di bawah. Bulan berjalan dimulai {new Date(summary.monthStart).toLocaleDateString("id-ID", { day: "numeric", month: "long", year: "numeric" })}.</CardDescription>
+          </CardHeader>
+          <CardContent className="space-y-4">
+            <div className="grid gap-3 sm:grid-cols-3">
+              <div className="rounded-xl border bg-background/80 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Disetujui bulan ini</p><p className="mt-1 text-2xl font-bold tabular-nums">{formatIdr(summary.approvedThisMonth.total, "IDR")}</p><p className="text-xs text-muted-foreground">{summary.approvedThisMonth.count} pembayaran</p></div>
+              <div className="rounded-xl border bg-background/80 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Total disetujui</p><p className="mt-1 text-2xl font-bold tabular-nums">{formatIdr(summary.approved.total, "IDR")}</p><p className="text-xs text-muted-foreground">{summary.approved.count} pembayaran sepanjang waktu</p></div>
+              <div className="rounded-xl border bg-background/80 p-4"><p className="text-xs font-semibold uppercase tracking-wide text-muted-foreground">Menunggu verifikasi</p><p className="mt-1 text-2xl font-bold tabular-nums">{formatIdr(summary.pending.total, "IDR")}</p><p className="text-xs text-muted-foreground">{summary.pending.count} pembayaran</p></div>
+            </div>
+            {planAggregates.length > 0 && (
+              <div className="overflow-x-auto rounded-xl border border-[var(--pp-line)] bg-white">
+                <table>
+                  <thead><tr><th>Paket</th><th>Bulanan</th><th>Tahunan</th><th>Total</th></tr></thead>
+                  <tbody>
+                    {planAggregates.map((row) => (
+                      <tr key={`${row.planName}|${row.currency}`}>
+                        <td className="font-semibold">{row.planName}{row.currency !== "IDR" && <span className="ml-1 text-xs text-muted-foreground">({row.currency})</span>}</td>
+                        <td className="tabular-nums">{row.monthlyCount > 0 ? `${row.monthlyCount} · ${formatIdr(String(row.monthlyTotal), row.currency)}` : "—"}</td>
+                        <td className="tabular-nums">{row.yearlyCount > 0 ? `${row.yearlyCount} · ${formatIdr(String(row.yearlyTotal), row.currency)}` : "—"}</td>
+                        <td className="font-semibold tabular-nums">{row.count} · {formatIdr(String(row.total), row.currency)}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      )}
 
       <Card><CardHeader><CardTitle>Payment verification</CardTitle><CardDescription>Approval activates the selected plan for the period that was paid for: one month or one year, taken from the submission. The change is recorded in subscription history.</CardDescription></CardHeader><CardContent className="space-y-3">{payments.length === 0 && <p className="rounded-xl border border-dashed p-8 text-center text-muted-foreground">No payment submissions.</p>}{payments.map((payment) => { const payerWa = whatsappHref(payment.user.whatsappNumber, `Halo ${payment.user.name ?? payment.user.email}, saya admin PesanPro soal pembayaran Anda.`); return <div key={payment.id} className="rounded-xl border p-4"><div className="flex flex-col gap-3 lg:flex-row lg:items-center lg:justify-between"><div><div className="flex flex-wrap items-center gap-2"><p className="font-semibold">{payment.user.email}</p><Badge variant={payment.status === "PENDING" ? "outline" : "secondary"}>{payment.status}</Badge><Badge variant="outline">{payment.billingCycle === "YEARLY" ? "TAHUNAN" : "BULANAN"}</Badge></div><p className="text-sm">{payment.amount} {payment.currency} · {payment.plan?.name ?? "Unknown plan"} · {payment.reference}</p>{payment.user.whatsappNumber ? <p className="mt-1 text-sm">WA: {formatWhatsappDisplay(payment.user.whatsappNumber)}{payerWa && <> · <a className="font-semibold text-[var(--pp-ink)] underline underline-offset-4" href={payerWa} target="_blank" rel="noreferrer">Chat pembayar</a></>}</p> : <p className="mt-1 text-xs text-muted-foreground">Belum ada nomor WA tersimpan.</p>}{payment.bankAccount ? <p className="mt-1 text-sm text-muted-foreground">Rekening tujuan: {payment.bankAccount.bankName} · {formatAccountNumberDisplay(payment.bankAccount.accountNumber)} · a.n. {payment.bankAccount.accountHolder}</p> : null}{payment.proofUrl && <a className="text-sm text-[var(--pp-ink)] underline" href={payment.proofUrl} target="_blank" rel="noreferrer">Open proof</a>}</div>{payment.status === "PENDING" && <div className="flex min-w-0 flex-1 gap-2 lg:max-w-xl"><Input disabled={reviewingPaymentId === payment.id} value={reviewNotes[payment.id] ?? ""} onChange={(event) => setReviewNotes((current) => ({ ...current, [payment.id]: event.target.value }))} placeholder="Required review note" /><Button disabled={reviewingPaymentId !== null} onClick={() => void reviewPayment(payment.id, "APPROVED")}>{reviewingPaymentId === payment.id && <Loader2 className="mr-2 h-4 w-4 animate-spin" />}Approve &amp; activate</Button><Button variant="destructive" disabled={reviewingPaymentId !== null} onClick={() => void reviewPayment(payment.id, "REJECTED")}>Reject</Button></div>}</div></div>; })}</CardContent></Card>
     </div>
