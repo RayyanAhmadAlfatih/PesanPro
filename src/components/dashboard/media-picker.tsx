@@ -181,7 +181,7 @@ export function MediaPicker({ value, onChange, label = "Media (opsional)", disab
   const bytes = formatBytes(meta?.sizeBytes);
 
   return (
-    <div className="space-y-2">
+    <div className="relative space-y-2">
       <Label htmlFor={inputId}>{label}</Label>
 
       <input

@@ -155,7 +155,7 @@ export function SidebarNav({ userRole: serverRole }: { userRole?: string | null 
                                     aria-expanded={!isGroupCollapsed}
                                     aria-controls={groupId}
                                     title={`${isGroupCollapsed ? "Buka" : "Tutup"} menu ${group.label}`}
-                                    className={`group flex w-full items-center justify-between rounded-md px-2 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${groupHasActiveItem ? "text-[var(--pp-ink)]" : "text-muted-foreground hover:text-foreground"}`}
+                                    className={`group relative flex w-full items-center justify-between rounded-md px-2 py-2 font-mono text-[11px] font-bold uppercase tracking-[0.08em] transition-colors ${groupHasActiveItem ? "text-[var(--pp-ink)]" : "text-muted-foreground hover:text-foreground"}`}
                                 >
                                     <span className="flex items-center gap-1.5">
                                         {group.label}
