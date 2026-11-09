@@ -50,13 +50,14 @@ ALTER TABLE `SystemConfig`
 -- ---------------------------------------------------------------------------
 -- 3. Migrasi data: rekening tunggal SystemConfig -> satu PaymentAccount aktif
 --    (dipakai bersama pembayaran lama sehingga statusnya default)
+--    Nama kolom mengikuti SystemConfig asli: bankAccountNumber/bankAccountHolder.
 -- ---------------------------------------------------------------------------
 INSERT INTO `PaymentAccount` (`id`, `bankName`, `accountNumber`, `accountHolder`, `isActive`, `isDefault`, `sortOrder`, `createdAt`, `updatedAt`)
-SELECT UUID(), `bankName`, `accountNumber`, `accountHolder`, 1, 1, 0, NOW(3), NOW(3)
+SELECT UUID(), `bankName`, `bankAccountNumber`, `bankAccountHolder`, 1, 1, 0, NOW(3), NOW(3)
 FROM `SystemConfig`
 WHERE `id` = 'default'
   AND `bankName` <> ''
-  AND `accountNumber` <> ''
+  AND `bankAccountNumber` <> ''
   AND `bankAccountHolder` <> '';
 
 -- ---------------------------------------------------------------------------
