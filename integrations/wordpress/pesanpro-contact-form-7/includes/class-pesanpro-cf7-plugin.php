@@ -5,6 +5,7 @@ defined( 'ABSPATH' ) || exit;
 final class PesanPro_CF7_Plugin {
     public static function init() {
         PesanPro_CF7_Settings::init();
+        PesanPro_CF7_Form_Message::init();
         add_action( PesanPro_CF7_Queue::CRON_HOOK, array( 'PesanPro_CF7_Queue', 'process' ) );
         add_action( 'wpcf7_mail_sent', array( __CLASS__, 'on_mail_sent' ), 10, 1 );
         add_action( 'admin_notices', array( __CLASS__, 'dependency_notice' ) );
@@ -47,6 +48,17 @@ final class PesanPro_CF7_Plugin {
             'recipient'    => preg_replace( '/[^0-9+]/', '', (string) $recipient ),
             'fields'       => $fields,
         );
+        $template = PesanPro_CF7_Form_Message::template( $contact_form );
+        if ( '' !== $template ) {
+            $message = PesanPro_CF7_Form_Message::render( $template, $fields, array(
+                'formTitle'    => $payload['formTitle'],
+                'formId'       => $payload['formId'],
+                'submissionId' => $payload['submissionId'],
+                'submittedAt'  => $payload['submittedAt'],
+                'site'         => $payload['site'],
+            ) );
+            if ( '' !== $message ) $payload['message'] = $message;
+        }
         // A wrong Recipient field name used to reach the gateway and come back
         // as a bare 422, which told the owner nothing. Catch it here, record
         // why, and let the settings screen show the real field names.

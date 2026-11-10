@@ -45,6 +45,7 @@ describe("wordpress plugin zip", () => {
     const files = await collectBundledPluginFiles();
     const names = files.map((file) => file.name);
     expect(names).toContain(`${PLUGIN_ZIP_ROOT_DIR}/pesanpro-contact-form-7.php`);
+    expect(names).toContain(`${PLUGIN_ZIP_ROOT_DIR}/includes/class-pesanpro-cf7-form-message.php`);
     expect(names.some((name) => name.startsWith(`${PLUGIN_ZIP_ROOT_DIR}/tests/`))).toBe(false);
   });
 

@@ -8,6 +8,7 @@ const files = [
   "includes/class-pesanpro-cf7-plugin.php",
   "includes/class-pesanpro-cf7-settings.php",
   "includes/class-pesanpro-cf7-queue.php",
+  "includes/class-pesanpro-cf7-form-message.php",
   "uninstall.php",
 ].map((file) => readFileSync(path.join(root, file), "utf8"));
 const source = files.join("\n");
@@ -29,6 +30,14 @@ describe("Contact Form 7 WordPress package", () => {
     expect(source).not.toMatch(/response_body|responseBody/);
     expect(source).not.toMatch(/value=["'][^"']*ppint_/);
     expect(source).toContain("autocomplete=\"new-password\"");
+  });
+
+  it("adds a per-form message tab through official CF7 hooks without raw request reads", () => {
+    expect(source).toContain("wpcf7_editor_panels");
+    expect(source).toContain("wpcf7_pre_construct_contact_form_properties");
+    expect(source).toContain("wpcf7_save_contact_form");
+    expect(source).toContain("$payload['message']");
+    expect(source).toContain("const MAX_BYTES = 4096");
   });
 
   it("implements atomic claim, bounded retry, stable idempotency, and safe uninstall", () => {

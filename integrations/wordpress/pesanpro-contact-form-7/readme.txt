@@ -4,7 +4,7 @@ Tags: contact form 7, whatsapp, gateway, webhook, forms
 Requires at least: 6.7
 Tested up to: 7.1
 Requires PHP: 7.4
-Stable tag: 1.1.0
+Stable tag: 1.2.0
 License: GPLv2 or later
 License URI: https://www.gnu.org/licenses/gpl-2.0.html
 
@@ -23,7 +23,8 @@ No browser JavaScript receives the integration token. Response bodies and tokens
 3. Open **Settings > PesanPro CF7**.
 4. Set the HTTPS PesanPro base URL, optional Contact Form 7 form ID, and recipient field name or static recipient.
 5. Prefer defining the token in `wp-config.php`: `define( 'PESANPRO_CF7_TOKEN', 'ppint_...' );`. Otherwise enter it once in the password field.
-6. Save, verify **Tools > Site Health**, submit the form, and confirm the job in PesanPro Message Queue.
+6. Open **Contact > Contact Forms**, edit a form, and use the **PesanPro** tab to write that form's WhatsApp message. Leave the textarea empty to keep the default PesanPro message.
+7. Save, verify **Tools > Site Health**, submit the form, and confirm the job in PesanPro Message Queue.
 
 WordPress loopback/cron must work. For reliable production processing, invoke `wp-cron.php` from a real server cron and disable request-driven WP-Cron according to your hosting policy.
 
@@ -36,6 +37,10 @@ No. It only calls the tenant-scoped Contact Form 7 connector. PesanPro creates a
 = What happens during an outage? =
 
 Network errors, HTTP 408/425/429, and 5xx responses retry with bounded exponential backoff. A stable idempotency key prevents duplicate queue jobs.
+
+= Can each form have its own WhatsApp message? =
+
+Yes. The **PesanPro** tab in the Contact Form 7 editor stores a message template for that form only. Use `{{field:nama}}` for a single field, `{{all_fields}}` for every field, and `{{formTitle}}`, `{{formId}}`, `{{submissionId}}`, `{{submittedAt}}`, or `{{site}}` for form metadata. Unknown fields render as empty text. Messages are limited to 4,096 characters. An empty tab, or a template that renders empty, falls back to the default PesanPro message. A token-level `messageTemplate` still wraps the result through `{{message}}`.
 
 = Is form data stored? =
 
@@ -50,6 +55,11 @@ Data is preserved on uninstall by default. Define `PESANPRO_CF7_REMOVE_DATA` as 
 When enabled, this plugin sends Contact Form 7 field values, form metadata, site URL, and the selected recipient to the configured PesanPro server. Site owners must document the processing purpose, lawful basis, retention, and recipients in their privacy notice.
 
 == Changelog ==
+
+= 1.2.0 =
+* Added a **PesanPro** tab to the Contact Form 7 editor so each form can have its own WhatsApp message template with field and metadata placeholders.
+* Custom messages are rendered in WordPress and sent as the `message` payload field; forms without a template keep the server-generated default message.
+* Messages are capped before delivery so a long template cannot fail validation at the gateway.
 
 = 1.1.1 =
 * The settings screen lists the field names that exist in the selected Contact Form 7 form, so the Recipient field name can be copied instead of guessed.

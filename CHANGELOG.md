@@ -43,6 +43,16 @@ perangkat WhatsApp terhubung.
 
 ## [Unreleased]
 
+### Plugin WordPress 1.2.0
+
+- Tab **PesanPro** di editor Contact Form 7 menyimpan pesan WhatsApp untuk
+  masing-masing form. Placeholder `{{field:nama}}`, `{{all_fields}}`, dan metadata
+  form diganti di WordPress sebelum pesan dikirim.
+- Form tanpa template tetap memakai pesan bawaan server. Pesan dibatasi 4.096
+  karakter agar tidak ditolak endpoint integrasi.
+- Panduan 07 ditambah bagian pesan custom per form dan penjelasan bedanya dengan
+  `messageTemplate` pada token.
+
 ### Akan datang
 
 - Deploy migrasi paket, onboarding, dan support ke produksi.

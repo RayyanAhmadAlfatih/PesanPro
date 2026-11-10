@@ -108,6 +108,41 @@ Dengan **Recipient field** = `whatsapp`, pesan akan dikirim ke nomor yang diisi 
 
 Kalau **Recipient field** kosong dan **Static recipient** diisi, semua notifikasi dikirim ke nomor admin.
 
+### Pesan custom per form
+
+Plugin versi 1.2.0 menambah tab **PesanPro** di editor Contact Form 7. Isi pesan disimpan per form, jadi form "Hubungi Kami" dan form "Pesan Produk" bisa memakai teks berbeda walau memakai token integrasi yang sama.
+
+1. Buka **Contact → Contact Forms**, lalu edit form yang ingin diubah.
+2. Klik tab **PesanPro**.
+3. Tulis pesan di kolom **Isi pesan**. Nama field yang bisa dipakai ditampilkan di bawah kolom.
+4. Klik **Save** pada Contact Form 7, lalu kirim form uji dan cek **Antrian Pesan**.
+
+Contoh isi kolom **Isi pesan**:
+
+```
+Halo {{field:nama}}, terima kasih sudah menghubungi {{formTitle}}.
+Nomor tiket: {{submissionId}}
+Pesan: {{field:pesan}}
+```
+
+| Placeholder | Isinya |
+| --- | --- |
+| `{{field:nama}}` | Isi field bernama `nama`. Kosong kalau field tidak ada atau tidak diisi. |
+| `{{all_fields}}` | Semua field, satu baris per field dengan format `nama: isi`. |
+| `{{formTitle}}` | Judul form. |
+| `{{formId}}` | ID form. |
+| `{{submissionId}}` | ID kiriman. |
+| `{{submittedAt}}` | Waktu kirim. |
+| `{{site}}` | Alamat situs WordPress. |
+
+Yang perlu diperhatikan:
+
+- **Form ID** di **Settings → PesanPro CF7** sebaiknya dikosongkan kalau Anda memakai lebih dari satu form. Kalau diisi, hanya form itu yang diproses.
+- Kolom kosong, atau pesan yang setelah placeholder diganti menjadi kosong, memakai pesan bawaan PesanPro: judul form diikuti daftar field.
+- Placeholder diganti di WordPress sebelum pesan dikirim. Tulis `{{field:nama}}`, bukan `[nama]` seperti mail-tag pada tab Mail.
+- Pesan dibatasi 4.096 karakter supaya tidak ditolak server.
+- **Template pesan (messageTemplate)** pada token integrasi tetap berlaku dan membungkus pesan tab ini lewat `{{message}}`. Template token berlaku untuk semua form yang memakai token itu, sedangkan tab **PesanPro** berlaku untuk satu form.
+
 ### Kalau WP-Cron tidak berjalan
 
 Plugin memakai WP-Cron untuk memproses antrean. Di hosting yang mematikan WP-Cron, tambahkan cron server:
@@ -348,6 +383,8 @@ Pesanan {{sourceId}} ({{event}}) dari {{field:nama}}: {{message}}
 ```
 
 Kalau template menghasilkan pesan kosong atau lebih dari 4.096 karakter, request ditolak `INVALID_MESSAGE`.
+
+`messageTemplate` diatur pada token, jadi satu template berlaku untuk semua form yang memakai token itu. Untuk Contact Form 7, pesan yang berbeda antar form diatur di tab **PesanPro** pada masing-masing form. Untuk WooCommerce dan WordPress kustom, isi pesan disusun di kode PHP pada situs Anda (lihat contoh di atas). Konektor Google Forms yang dibagikan saat ini tidak mengirim `message`, sehingga memakai pesan bawaan server; `messageTemplate` pada token tetap bisa membungkusnya.
 
 ---
 

@@ -26,6 +26,48 @@ describe("Phase 9.1 form connector API boundaries", () => {
     expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({ expectedType: "CONTACT_FORM_7", message: expect.objectContaining({ sourceId: "s-1" }) }));
   });
 
+  it("uses the custom message a Contact Form 7 editor saved for that form", async () => {
+    const response = await contactForm7(request("/api/v1/integrations/contact-form-7", {
+      submissionId: "s-1b", formId: 7, formTitle: "Hubungi Kami", site: "https://wordpress.example", recipient: "628123456789",
+      fields: { "your-name": "Yusuf" }, message: "Halo Yusuf, permintaan penawaran sudah kami terima.",
+    }));
+    expect(response.status).toBe(202);
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.objectContaining({ message: "Halo Yusuf, permintaan penawaran sudah kami terima." }),
+    }));
+  });
+
+  it("keeps the default message for forms without a custom template", async () => {
+    const response = await contactForm7(request("/api/v1/integrations/contact-form-7", {
+      submissionId: "s-1c", formId: 7, formTitle: "Hubungi Kami", site: "https://wordpress.example", recipient: "628123456789",
+      fields: { "your-name": "Yusuf" },
+    }));
+    expect(response.status).toBe(202);
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.objectContaining({ message: "Contact Form 7 - Hubungi Kami\nyour-name: Yusuf" }),
+    }));
+  });
+
+  it("rejects a custom message above the 4096 character limit", async () => {
+    const response = await contactForm7(request("/api/v1/integrations/contact-form-7", {
+      submissionId: "s-1d", formId: 7, site: "https://wordpress.example", recipient: "628123456789",
+      fields: { "your-name": "Yusuf" }, message: "x".repeat(4097),
+    }));
+    expect(response.status).toBe(422);
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("accepts a custom message from a Google Forms connector", async () => {
+    const response = await googleForms(request("/api/v1/integrations/google-forms", {
+      responseId: "r-1b", formId: "f-1", formTitle: "Pendaftaran", recipient: "628123456789",
+      fields: { Nama: "Yusuf" }, message: "Terima kasih sudah mendaftar, Yusuf.",
+    }));
+    expect(response.status).toBe(202);
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      message: expect.objectContaining({ message: "Terima kasih sudah mendaftar, Yusuf." }),
+    }));
+  });
+
   it("accepts the exact timestamp shape the WordPress plugin sends", async () => {
     // gmdate('c') produces "+00:00", not "Z". A strict datetime parse made every
     // real Contact Form 7 submission fail with 422 while the synthetic test
