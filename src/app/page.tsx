@@ -364,41 +364,16 @@ export default async function Home() {
             </ul>
           </div>
 
-          {/* Ilustrasi antarmuka. Angka dan nama di bawah adalah contoh, bukan
-              data pemakaian nyata, dan diberi label di tempat yang terlihat. */}
-          <div className="mx-auto mt-14 max-w-3xl overflow-hidden rounded-2xl border border-[var(--pp-line)] bg-[var(--pp-white)]">
-            <div className="flex items-center justify-between border-b border-[var(--pp-line)] px-5 py-3">
-              <span className="font-[family-name:var(--font-display)] text-sm font-bold">{appName} dashboard</span>
-              <span className="text-xs text-[var(--pp-muted)]">Ilustrasi antarmuka, angka bersifat contoh</span>
-            </div>
-            <div className="grid gap-3 p-5 sm:grid-cols-3">
-              <div className="rounded-xl border border-[var(--pp-line)] p-4">
-                <p className="font-[family-name:var(--font-display)] text-2xl font-extrabold">2</p>
-                <p className="text-xs font-semibold text-[var(--pp-muted)]">Perangkat terhubung</p>
-              </div>
-              <div className="rounded-xl border border-[var(--pp-line)] p-4">
-                <p className="font-[family-name:var(--font-display)] text-2xl font-extrabold">1.204</p>
-                <p className="text-xs font-semibold text-[var(--pp-muted)]">Pesan bulan ini</p>
-              </div>
-              <div className="rounded-xl border border-[var(--pp-line)] p-4">
-                <p className="font-[family-name:var(--font-display)] text-2xl font-extrabold">3</p>
-                <p className="text-xs font-semibold text-[var(--pp-muted)]">Aturan auto-reply</p>
-              </div>
-            </div>
-            <div className="space-y-2 px-5 pb-5">
-              <div className="flex items-center justify-between rounded-xl border border-[var(--pp-line)] px-4 py-2.5 text-sm">
-                <span><b>koc-commerce</b> · +62 838-••••-5731</span>
-                <span className="pp-status-ok rounded-full px-2.5 py-0.5 text-xs font-bold">CONNECTED</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-[var(--pp-line)] px-4 py-2.5 text-sm">
-                <span><b>cs-penjualan</b> · +62 852-••••-8423</span>
-                <span className="pp-status-warn rounded-full px-2.5 py-0.5 text-xs font-bold">QR_REQUIRED</span>
-              </div>
-              <div className="flex items-center justify-between rounded-xl border border-[var(--pp-line)] px-4 py-2.5 text-sm">
-                <span>Broadcast info jam operasional · 128 penerima</span>
-                <span className="pp-status-ok rounded-full px-2.5 py-0.5 text-xs font-bold">SELESAI</span>
-              </div>
-            </div>
+          <div className="mx-auto mt-14 max-w-2xl rounded-xl border border-[var(--pp-line)] bg-[var(--pp-white)] px-6 py-5 text-center">
+            <p className="text-sm text-[var(--pp-muted)]">Uptime layanan dipantau publik 24/7 melalui layanan pemantauan independen.</p>
+            <a
+              href="https://app.midteknologi.com/pesanpro/"
+              target="_blank"
+              rel="noreferrer"
+              className="mt-2 inline-block text-sm font-semibold underline decoration-[var(--pp-line)] underline-offset-4 transition-colors hover:decoration-[var(--pp-ink)]"
+            >
+              Lihat status uptime terkini
+            </a>
           </div>
         </section>
 
