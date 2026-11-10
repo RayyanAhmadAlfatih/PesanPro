@@ -22,21 +22,21 @@ export const revalidate = 0;
 const appName = process.env.APP_NAME?.trim() || "PesanPro";
 
 export const metadata = {
-  title: `${appName} | Gateway WhatsApp untuk bisnis`,
+  title: `${appName} | Gateway WhatsApp untuk bisnis yang terjangkau`,
   description:
-    "Gateway WhatsApp yang tidak menyimpan pesanmu. Hubungkan nomor lewat QR, kirim notifikasi, broadcast, dan balasan otomatis dari dashboard atau REST API.",
+    "Gateway WhatsApp untuk bisnis yang terjangkau, mulai Rp20.000 per bulan. Hubungkan nomor lewat QR, kirim notifikasi, broadcast, dan balasan otomatis dari dashboard atau REST API.",
   openGraph: {
-    title: `${appName} | Gateway WhatsApp untuk bisnis`,
+    title: `${appName} | Gateway WhatsApp untuk bisnis yang terjangkau`,
     description:
-      "Hubungkan nomor WhatsApp lewat QR, lalu kirim notifikasi, broadcast, dan balasan otomatis dari dashboard atau REST API. Isi pesan tidak disimpan.",
+      "Hubungkan nomor WhatsApp lewat QR, lalu kirim notifikasi, broadcast, dan balasan otomatis dari dashboard atau REST API. Mulai Rp20.000 per bulan.",
     type: "website",
     url: process.env.NEXT_PUBLIC_APP_URL || "https://pesanpro.kingofcoding.my.id",
   },
   twitter: {
     card: "summary_large_image",
-    title: `${appName} | Gateway WhatsApp untuk bisnis`,
+    title: `${appName} | Gateway WhatsApp untuk bisnis yang terjangkau`,
     description:
-      "Gateway WhatsApp yang tidak menyimpan pesanmu. Dashboard, REST API, dan webhook dalam satu tempat.",
+      "Gateway WhatsApp untuk bisnis yang terjangkau, mulai Rp20.000 per bulan. Dashboard, REST API, dan webhook dalam satu tempat.",
   },
 };
 
@@ -329,7 +329,7 @@ export default async function Home() {
         <section className="mx-auto w-full max-w-5xl px-4 pb-14 pt-14 sm:px-6 sm:pt-20">
           <div className="mx-auto max-w-3xl text-center">
             <h1 className="text-4xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
-              Gateway WhatsApp yang tidak menyimpan pesanmu.
+              Gateway WhatsApp untuk bisnis yang terjangkau.
             </h1>
             <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[var(--pp-muted)]">
               Hubungkan nomor WhatsApp lewat QR, lalu kirim notifikasi, broadcast, dan balasan
@@ -351,16 +351,20 @@ export default async function Home() {
             </div>
             <ul className="mx-auto mt-8 grid max-w-xl gap-2 text-sm text-[var(--pp-muted)] sm:grid-cols-2">
               {[
+                plans.length > 0 && Number(plans[0].priceMonthly) > 0
+                  ? `Mulai dari ${formatPrice(plans[0].priceMonthly, plans[0].currency)} /bulan`
+                  : null,
+                "Tanpa biaya per pesan",
                 "Isi pesan tidak disimpan",
-                "Verifikasi pembayaran oleh admin",
                 "REST API dan webhook",
-                "Aktif setelah pembayaran disetujui",
-              ].map((item) => (
-                <li key={item} className="flex items-center justify-center gap-2 sm:justify-start">
-                  <Check aria-hidden="true" className="h-4 w-4 flex-none text-[var(--pp-ink)]" />
-                  <span>{item}</span>
-                </li>
-              ))}
+              ]
+                .filter((item): item is string => item !== null)
+                .map((item) => (
+                  <li key={item} className="flex items-center justify-center gap-2 sm:justify-start">
+                    <Check aria-hidden="true" className="h-4 w-4 flex-none text-[var(--pp-ink)]" />
+                    <span>{item}</span>
+                  </li>
+                ))}
             </ul>
           </div>
 
