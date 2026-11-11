@@ -43,6 +43,22 @@ perangkat WhatsApp terhubung.
 
 ## [Unreleased]
 
+### Akan datang
+
+- Deploy migrasi paket, onboarding, dan support ke produksi.
+- Pembersihan branch lama.
+- Halaman status layanan dan dokumentasi pemulihan bencana.
+- Tindak lanjut `npm audit`: 52 temuan lama dari rantai `jimp`, Baileys rc, dan
+  `vite`. Perbaikannya butuh penurunan versi besar, jadi direncanakan terpisah.
+- Keputusan produk: kunci API legacy tinggal pengguna (full-scope, tanpa
+  kedaluwarsa/IP allowlist) kapan dimigrasi ke kunci terkelola.
+
+## [0.4.0] - 2026-11-11
+
+Integrasi form lengkap: pesan WhatsApp kini bisa disusun per form dan per
+status pesanan di sisi WordPress/Apps Script, dengan dua plugin WordPress
+baru dan pesan kustom untuk Google Forms.
+
 ### Integrasi form
 
 - **Google Forms bisa punya pesan sendiri.** Script Property
@@ -74,16 +90,6 @@ perangkat WhatsApp terhubung.
   karakter agar tidak ditolak endpoint integrasi.
 - Panduan 07 ditambah bagian pesan custom per form dan penjelasan bedanya dengan
   `messageTemplate` pada token.
-
-### Akan datang
-
-- Deploy migrasi paket, onboarding, dan support ke produksi.
-- Pembersihan branch lama.
-- Halaman status layanan dan dokumentasi pemulihan bencana.
-- Tindak lanjut `npm audit`: 52 temuan lama dari rantai `jimp`, Baileys rc, dan
-  `vite`. Perbaikannya butuh penurunan versi besar, jadi direncanakan terpisah.
-- Keputusan produk: kunci API legacy tinggal pengguna (full-scope, tanpa
-  kedaluwarsa/IP allowlist) kapan dimigrasi ke kunci terkelola.
 
 ## [0.2.5] - 2026-11-01
 
