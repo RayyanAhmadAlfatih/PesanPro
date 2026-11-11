@@ -6,6 +6,8 @@ vi.mock("@/lib/integration-service", () => ({ enqueueIntegrationMessage: mocks.e
 
 import { POST as googleForms } from "@/app/api/v1/integrations/google-forms/route";
 import { POST as contactForm7 } from "@/app/api/v1/integrations/contact-form-7/route";
+import { POST as wordpress } from "@/app/api/v1/integrations/wordpress/route";
+import { POST as woocommerce } from "@/app/api/v1/integrations/woocommerce/route";
 
 function request(path: string, body: unknown) {
   return new NextRequest(`http://localhost${path}`, { method: "POST", headers: { "content-type": "application/json", "idempotency-key": "stable-key" }, body: JSON.stringify(body) });
@@ -102,6 +104,54 @@ describe("Phase 9.1 form connector API boundaries", () => {
   it("rejects oversized field collections before queue access", async () => {
     const fields = Object.fromEntries(Array.from({ length: 101 }, (_, index) => [`field-${index}`, "x"]));
     const response = await googleForms(request("/api/v1/integrations/google-forms", { responseId: "r-2", recipient: "628123456789", fields }));
+    expect(response.status).toBe(422);
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("accepts a WooCommerce message rendered for one order status", async () => {
+    const message = "Halo Ayu, pembayaran pesanan #1042 sebesar 150000 sudah kami terima.";
+    const response = await woocommerce(request("/api/v1/integrations/woocommerce", {
+      orderId: "1042", event: "order.paid", recipient: "628123456789", message,
+    }));
+    expect(response.status).toBe(202);
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      expectedType: "WOOCOMMERCE",
+      message: expect.objectContaining({ message, sourceId: "1042", metadata: expect.objectContaining({ event: "order.paid" }) }),
+    }));
+  });
+
+  it("rejects an unknown WooCommerce event", async () => {
+    const response = await woocommerce(request("/api/v1/integrations/woocommerce", {
+      orderId: "1042", event: "order.shipped", recipient: "628123456789", message: "Pesanan dikirim.",
+    }));
+    expect(response.status).toBe(422);
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("accepts an Elementor Form submission on the WORDPRESS token lane", async () => {
+    const message = "Halo Ayu, permintaan penawaran dari form Hubungi Kami sudah kami terima.";
+    const response = await wordpress(request("/api/v1/integrations/wordpress", {
+      submissionId: "elementor-1", recipient: "628123456789", message, site: "https://toko-anda.com/",
+    }));
+    expect(response.status).toBe(202);
+    expect(mocks.enqueue).toHaveBeenCalledWith(expect.objectContaining({
+      expectedType: "WORDPRESS",
+      message: expect.objectContaining({ message, sourceId: "elementor-1", metadata: expect.objectContaining({ site: "https://toko-anda.com/" }) }),
+    }));
+  });
+
+  it("rejects an Elementor message above the 4096 character limit", async () => {
+    const response = await wordpress(request("/api/v1/integrations/wordpress", {
+      submissionId: "elementor-2", recipient: "628123456789", message: "x".repeat(4097),
+    }));
+    expect(response.status).toBe(422);
+    expect(mocks.enqueue).not.toHaveBeenCalled();
+  });
+
+  it("rejects a Google Forms template that renders above the 4096 character limit", async () => {
+    const response = await googleForms(request("/api/v1/integrations/google-forms", {
+      responseId: "r-3", recipient: "628123456789", fields: { Nama: "Yusuf" }, message: "x".repeat(4097),
+    }));
     expect(response.status).toBe(422);
     expect(mocks.enqueue).not.toHaveBeenCalled();
   });

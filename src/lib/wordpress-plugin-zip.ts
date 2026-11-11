@@ -5,7 +5,6 @@ export const PLUGIN_ZIP_FILENAME = "pesanpro-contact-form-7.zip";
 export const PLUGIN_ZIP_ROOT_DIR = "pesanpro-contact-form-7";
 export const PLUGIN_ZIP_MAX_BYTES = 10 * 1024 * 1024;
 
-const BUNDLED_PLUGIN_DIR = path.join(process.cwd(), "integrations", "wordpress", PLUGIN_ZIP_ROOT_DIR);
 const CUSTOM_ZIP_PATH = path.join(process.cwd(), "data", "downloads", PLUGIN_ZIP_FILENAME);
 
 export type PluginZipEntry = { name: string; data: Buffer };
@@ -137,12 +136,21 @@ async function collectFiles(dir: string, prefix: string, skip: Set<string>): Pro
  * The plugin sources bundled with the repository. Dev tests stay out of the
  * distributable; WordPress plugin directories do not ship them.
  */
-export async function collectBundledPluginFiles(): Promise<PluginZipEntry[]> {
-  const files = await collectFiles(BUNDLED_PLUGIN_DIR, PLUGIN_ZIP_ROOT_DIR, new Set(["tests"]));
-  if (!files.some((file) => file.name === `${PLUGIN_ZIP_ROOT_DIR}/${PLUGIN_ZIP_ROOT_DIR}.php`)) {
-    throw new Error("Bundled WordPress plugin sources are missing the main plugin file");
+export async function collectBundledPluginFilesFor(rootDir: string): Promise<PluginZipEntry[]> {
+  const dir = path.join(process.cwd(), "integrations", "wordpress", rootDir);
+  const files = await collectFiles(dir, rootDir, new Set(["tests"]));
+  if (!files.some((file) => file.name === `${rootDir}/${rootDir}.php`)) {
+    throw new Error(`Bundled WordPress plugin sources are missing the main plugin file: ${rootDir}`);
   }
   return files;
+}
+
+export async function collectBundledPluginFiles(): Promise<PluginZipEntry[]> {
+  return collectBundledPluginFilesFor(PLUGIN_ZIP_ROOT_DIR);
+}
+
+export async function resolveBundledPluginZip(rootDir: string): Promise<Buffer> {
+  return buildPluginZip(await collectBundledPluginFilesFor(rootDir));
 }
 
 export async function readCustomPluginZip(): Promise<Buffer | null> {

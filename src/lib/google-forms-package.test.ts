@@ -19,7 +19,28 @@ function loadScript() {
     },
   };
   vm.runInNewContext(source, sandbox);
-  return sandbox as typeof sandbox & { pesanProBuildPayload: (event: unknown, config: unknown) => Record<string, unknown>; pesanProStableKey: (value: string) => string };
+  return sandbox as typeof sandbox & {
+    pesanProBuildPayload: (event: unknown, config: unknown) => Record<string, unknown>;
+    pesanProStableKey: (value: string) => string;
+    pesanProRenderMessage: (template: string, fields: Record<string, unknown>, context: Record<string, unknown>) => string;
+    pesanProTemplateFor: (config: unknown, formId: string) => string;
+  };
+}
+
+function formEvent() {
+  return {
+    source: { getId: () => "form-1", getTitle: () => "Pendaftaran" },
+    response: {
+      getId: () => "response-1",
+      getTimestamp: () => new Date("2026-09-05T10:00:00Z"),
+      getRespondentEmail: () => "ayu@example.com",
+      getItemResponses: () => [
+        { getItem: () => ({ getTitle: () => "Nama Lengkap" }), getResponse: () => "Ayu" },
+        { getItem: () => ({ getTitle: () => "Layanan" }), getResponse: () => ["API", "Webhook"] },
+        { getItem: () => ({ getTitle: () => "Nomor WhatsApp" }), getResponse: () => "628123456789" },
+      ],
+    },
+  };
 }
 
 describe("Google Forms Apps Script package", () => {
@@ -54,5 +75,43 @@ describe("Google Forms Apps Script package", () => {
     expect(source).toContain("validateHttpsCertificates: true");
     expect(source).toContain("followRedirects: false");
     expect(source).toContain("Idempotency-Key");
+  });
+});
+
+describe("Google Forms per-form message templates", () => {
+  it("renders field placeholders with spaces, lists, and form context before sending", () => {
+    const script = loadScript();
+    const config = { staticRecipient: "", recipientField: "Nomor WhatsApp", messageTemplate: "Halo {{field:Nama Lengkap}} dari {{formTitle}} (#{{responseId}}). Layanan: {{field:Layanan}}.", formTemplates: {} };
+    const payload = script.pesanProBuildPayload(formEvent(), config);
+    expect(payload.message).toBe("Halo Ayu dari Pendaftaran (#response-1). Layanan: API, Webhook.");
+  });
+
+  it("uses the template for the responding form over the script-wide default", () => {
+    const script = loadScript();
+    const config = {
+      staticRecipient: "",
+      recipientField: "Nomor WhatsApp",
+      messageTemplate: "Pesan umum",
+      formTemplates: { "form-1": "Khusus {{formId}}: {{field:Nama Lengkap}}" },
+    };
+    expect(script.pesanProTemplateFor(config, "form-1")).toBe("Khusus {{formId}}: {{field:Nama Lengkap}}");
+    expect(script.pesanProBuildPayload(formEvent(), config).message).toBe("Khusus form-1: Ayu");
+    expect(script.pesanProTemplateFor(config, "form-2")).toBe("Pesan umum");
+  });
+
+  it("omits message when there is no template or the template renders empty", () => {
+    const script = loadScript();
+    const plain = { staticRecipient: "", recipientField: "Nomor WhatsApp" };
+    expect(script.pesanProBuildPayload(formEvent(), plain)).not.toHaveProperty("message");
+    const empty = { ...plain, messageTemplate: "{{field:Tidak Ada}}", formTemplates: {} };
+    expect(script.pesanProBuildPayload(formEvent(), empty)).not.toHaveProperty("message");
+  });
+
+  it("lists all answers, drops unknown placeholders, and caps the message", () => {
+    const script = loadScript();
+    const fields = { Nama: "Ayu", Kosong: "", Layanan: ["API", "Webhook"] };
+    expect(script.pesanProRenderMessage("{{all_fields}}", fields, {})).toBe("Nama: Ayu\nKosong: -\nLayanan: API, Webhook");
+    expect(script.pesanProRenderMessage("{{field:Tidak Ada}}|{{tanpa_nama}}|selesai", fields, {})).toBe("||selesai");
+    expect(script.pesanProRenderMessage("x".repeat(5000), fields, {}).length).toBe(4096);
   });
 });

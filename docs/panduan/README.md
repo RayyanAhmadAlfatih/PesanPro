@@ -17,7 +17,7 @@ Mulai dari panduan yang paling cocok dengan pekerjaan Anda. Semua panduan memaka
 | [04 — Media dan batas upload](04-media-dan-limit-upload.md) | Operator, developer | Format file, batas per paket, penyimpanan, kompresi gambar, batas WhatsApp |
 | [05 — API untuk developer](05-api-developer.md) | Developer | Autentikasi, scope, idempotency, semua endpoint, contoh cURL/Node.js/PHP, SDK mini |
 | [06 — Webhook](06-webhook.md) | Developer | Event, bentuk payload, verifikasi signature, retry, replay, keamanan |
-| [07 — Integrasi tanpa kode](07-integrasi-tanpa-kode.md) | Pemilik toko online | WordPress/Contact Form 7, WooCommerce, Google Forms |
+| [07 — Integrasi tanpa kode](07-integrasi-tanpa-kode.md) | Pemilik toko online | Plugin WordPress: Contact Form 7, WooCommerce, Elementor Form; konektor Google Forms |
 | [08 — Troubleshooting dan FAQ](08-troubleshooting-faq.md) | Semua | Arti status, error umum, kuota, perangkat terputus, 413, 429 |
 | [11 — Model autentikasi API](11-model-autentikasi-api.md) | Developer | Kapan memakai x-api-key, kapan cookie sesi dashboard, dan permintaan lintas-origin yang ditolak |
 | [12 — Menu Pengiriman](12-menu-pengiriman.md) | Operator, pemilik usaha | Isi menu Pengiriman: Antrian Pesan, Kirim Massal, Jadwal Kirim, Balasan Otomatis — dan kapan memakai yang mana |
@@ -68,6 +68,6 @@ Jangan menukar kedua domain. Website marketing hanya menjelaskan produk; aplikas
 - Saya bingung isi menu Pengiriman dan kapan memakai yang mana → baca [12 — Menu Pengiriman](12-menu-pengiriman.md).
 - Saya ingin aplikasi saya mengirim WhatsApp otomatis → mulai dari [05 — API untuk developer](05-api-developer.md).
 - Saya ingin menerima notifikasi saat ada pesan masuk → mulai dari [06 — Webhook](06-webhook.md).
-- Saya punya toko WordPress/WooCommerce atau form Google → mulai dari [07 — Integrasi tanpa kode](07-integrasi-tanpa-kode.md).
+- Saya punya toko WooCommerce, form Elementor, atau form Google → mulai dari [07 — Integrasi tanpa kode](07-integrasi-tanpa-kode.md).
 - Saya bingung soal kunci API, cookie login, dan aturan keamanan → baca [11 — Model autentikasi API](11-model-autentikasi-api.md).
 - Perbandingan paket dan harga untuk pelanggan → lihat halaman Tagihan di dashboard atau halaman harga di `https://pesanpro.kingofcoding.my.id`.

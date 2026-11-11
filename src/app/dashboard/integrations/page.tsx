@@ -16,7 +16,7 @@ const integrationTypes = [
   { value: "CONTACT_FORM_7", label: "Contact Form 7", hint: "Notifikasi dari form Contact Form 7 (plugin WordPress)." },
   { value: "GOOGLE_FORMS", label: "Google Forms", hint: "Notifikasi dari Google Forms via Apps Script." },
   { value: "WOOCOMMERCE", label: "WooCommerce", hint: "Notifikasi status pesanan WooCommerce." },
-  { value: "WORDPRESS", label: "WordPress (form kustom)", hint: "Form WordPress lain lewat REST endpoint." },
+  { value: "WORDPRESS", label: "WordPress (form kustom)", hint: "Form WordPress lain, termasuk Elementor Form, lewat endpoint /api/v1/integrations/wordpress." },
 ] as const;
 
 type IntegrationTypeValue = (typeof integrationTypes)[number]["value"];
@@ -216,7 +216,7 @@ export default function IntegrationsPage() {
         <div>
           <p className="text-sm font-semibold text-[var(--pp-ink)]">Integrasi tanpa kode</p>
           <h1 className="text-3xl font-bold tracking-tight">Token Integrasi</h1>
-          <p className="text-muted-foreground">Hubungkan Contact Form 7, Google Forms, WooCommerce, dan form WordPress ke perangkat WhatsApp Anda.</p>
+          <p className="text-muted-foreground">Hubungkan Contact Form 7, Google Forms, WooCommerce, Elementor Form, dan form WordPress lain ke perangkat WhatsApp Anda.</p>
         </div>
         <Button variant="outline" onClick={() => void load()}><RefreshCw className="mr-2 h-4 w-4" />Refresh</Button>
       </header>
@@ -229,11 +229,11 @@ export default function IntegrationsPage() {
         <CardContent className="grid gap-3 text-sm md:grid-cols-2">
           <div className="rounded-lg border p-3">
             <p className="font-semibold">Integration token <code className="text-xs">ppint_...</code></p>
-            <p className="mt-1 text-muted-foreground">Untuk plugin dan konektor tanpa kode. Terikat ke satu perangkat WhatsApp, hanya boleh mengirim pesan, dan dipakai plugin Contact Form 7. Dibuat di halaman ini.</p>
+            <p className="mt-1 text-muted-foreground">Untuk plugin dan konektor tanpa kode. Terikat ke satu perangkat WhatsApp dan hanya boleh mengirim pesan. Dipakai plugin Contact Form 7, WooCommerce, dan Elementor Form. Dibuat di halaman ini.</p>
           </div>
           <div className="rounded-lg border p-3">
             <p className="font-semibold">API key <code className="text-xs">wag_...</code></p>
-            <p className="mt-1 text-muted-foreground">Untuk programmer yang memanggil REST API lengkap dengan scope pilihan. Dibuat di menu <Link className="underline" href="/dashboard/developer">Kunci API</Link>. Tidak diterima oleh plugin Contact Form 7.</p>
+            <p className="mt-1 text-muted-foreground">Untuk programmer yang memanggil REST API lengkap dengan scope pilihan. Dibuat di menu <Link className="underline" href="/dashboard/developer">Kunci API</Link>. Tidak diterima oleh plugin integrasi.</p>
           </div>
         </CardContent>
       </Card>

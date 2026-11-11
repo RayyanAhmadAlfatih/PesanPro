@@ -15,7 +15,7 @@ Semua integrasi memakai **integration token** (`ppint_...`), bukan API key. Toke
 | --- | --- | --- |
 | Format | `ppint_` diikuti 40–100 karakter | `wag_` diikuti karakter acak |
 | Dibuat di | **Integrasi → Token Integrasi** | **Integrasi → Kunci API** (kartu **Create API key**) |
-| Untuk siapa | Plugin dan konektor tanpa kode (Contact Form 7, Google Forms, WooCommerce) | Programmer yang memanggil REST API lengkap |
+| Untuk siapa | Plugin dan konektor tanpa kode (Contact Form 7, Google Forms, WooCommerce, Elementor Form) | Programmer yang memanggil REST API lengkap |
 | Cakupan | Satu perangkat WhatsApp, satu tugas: kirim pesan | Semua endpoint yang diizinkan scope-nya |
 | Header autentikasi | `x-integration-token: ppint_...` atau `Authorization: Bearer ppint_...` | `x-api-key: wag_...` |
 
@@ -30,7 +30,7 @@ Semua integrasi memakai **integration token** (`ppint_...`), bukan API key. Toke
      - `Contact Form 7` untuk Contact Form 7.
      - `WooCommerce` untuk WooCommerce.
      - `Google Forms` untuk Google Forms.
-     - `WordPress (form kustom)` untuk form WordPress lain.
+     - `WordPress (form kustom)` untuk form WordPress lain, termasuk Elementor Form.
    - **Perangkat WhatsApp** — perangkat pengirim. Hanya perangkat milik akun Anda yang muncul. Kalau daftar kosong, tambahkan perangkat dulu di menu **Perangkat & QR**.
    - **Tanggal kedaluwarsa (opsional)** — kosongkan supaya aktif sampai dicabut.
 3. Isi bagian **Mapping (opsional)** kalau perlu:
@@ -56,11 +56,15 @@ Authorization: Bearer ppint_xxxxxxxxxxxxxxxx
 
 ## WordPress + Contact Form 7
 
-Plugin tersedia sebagai ZIP langsung dari aplikasi. Buka menu **Integrasi → Kunci API** (judul halamannya **Developer**), cari kartu **Plugin WordPress**, lalu klik **Unduh ZIP plugin**. URL unduhannya juga bisa dipakai langsung:
+Plugin tersedia sebagai ZIP langsung dari aplikasi. Buka menu **Integrasi → Kunci API** (judul halamannya **Developer**), cari kartu **Plugin WordPress**, lalu unduh plugin yang dibutuhkan.
 
-```
-https://pesanpro.kingofcoding.my.id/api/public/plugin/wordpress
-```
+| Plugin | Tipe token | URL unduhan |
+| --- | --- | --- |
+| Contact Form 7 | `Contact Form 7` | `https://pesanpro.kingofcoding.my.id/api/public/plugin/wordpress` |
+| WooCommerce | `WooCommerce` | `https://pesanpro.kingofcoding.my.id/api/public/plugin/woocommerce` |
+| Elementor Form | `WordPress (form kustom)` | `https://pesanpro.kingofcoding.my.id/api/public/plugin/elementor` |
+
+Tiap plugin punya halaman pengaturan sendiri. Pesan ditulis dan diganti di WordPress sebelum dikirim, jadi satu token bisa melayani banyak form dengan teks berbeda.
 
 ### Yang dibutuhkan
 
@@ -72,7 +76,7 @@ https://pesanpro.kingofcoding.my.id/api/public/plugin/wordpress
 ### Langkah instalasi
 
 1. Buat integration token tipe **Contact Form 7** di menu **Integrasi → Token Integrasi** (langkah lengkap di atas).
-2. Unduh ZIP plugin dari menu **Integrasi → Kunci API**, kartu **Plugin WordPress**, tombol **Unduh ZIP plugin**.
+2. Unduh ZIP **Contact Form 7** dari menu **Integrasi → Kunci API**, kartu **Plugin WordPress**.
 3. Di WordPress, buka **Plugins → Add New → Upload Plugin**, pilih ZIP-nya, lalu klik **Install Now**.
 4. Aktifkan plugin di **Plugins**.
 5. Buka **Settings → PesanPro CF7**.
@@ -178,101 +182,84 @@ Cabut token di menu **Integrasi → Token Integrasi**: cari token di kartu **Daf
 
 ## WooCommerce
 
-WooCommerce tidak punya plugin bawaan di repositori ini, tetapi bisa dihubungkan dengan **mu-plugin** kecil. Endpoint yang dipakai:
+Plugin **PesanPro for WooCommerce** tersedia sebagai ZIP di kartu **Plugin WordPress** pada halaman Developer: `https://pesanpro.kingofcoding.my.id/api/public/plugin/woocommerce`. Plugin ini menulis pesan berbeda untuk tiap status pesanan. Endpoint yang dipakai:
 
 ```
 POST /api/v1/integrations/woocommerce
 ```
 
-Payload:
+### Yang dibutuhkan
 
-```json
-{
-  "orderId": "1042",
-  "event": "order.paid",
-  "recipient": "628123456789",
-  "message": "Pesanan #1042 sudah dibayar."
-}
-```
+- WordPress 6.7 atau lebih baru, PHP 7.4 atau lebih baru.
+- WooCommerce aktif.
+- WP-Cron berjalan.
+- Integration token tipe **WooCommerce**.
 
-`event` yang diterima: `order.created`, `order.updated`, `order.paid`, `order.completed`, `order.cancelled`, `order.refunded`.
-
-### Langkah
+### Langkah instalasi
 
 1. Buat integration token tipe **WooCommerce** di menu **Integrasi → Token Integrasi**.
-2. Tambahkan di `wp-config.php`:
-   ```php
-   define( 'PESANPRO_WOO_TOKEN', 'ppint_xxxxxxxxxxxxxxxx' );
-   define( 'PESANPRO_BASE_URL', 'https://pesanpro.kingofcoding.my.id' );
-   ```
-3. Buat file `/wp-content/mu-plugins/pesanpro-woocommerce.php`:
+2. Unduh ZIP **WooCommerce**, lalu unggah di **Plugins → Add New → Upload Plugin**.
+3. Aktifkan plugin.
+4. Buka **Settings → PesanPro WooCommerce**.
+5. Isi **PesanPro base URL** dengan `https://pesanpro.kingofcoding.my.id` (tanpa slash di akhir).
+6. Simpan token:
+   - **Disarankan:** `define( 'PESANPRO_WOO_TOKEN', 'ppint_xxxxxxxxxxxxxxxx' );` di `wp-config.php`.
+   - Atau isi sekali di kolom **Integration token**.
+7. Isi **Static recipient** kalau semua notifikasi harus masuk ke nomor admin. Kosongkan untuk memakai nomor billing pembeli.
+8. Tulis pesan di kolom tiap status, lalu simpan.
+9. Ubah status pesanan uji dari `pending` ke `processing`, lalu cek **Antrian Pesan** di PesanPro.
 
-```php
-<?php
-/**
- * Plugin Name: PesanPro WooCommerce Connector
- * Description: Kirim notifikasi WhatsApp saat status pesanan berubah.
- */
+### Pesan per status
 
-if (!defined('ABSPATH')) {
-    exit;
-}
+| Event | Status WooCommerce | Aktif bawaan |
+| --- | --- | --- |
+| `order.created` | Pesanan baru dibuat | Ya |
+| `order.updated` | Status lain di luar daftar | Tidak |
+| `order.paid` | `processing` | Ya |
+| `order.completed` | `completed` | Ya |
+| `order.cancelled` | `cancelled` | Ya |
+| `order.refunded` | `refunded` | Ya |
 
-add_action('woocommerce_order_status_changed', function ($orderId, $from, $to, $order) {
-    if (!defined('PESANPRO_WOO_TOKEN') || !defined('PESANPRO_BASE_URL')) {
-        return;
-    }
+`order.updated` tidak aktif bawaan supaya perubahan status tidak mengirim notifikasi ganda. Centang kotak di sebelah status untuk mengaktifkannya, atau hapus centang untuk mematikan status lain. Kolom pesan kosong memakai teks bawaan plugin.
 
-    $eventMap = [
-        'pending'    => 'order.created',
-        'processing' => 'order.paid',
-        'completed'  => 'order.completed',
-        'cancelled'  => 'order.cancelled',
-        'refunded'   => 'order.refunded',
-    ];
+Contoh isi kolom **Pesanan dibayar**:
 
-    if (!isset($eventMap[$to])) {
-        return;
-    }
-
-    $phone = preg_replace('/[^0-9+]/', '', (string) $order->get_billing_phone());
-    if ($phone === '') {
-        return;
-    }
-
-    $event = $eventMap[$to];
-    $message = sprintf(
-        "Halo %s, pesanan #%s statusnya sekarang: %s.",
-        $order->get_billing_first_name(),
-        $order->get_order_number(),
-        $to
-    );
-
-    $response = wp_remote_post(PESANPRO_BASE_URL . '/api/v1/integrations/woocommerce', [
-        'timeout' => 15,
-        'headers' => [
-            'Content-Type'       => 'application/json',
-            'x-integration-token' => PESANPRO_WOO_TOKEN,
-            'Idempotency-Key'     => 'wc-' . $orderId . '-' . $to,
-        ],
-        'body' => wp_json_encode([
-            'orderId'   => (string) $orderId,
-            'event'     => $event,
-            'recipient' => $phone,
-            'message'   => $message,
-        ]),
-    ]);
-
-    if (is_wp_error($response)) {
-        error_log('PesanPro WooCommerce: ' . $response->get_error_message());
-    }
-}, 10, 4);
+```
+Halo {{customerName}}, pembayaran pesanan #{{orderNumber}} sebesar {{orderTotal}} {{currency}} sudah kami terima.
+Item: {{items}}
 ```
 
-4. Uji dengan mengubah status pesanan dari `pending` ke `processing`.
-5. Periksa **Antrian Pesan** di PesanPro.
+| Placeholder | Isinya |
+| --- | --- |
+| `{{orderId}}`, `{{orderNumber}}` | ID dan nomor pesanan |
+| `{{customerName}}`, `{{customerLastName}}`, `{{customerPhone}}`, `{{customerEmail}}` | Data billing pembeli |
+| `{{orderTotal}}`, `{{currency}}`, `{{paymentMethod}}`, `{{shippingMethod}}` | Ringkasan pembayaran dan pengiriman |
+| `{{items}}` | Daftar produk dengan jumlah |
+| `{{status}}`, `{{event}}` | Status WooCommerce dan nama event PesanPro |
+| `{{billingCity}}`, `{{shippingCity}}`, `{{site}}`, `{{submittedAt}}` | Kota, alamat situs, dan waktu |
+| `{{all_fields}}` | Semua nilai di atas, satu baris per field |
+| `{{field:orderId}}` | Bentuk alternatif untuk field yang sama |
 
-> **Catatan:** `Idempotency-Key` `wc-<orderId>-<status>` mencegah pesan ganda kalau status berubah bolak-balik. Kalau Anda ingin notifikasi ulang untuk status yang sama, tambahkan timestamp pada key.
+Placeholder diganti di WordPress sebelum pesan dikirim. Placeholder yang tidak dikenal menjadi teks kosong. Pesan dibatasi 4.096 karakter. `messageTemplate` pada token tetap bisa membungkus pesan ini lewat `{{message}}`.
+
+### Antrean dan kegagalan
+
+Kiriman disimpan di tabel lokal WordPress dan dikirim WP-Cron. Satu pasangan order dan event punya satu idempotency key, jadi status yang berubah bolak-balik tidak mengirim pesan yang sama dua kali. Kalau gateway sedang mati, plugin mencoba ulang sampai delapan kali.
+
+Baris **Queue** di halaman pengaturan menampilkan pending, retrying, failed, dan sent. Alasan gagal yang umum:
+
+- **401 — token ditolak.** Token salah tipe, dicabut, kedaluwarsa, atau tersalin tidak lengkap.
+- **403 — paket tidak mencakup integrasi.** Periksa menu **Tagihan**.
+- **404 — base URL salah.**
+- **422 — nomor tujuan tidak valid atau pesan kosong.**
+- **recipient_missing — nomor billing kosong.** Isi nomor pelanggan atau **Static recipient**.
+- **network_error — server PesanPro tidak bisa dihubungi.**
+
+Perbaiki penyebabnya, lalu klik **Coba kirim ulang yang gagal**.
+
+### Menghentikan integrasi
+
+Cabut token di **Integrasi → Token Integrasi**, atau nonaktifkan plugin. Data tidak dihapus saat uninstall; tambahkan `define( 'PESANPRO_WOO_REMOVE_DATA', true );` sebelum uninstall kalau ingin menghapus tabel antrean dan pengaturan.
 
 ---
 
@@ -296,11 +283,34 @@ Berkas ZIP berisi folder `pesanpro-google-forms/` dengan `Code.gs`, `appsscript.
    - `PESANPRO_TOKEN` — token `ppint_...`.
    - `PESANPRO_RECIPIENT_FIELD` — judul pertanyaan nomor WhatsApp.
    - atau `PESANPRO_STATIC_RECIPIENT` — nomor tetap.
+   - `PESANPRO_MESSAGE_TEMPLATE` — opsional, isi pesan untuk form ini.
 5. Jalankan fungsi `pesanProInstallTrigger()` satu kali.
 6. Setujui permission Google.
 7. Jalankan `pesanProCheckConfiguration()`.
 8. Kirim response uji dari form.
 9. Periksa **Antrian Pesan** di PesanPro.
+
+### Pesan custom per form
+
+Satu project Apps Script biasanya menempel pada satu Google Form, jadi `PESANPRO_MESSAGE_TEMPLATE` sudah berlaku per form. Kalau satu script dipakai untuk beberapa form, tambahkan property `PESANPRO_MESSAGE_TEMPLATE_<FORM_ID>`. Template khusus form menang atas template umum. ID form bisa dilihat di URL form atau lewat `pesanProCheckConfiguration()`.
+
+Contoh isi `PESANPRO_MESSAGE_TEMPLATE`:
+
+```
+Halo {{field:Nama Lengkap}}, pendaftaran {{formTitle}} sudah kami terima.
+Nomor tiket: {{responseId}}
+Layanan: {{field:Layanan}}
+```
+
+| Placeholder | Isinya |
+| --- | --- |
+| `{{field:Nama Lengkap}}` | Jawaban pertanyaan dengan judul persis `Nama Lengkap`. Kosong kalau tidak ada. |
+| `{{all_fields}}` | Semua jawaban, satu baris per pertanyaan. |
+| `{{formTitle}}`, `{{formId}}` | Judul dan ID form. |
+| `{{responseId}}`, `{{submittedAt}}` | ID response dan waktu kirim. |
+| `{{respondentEmail}}` | Email responden kalau form mengumpulkannya. |
+
+Placeholder diganti di Apps Script sebelum payload dikirim, jadi `{{field:...}}` tidak sampai ke WhatsApp sebagai teks mentah. Kalau template kosong atau hasilnya kosong, connector tidak mengirim `message` dan PesanPro memakai pesan bawaan server. Pesan dibatasi 4.096 karakter. `messageTemplate` pada token tetap berlaku dan membungkus pesan ini lewat `{{message}}`.
 
 ### Yang perlu diperhatikan
 
@@ -311,9 +321,63 @@ Berkas ZIP berisi folder `pesanpro-google-forms/` dengan `Code.gs`, `appsscript.
 
 ---
 
+## Elementor Form
+
+Plugin **PesanPro for Elementor Form** tersedia di kartu **Plugin WordPress**: `https://pesanpro.kingofcoding.my.id/api/public/plugin/elementor`. Plugin memakai token tipe **WordPress (form kustom)** dan endpoint `/api/v1/integrations/wordpress`. Tidak ada tipe token khusus Elementor.
+
+### Yang dibutuhkan
+
+- WordPress 6.7 atau lebih baru, PHP 7.4 atau lebih baru.
+- Elementor Pro dengan widget Form aktif.
+- WP-Cron berjalan.
+- Integration token tipe **WordPress (form kustom)**.
+
+### Langkah instalasi
+
+1. Buat token tipe **WordPress (form kustom)** di menu **Integrasi → Token Integrasi**.
+2. Unduh ZIP **Elementor Form**, unggah di **Plugins → Add New → Upload Plugin**, lalu aktifkan.
+3. Buka **Settings → PesanPro Elementor**.
+4. Isi **PesanPro base URL** dan token. Token juga bisa ditaruh di `wp-config.php`:
+   ```php
+   define( 'PESANPRO_ELEMENTOR_TOKEN', 'ppint_xxxxxxxxxxxxxxxx' );
+   ```
+5. Isi **Default recipient field ID** dengan ID field nomor WhatsApp, misalnya `whatsapp`. Ini ID field Elementor, bukan labelnya.
+6. Di tabel **Daftar form**, tambahkan satu baris per form:
+   - **Nama form** — sama persis dengan kolom **Form Name** di widget Elementor.
+   - **Field penerima** — isi kalau form ini memakai ID field nomor yang berbeda.
+   - **Isi pesan** — teks khusus form ini.
+7. Kirim form uji, lalu cek **Antrian Pesan** di PesanPro.
+
+Bawaan **Form yang diproses** adalah hanya form yang ada di daftar. Ubah ke **Semua form Elementor** kalau semua form memang boleh mengirim WhatsApp. Nama form yang pernah terkirim muncul di halaman pengaturan untuk membantu mengisi **Nama form**.
+
+Contoh **Isi pesan** untuk form "Hubungi Kami":
+
+```
+Halo {{field:nama}}, permintaan dari {{formTitle}} sudah kami terima.
+Nomor tiket: {{submissionId}}
+Pesan: {{field:pesan}}
+```
+
+| Placeholder | Isinya |
+| --- | --- |
+| `{{field:nama}}` | Jawaban field dengan ID `nama`. Kosong kalau tidak ada. |
+| `{{all_fields}}` | Semua field, satu baris per field. |
+| `{{formTitle}}`, `{{formId}}` | Nama dan ID form Elementor. |
+| `{{submissionId}}`, `{{submittedAt}}`, `{{site}}` | ID kiriman, waktu, dan alamat situs. |
+
+Placeholder diganti di WordPress sebelum pesan dikirim. **Pesan bawaan** dipakai kalau baris form tidak punya pesan; kalau itu juga kosong, plugin menyusun daftar field. Pesan dibatasi 4.096 karakter.
+
+### Antrean dan kegagalan
+
+Kiriman masuk antrean lokal WordPress dan dikirim WP-Cron, sama seperti plugin Contact Form 7 dan WooCommerce. Nomor tujuan kosong dicatat sebagai `recipient_missing` tanpa mengirim request ke PesanPro. Token tipe lain ditolak dengan 401. Perbaiki penyebabnya di **Settings → PesanPro Elementor**, lalu klik **Coba kirim ulang yang gagal**.
+
+Data tidak dihapus saat uninstall; tambahkan `define( 'PESANPRO_ELEMENTOR_REMOVE_DATA', true );` sebelum uninstall kalau ingin menghapus tabel antrean dan pengaturan.
+
+---
+
 ## WordPress kustom (form plugin lain)
 
-Kalau Anda memakai form plugin lain, kirim payload ke:
+Plugin **Elementor Form** memakai endpoint yang sama lewat token tipe **WordPress (form kustom)**. Kalau Anda memakai form plugin lain dan ingin mengirim sendiri, kirim payload ke:
 
 ```
 POST /api/v1/integrations/wordpress
@@ -371,20 +435,33 @@ Placeholder yang tersedia di `messageTemplate`:
 
 | Placeholder | Diganti dengan |
 | --- | --- |
-| `{{message}}` | Pesan asli dari integrasi |
-| `{{sourceId}}` | ID submission/order |
-| `{{field:nama}}` | Nilai field form bernama `nama` |
-| `{{event}}` | Nama event (untuk WooCommerce) |
+| `{{message}}` | Pesan final dari konektor |
+| `{{sourceId}}` | ID submission atau order |
+| `{{field:nama}}` | Nilai field form bernama `nama`. Hanya tersedia pada Contact Form 7 dan Google Forms. |
+| `{{event}}` | Nama event. Hanya tersedia pada WooCommerce. |
+| `{{site}}` | Alamat situs. Tersedia pada Contact Form 7 dan WordPress kustom. |
 
-Contoh:
+Placeholder yang tidak dikirim konektor diganti teks kosong. Karena WooCommerce dan WordPress kustom tidak mengirim daftar field, jangan memakai `{{field:...}}` pada token untuk kedua jalur itu.
+
+Contoh untuk token WooCommerce:
 
 ```
-Pesanan {{sourceId}} ({{event}}) dari {{field:nama}}: {{message}}
+Pesanan {{sourceId}} ({{event}}): {{message}}
 ```
 
 Kalau template menghasilkan pesan kosong atau lebih dari 4.096 karakter, request ditolak `INVALID_MESSAGE`.
 
-`messageTemplate` diatur pada token, jadi satu template berlaku untuk semua form yang memakai token itu. Untuk Contact Form 7, pesan yang berbeda antar form diatur di tab **PesanPro** pada masing-masing form. Untuk WooCommerce dan WordPress kustom, isi pesan disusun di kode PHP pada situs Anda (lihat contoh di atas). Konektor Google Forms yang dibagikan saat ini tidak mengirim `message`, sehingga memakai pesan bawaan server; `messageTemplate` pada token tetap bisa membungkusnya.
+`messageTemplate` diatur pada token, jadi satu template berlaku untuk semua form yang memakai token itu. Pesan yang berbeda antar form atau event disusun di sisi konektor:
+
+| Sumber | Tempat mengatur pesan |
+| --- | --- |
+| Contact Form 7 | Tab **PesanPro** pada tiap form |
+| WooCommerce | Kolom tiap status di **Settings → PesanPro WooCommerce** |
+| Elementor Form | Baris tiap form di **Settings → PesanPro Elementor** |
+| Google Forms | Script Property `PESANPRO_MESSAGE_TEMPLATE` |
+| WordPress kustom | Kode PHP pada situs Anda |
+
+`{{message}}` berisi teks yang sudah diganti placeholder-nya di WordPress atau Apps Script. Kosongkan pengaturan pesan pada konektor kalau ingin memakai pesan bawaan server.
 
 ---
 
@@ -397,4 +474,5 @@ Kalau template menghasilkan pesan kosong atau lebih dari 4.096 karakter, request
 5. Form uji benar-benar masuk ke Antrian Pesan.
 6. Nomor tujuan memakai format yang benar.
 7. Ada penanganan error dan log di sisi WordPress/Google.
-8. Kebijakan privasi menyebut pengiriman data ke PesanPro.
+8. Pesan per form atau per event diatur di konektor, bukan di `messageTemplate` token.
+9. Kebijakan privasi menyebut pengiriman data ke PesanPro.

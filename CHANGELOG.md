@@ -43,6 +43,28 @@ perangkat WhatsApp terhubung.
 
 ## [Unreleased]
 
+### Integrasi form
+
+- **Google Forms bisa punya pesan sendiri.** Script Property
+  `PESANPRO_MESSAGE_TEMPLATE` diisi di Apps Script, diganti di sisi Google, lalu
+  dikirim sebagai `message`. Kalau satu script menangani beberapa form, property
+  `PESANPRO_MESSAGE_TEMPLATE_<FORM_ID>` menang atas template umum. Tanpa
+  template, pesan bawaan server tetap dipakai.
+- **Plugin WooCommerce 1.0.0.** Pesan ditulis per status pesanan di
+  **Settings → PesanPro WooCommerce**. Enam event tersedia dan masing-masing bisa
+  dimatikan. Kiriman masuk antrean lokal WordPress, lalu dikirim WP-Cron dengan
+  idempotency key stabil per pasangan order dan event. Memakai token tipe
+  `WOOCOMMERCE`.
+- **Plugin Elementor Form 1.0.0.** Pesan ditulis per form di
+  **Settings → PesanPro Elementor**, dicocokkan lewat **Form Name** pada widget.
+  Memakai token tipe `WORDPRESS` dan endpoint `/api/v1/integrations/wordpress`.
+  Tidak ada tipe token baru dan tidak ada migrasi database.
+- Ketiga ZIP plugin tersedia di kartu **Plugin WordPress** pada halaman
+  Developer: `/api/public/plugin/wordpress`, `/api/public/plugin/woocommerce`,
+  dan `/api/public/plugin/elementor`.
+- Panduan 07 diperbarui: instalasi tiap plugin, placeholder, status antrean, dan
+  alasan kegagalan. Tes kebijakan PHP ditambah untuk dua plugin baru.
+
 ### Plugin WordPress 1.2.0
 
 - Tab **PesanPro** di editor Contact Form 7 menyimpan pesan WhatsApp untuk
