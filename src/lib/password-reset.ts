@@ -48,6 +48,10 @@ function smtpConfigured(): boolean {
   return Boolean(process.env.SMTP_HOST && process.env.SMTP_FROM);
 }
 
+function resendConfigured(): boolean {
+  return Boolean(process.env.RESEND_API_KEY && process.env.PASSWORD_RESET_FROM);
+}
+
 async function sendResetEmailViaSmtp(email: string, resetUrl: string): Promise<boolean> {
   try {
     await sendSmtpEmail({
@@ -95,16 +99,17 @@ export async function requestPasswordReset(emailInput: string): Promise<Password
   // user gets no signal when delivery is impossible. Surface it loudly to the
   // operator instead, naming the missing configuration, so lockouts are
   // diagnosable rather than silent.
-  if (!process.env.RESEND_API_KEY || !process.env.PASSWORD_RESET_FROM) {
+  const useSmtp = smtpConfigured();
+  if (!useSmtp && !resendConfigured()) {
     logger.error(
       "Auth",
-      "Password reset requested but email delivery is not configured (set RESEND_API_KEY and PASSWORD_RESET_FROM); no reset email was sent",
+      "Password reset requested but no email transport is configured (set SMTP_HOST/SMTP_FROM or RESEND_API_KEY/PASSWORD_RESET_FROM); no reset email was sent",
     );
     return { accepted: true };
   }
 
   try {
-    const delivered = smtpConfigured()
+    const delivered = useSmtp
       ? await sendResetEmailViaSmtp(user.email, resetUrl)
       : await sendResetEmail(user.email, resetUrl);
     if (!delivered && process.env.NODE_ENV === "production") {
