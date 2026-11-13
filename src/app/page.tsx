@@ -110,8 +110,8 @@ const features = [
 
 const privacyCommitments = [
   {
-    title: "Isi pesan tidak disimpan",
-    body: "Teks dan caption tidak pernah ditulis ke database. Kami meneruskannya ke webhook Anda pada detik yang sama, lalu membuangnya.",
+    title: "Isi pesan disimpan maksimal 30 hari",
+    body: "Teks dan caption disimpan untuk antrean pengiriman dan debugging, lalu dihapus otomatis setelah 30 hari.",
   },
   {
     title: "Media tidak diunduh",
@@ -355,7 +355,7 @@ export default async function Home() {
                   ? `Mulai dari ${formatPrice(plans[0].priceMonthly, plans[0].currency)} /bulan`
                   : null,
                 "Tanpa biaya per pesan",
-                "Isi pesan tidak disimpan",
+                "Isi pesan dihapus otomatis dalam 30 hari",
                 "REST API dan webhook",
               ]
                 .filter((item): item is string => item !== null)
@@ -509,10 +509,11 @@ export default async function Home() {
             <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
               <div>
                 <p className="pp-eyebrow">Privasi</p>
-                <h2 className="pp-section-title mt-3">Kami tidak menyimpan isi pesan Anda.</h2>
+                <h2 className="pp-section-title mt-3">Kami menyimpan pesan Anda maksimal 30 hari.</h2>
                 <p className="pp-page-description">
-                  PesanPro meneruskan pesan ke sistem Anda. Setelah itu tidak ada alasan bagi kami untuk
-                  menyimpannya, jadi memang tidak kami simpan.
+                  Isi pesan disimpan maksimal 30 hari untuk keperluan pengiriman dan debugging, lalu
+                  dihapus otomatis. Meneruskan pesan ke webhook atau sistem Anda bukan berarti kami
+                  tidak menyimpannya.
                 </p>
 
                 <div className="mt-8 grid gap-6 sm:grid-cols-2">

@@ -57,8 +57,8 @@ Jangan menukar kedua domain. Website marketing hanya menjelaskan produk; aplikas
 ## Aturan dasar yang berlaku di semua panduan
 
 1. **Satu nomor WhatsApp = satu perangkat.** Jangan menghubungkan nomor yang sama ke dua perangkat PesanPro.
-2. **Paket aktif diperlukan untuk mengirim.** Akun baru bisa masuk dashboard, tetapi pengiriman, auto-reply, webhook, dan upload media terkunci sampai pembayaran disetujui.
-3. **Isi pesan tidak disimpan.** PesanPro menyimpan metadata pengiriman (status, waktu, penerima, kode error), bukan isi pesan.
+2. **Paket aktif diperlukan untuk mengirim.** Akun baru dengan bukti pembayaran yang masih diperiksa berhenti di halaman tunggu, bukan dashboard kerja. Setelah pembayaran disetujui, pengiriman, auto-reply, webhook, dan upload media terbuka.
+3. **Isi pesan disimpan maksimal 30 hari.** PesanPro menyimpan isi pesan untuk keperluan pengiriman dan debugging, lalu menghapusnya otomatis setelah 30 hari. Metadata pengiriman (status, waktu, penerima, kode error) juga dibatasi 30 hari.
 4. **Hormati penerima.** Gunakan opt-in untuk broadcast dan sediakan cara berhenti. Pesan massal tanpa izin berisiko diblokir WhatsApp.
 5. **Jangan bagikan secret.** API key dan integration token hanya ditampilkan sekali. Simpan di secret manager, bukan di kode atau repositori.
 
