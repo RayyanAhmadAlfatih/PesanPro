@@ -14,6 +14,7 @@ import {
 } from "@/lib/pending-activation";
 import { RefreshStatusButton } from "@/components/dashboard/refresh-status-button";
 import { parseUserWhatsapp } from "@/lib/whatsapp-number";
+import { formatAccountHolderDisplay } from "@/lib/bank-list";
 import { redirect } from "next/navigation";
 import { canAccessDashboardPath } from "@/lib/access-policy";
 
@@ -207,7 +208,7 @@ function ActivationWaitView({
               <div className="flex justify-between gap-3">
                 <dt className="text-muted-foreground">Rekening tujuan</dt>
                 <dd className="text-right font-semibold">
-                  {bank.bankName} {bank.accountNumber.replace(/(\d{4})(?=\d)/g, "$1 ")} a.n. {bank.accountHolder}
+                  {bank.bankName} {bank.accountNumber.replace(/(\d{4})(?=\d)/g, "$1 ")}{" "}{formatAccountHolderDisplay(bank.accountHolder)}
                 </dd>
               </div>
             ) : null}

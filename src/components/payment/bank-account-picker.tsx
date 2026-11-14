@@ -3,7 +3,7 @@
 import { useState } from "react";
 import { CheckCircle2, Copy } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { formatAccountNumberDisplay } from "@/lib/bank-list";
+import { formatAccountHolderDisplay, formatAccountNumberDisplay } from "@/lib/bank-list";
 import { cn } from "@/lib/utils";
 
 export interface BankAccountOption {
@@ -94,7 +94,7 @@ export function BankAccountPicker({
                 <span className="font-[family-name:var(--font-display)] text-2xl font-extrabold tabular-nums">
                   {formatAccountNumberDisplay(account.accountNumber)}
                 </span>
-                <span className="text-sm text-muted-foreground">a.n. {account.accountHolder}</span>
+                <span className="text-sm text-muted-foreground">{formatAccountHolderDisplay(account.accountHolder)}</span>
               </label>
               <Button
                 type="button"

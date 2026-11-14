@@ -25,6 +25,7 @@ import {
     Puzzle,
     BookOpen,
     LifeBuoy,
+    ShieldCheck,
 } from "lucide-react";
 import { usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
@@ -65,6 +66,7 @@ const navGroups: NavGroup[] = [
         label: "Akun",
         items: [
             { href: "/dashboard/billing", label: "Tagihan", icon: CreditCard },
+            { href: "/dashboard/security", label: "Keamanan akun", icon: ShieldCheck },
             { href: "/dashboard/settings", label: "Pengaturan", icon: Settings },
             { href: "/dashboard/inbox", label: "Notifikasi", icon: Inbox },
             { href: "/docs", label: "Dokumentasi", icon: BookOpen },

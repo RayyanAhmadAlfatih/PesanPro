@@ -6,6 +6,19 @@ import { ArrowLeft, Loader2, Mail } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 
+// Pesan error dari POST /api/auth/forgot-password masih berbahasa Inggris;
+// dipetakan di sini supaya tampilan konsisten berbahasa Indonesia tanpa perlu
+// mengubah endpoint. Pesan yang belum masuk peta ditampilkan apa adanya.
+const PESAN_ERROR_API: Record<string, string> = {
+  "Too many reset requests. Please try again later.": "Terlalu banyak permintaan reset. Coba lagi nanti.",
+  "Too many reset requests for this email. Please try again later.": "Terlalu banyak permintaan reset untuk email ini. Coba lagi nanti.",
+  "Valid email is required": "Email yang valid wajib diisi",
+};
+
+function terjemahkanPesanError(pesan: string): string {
+  return PESAN_ERROR_API[pesan] ?? pesan;
+}
+
 export default function ForgotPasswordPage() {
   const [email, setEmail] = useState("");
   const [loading, setLoading] = useState(false);
@@ -21,11 +34,11 @@ export default function ForgotPasswordPage() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ email }),
       });
-      const body = await response.json() as { error?: string; message?: string };
-      if (!response.ok) throw new Error(body.error ?? "Unable to request password reset");
-      setMessage(body.message ?? "Check your email for reset instructions.");
+      const body = await response.json() as { error?: string };
+      if (!response.ok) throw new Error(terjemahkanPesanError(body.error ?? "Gagal meminta reset password"));
+      setMessage("Kalau akun tersebut ada, instruksi reset sudah dikirim ke emailnya.");
     } catch (error) {
-      setMessage(error instanceof Error ? error.message : "Unable to request password reset");
+      setMessage(error instanceof Error ? error.message : "Gagal meminta reset password");
     } finally {
       setLoading(false);
     }
@@ -38,8 +51,8 @@ export default function ForgotPasswordPage() {
         <div className="mb-7 flex h-12 w-12 items-center justify-center rounded-2xl bg-[#315b2c] text-white">
           <Mail className="h-6 w-6" />
         </div>
-        <h1 className="text-3xl font-bold tracking-tight text-[#1d2c1b]">Reset your password</h1>
-        <p className="mt-2 text-sm leading-6 text-slate-600">Enter your account email. The reset link is valid for 30 minutes.</p>
+        <h1 className="text-3xl font-bold tracking-tight text-[#1d2c1b]">Atur ulang password</h1>
+        <p className="mt-2 text-sm leading-6 text-slate-600">Masukkan email akun Anda. Tautan reset berlaku 30 menit.</p>
 
         <form onSubmit={submit} className="mt-7 space-y-4">
           <Input
@@ -53,13 +66,13 @@ export default function ForgotPasswordPage() {
           />
           <Button className="h-12 w-full rounded-xl bg-[#315b2c] hover:bg-[#284b25]" disabled={loading}>
             {loading ? <Loader2 className="mr-2 h-4 w-4 animate-spin" /> : null}
-            Send reset link
+            Kirim tautan reset
           </Button>
         </form>
 
         {message ? <p className="mt-5 rounded-xl bg-[#edf4e7] p-3 text-sm text-[#315b2c]">{message}</p> : null}
         <Link href="/auth/login" className="mt-7 inline-flex items-center text-sm font-medium text-slate-600 hover:text-[#315b2c]">
-          <ArrowLeft className="mr-2 h-4 w-4" /> Back to sign in
+          <ArrowLeft className="mr-2 h-4 w-4" /> Kembali ke halaman masuk
         </Link>
       </section>
     </main>
