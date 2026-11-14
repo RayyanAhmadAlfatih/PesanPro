@@ -33,3 +33,17 @@ export function formatAccountNumberDisplay(value: string): string {
   const digits = value.replace(/\D/g, "");
   return digits.replace(/(\d{4})(?=\d)/g, "$1 ");
 }
+
+/**
+ * Nama pemegang rekening ditampilkan dengan prefiks "a.n.". Sebagian data lama
+ * sudah menyimpan prefiks itu di dalam nilai (mis. "a.n. Yusuf Ali"); kalau UI
+ * menambahkannya lagi tanpa cek, tampilannya dobel ("a.n. a.n. Yusuf Ali").
+ * Helper ini menormalkan tampilan: prefiks hanya ditambahkan kalau nilainya
+ * belum diawali pola "a.n." (termasuk varian "an.", "a.n", "An.").
+ */
+export function formatAccountHolderDisplay(value: string): string {
+  const holder = value.trim();
+  if (!holder) return "";
+  if (/^a\.?\s*n\.?\s+/i.test(holder)) return holder;
+  return `a.n. ${holder}`;
+}

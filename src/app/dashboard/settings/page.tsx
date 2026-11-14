@@ -21,7 +21,7 @@ import {
 import { AlertTriangle, ArrowDown, ArrowUp, Loader2, Plus, RefreshCw, Save, Star, Trash2 } from "lucide-react";
 import { toast } from "sonner";
 import { formatWhatsappDisplay, whatsappHref } from "@/lib/support-contact";
-import { formatAccountNumberDisplay } from "@/lib/bank-list";
+import { formatAccountHolderDisplay, formatAccountNumberDisplay } from "@/lib/bank-list";
 
 interface PaymentMethodsSnapshot {
     manual: { key: string; enabled: boolean; ready: boolean; label: string; missing: string[] };
@@ -539,7 +539,7 @@ export default function SettingsPage() {
                                                 <p className="mt-1 font-[family-name:var(--font-display)] text-xl font-extrabold tabular-nums">
                                                     {formatAccountNumberDisplay(account.accountNumber)}
                                                 </p>
-                                                <p className="text-sm text-muted-foreground">a.n. {account.accountHolder}</p>
+                                                <p className="text-sm text-muted-foreground">{formatAccountHolderDisplay(account.accountHolder)}</p>
                                                 {account.usedCount > 0 ? (
                                                     <p className="mt-1 text-xs text-muted-foreground">
                                                         Sudah dipakai {account.usedCount} pembayaran — tidak bisa dihapus permanen.
