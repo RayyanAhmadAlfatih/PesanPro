@@ -7,7 +7,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Switch } from "@/components/ui/switch";
 import { Label } from "@/components/ui/label";
 import { Input } from "@/components/ui/input";
-import { ChangePasswordForm } from "@/components/dashboard/change-password-form";
 import {
     AlertDialog,
     AlertDialogAction,
@@ -307,13 +306,8 @@ export default function SettingsPage() {
         <div className="space-y-6">
             <div>
                 <h2 className="text-xl sm:text-3xl font-bold tracking-tight">Settings</h2>
-                <p className="text-muted-foreground text-sm mt-1">Kelola keamanan akun Anda di sini. Konfigurasi sistem hanya bisa diubah SuperAdmin.</p>
+                <p className="text-muted-foreground text-sm mt-1">Kelola konfigurasi sistem PesanPro di sini. Ganti password login ada di menu Keamanan akun.</p>
             </div>
-
-            {/* Keamanan akun — tersedia untuk semua pengguna. Formulirnya juga
-                bisa diakses tenant via /dashboard/security (halaman terpisah
-                karena kartu-kartu di bawah hanya untuk SuperAdmin). */}
-            <ChangePasswordForm />
 
             {/* System Configuration (Global) */}
             <Card className="border-primary/20 bg-primary/5">
