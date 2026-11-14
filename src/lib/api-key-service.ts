@@ -15,8 +15,6 @@ export const API_KEY_SCOPES = [
   "schedule:write",
   "broadcast:read",
   "broadcast:write",
-  "campaign:read",
-  "campaign:write",
   "autoreply:read",
   "autoreply:write",
   "webhook:read",

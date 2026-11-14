@@ -13,13 +13,13 @@ import { Label } from "@/components/ui/label";
 const scopes = [
   "device:read", "device:write", "message:read", "message:send", "media:read",
   "media:write", "schedule:read", "schedule:write", "broadcast:read", "broadcast:write",
-  "campaign:read", "campaign:write", "autoreply:read", "autoreply:write", "webhook:read", "webhook:write",
+  "autoreply:read", "autoreply:write", "webhook:read", "webhook:write",
 ] as const;
 
 const scopePresets = [
   { label: "Kirim pesan", scopes: ["device:read", "message:send", "media:read", "media:write"] },
   { label: "Kirim + terima event", scopes: ["device:read", "message:send", "media:read", "media:write", "webhook:read", "webhook:write"] },
-  { label: "Baca saja", scopes: ["device:read", "message:read", "media:read", "broadcast:read", "campaign:read", "autoreply:read", "schedule:read", "webhook:read"] },
+  { label: "Baca saja", scopes: ["device:read", "message:read", "media:read", "broadcast:read", "autoreply:read", "schedule:read", "webhook:read"] },
 ] as const;
 
 interface ApiKeyItem {
