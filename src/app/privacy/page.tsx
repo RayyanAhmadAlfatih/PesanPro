@@ -60,7 +60,7 @@ export default function PrivacyPage() {
                             <li><strong>Account data:</strong> your name, email address, and password — passwords are stored only as secure hashes, never in readable form.</li>
                             <li><strong>Billing data:</strong> your plan, billing period, payment reference, and the transfer proof you upload so an administrator can verify your payment. Bank account details you provide are used solely for payment verification.</li>
                             <li><strong>Device metadata:</strong> the name of each WhatsApp device you connect, the linked phone number, and its connection status.</li>
-                            <li><strong>Delivery metadata:</strong> for each message, the recipient, delivery status (sent, delivered, read), timestamps, and error codes when something fails. <strong>PesanPro does not store the content of your WhatsApp messages</strong> — only the delivery record.</li>
+                            <li><strong>Delivery metadata:</strong> for each message, the recipient, delivery status (sent, delivered, read), timestamps, and error codes when something fails. <strong>PesanPro stores the content of your WhatsApp messages for up to 30 days for delivery and debugging, then deletes it automatically.</strong></li>
                             <li><strong>Media files:</strong> images, documents, audio, or video you upload to send through the gateway. Files are stored with private access permissions and are deleted automatically after the retention period shown in your plan documentation.</li>
                             <li><strong>Automation settings:</strong> auto-reply rules, schedules, suppression lists, API keys (stored only as hashes), and webhook endpoints you configure.</li>
                         </ul>
@@ -68,7 +68,7 @@ export default function PrivacyPage() {
                         <h2 className="mt-8 text-2xl border-b pb-2">3. What We Do Not Do</h2>
                         <ul>
                             <li>We do not sell your data, and we do not share it with advertisers.</li>
-                            <li>We do not read or store your WhatsApp message content.</li>
+                            <li>We do not read your WhatsApp message content for any purpose other than delivery and debugging. It is stored for up to 30 days and then deleted automatically.</li>
                             <li>We do not add third-party advertising or analytics trackers to the service.</li>
                         </ul>
 
