@@ -121,7 +121,15 @@ export async function reviewPaymentVerificationInTransaction(
   if (!verification) {
     throw new PaymentVerificationReviewError("PAYMENT_NOT_PENDING", "Payment verification not found after review");
   }
-  if (input.status !== "APPROVED") return { verification, subscription: null, idempotent: false };
+  if (input.status !== "APPROVED") {
+    // Pembayaran ditolak/dibatalkan: kunci kuota promo dikembalikan supaya
+    // voucher bisa dipakai lagi.
+    await tx.promoRedemption.updateMany({
+      where: { paymentVerificationId: verification.id, status: "RESERVED" },
+      data: { status: "RELEASED" },
+    });
+    return { verification, subscription: null, idempotent: false };
+  }
   if (verification.user.role !== "USER") {
     throw new PaymentVerificationReviewError("PAYMENT_USER_INVALID", "Payment owner is not an active customer account");
   }
@@ -135,7 +143,10 @@ export async function reviewPaymentVerificationInTransaction(
   // instead of restarting it, so early renewals do not lose paid days.
   const currentSubscription = await tx.subscription.findUnique({
     where: { userId: verification.userId },
-    select: { planId: true, status: true, startsAt: true, endsAt: true, trialEndsAt: true, graceEndsAt: true },
+    select: {
+      planId: true, status: true, startsAt: true, endsAt: true, trialEndsAt: true, graceEndsAt: true,
+      lockedMonthlyPrice: true, lockedYearlyPrice: true,
+    },
   });
   const currentStatus = currentSubscription ? deriveSubscriptionStatus(currentSubscription, input.reviewedAt) : null;
   const period = resolveSubscriptionPeriod({
@@ -145,6 +156,16 @@ export async function reviewPaymentVerificationInTransaction(
     current: currentSubscription,
     currentUsable: currentStatus ? isSubscriptionUsable(currentStatus) : false,
   });
+  // Harga normal dikunci saat pembelian pertama. Perpanjangan paket yang sama
+  // memakai harga terkunci itu, bukan harga Plan terbaru. Pindah paket
+  // mengunci harga paket baru pada saat pembelian.
+  const samePlan = currentSubscription?.planId === verification.plan.id;
+  const lockedMonthlyPrice = (samePlan ? currentSubscription?.lockedMonthlyPrice : null)
+    ?? verification.listMonthlyPrice
+    ?? verification.plan.priceMonthly;
+  const lockedYearlyPrice = (samePlan ? currentSubscription?.lockedYearlyPrice : null)
+    ?? verification.listYearlyPrice
+    ?? verification.plan.priceYearly;
   const subscription = await tx.subscription.upsert({
     where: { userId: verification.userId },
     update: {
@@ -155,6 +176,8 @@ export async function reviewPaymentVerificationInTransaction(
       trialEndsAt: null,
       endsAt: period.endsAt,
       graceEndsAt: null,
+      lockedMonthlyPrice,
+      lockedYearlyPrice,
     },
     create: {
       userId: verification.userId,
@@ -165,6 +188,8 @@ export async function reviewPaymentVerificationInTransaction(
       trialEndsAt: null,
       endsAt: period.endsAt,
       graceEndsAt: null,
+      lockedMonthlyPrice,
+      lockedYearlyPrice,
     },
   });
   await tx.subscriptionHistory.create({
@@ -177,6 +202,10 @@ export async function reviewPaymentVerificationInTransaction(
       endsAt: period.endsAt,
       graceEndsAt: null,
     },
+  });
+  await tx.promoRedemption.updateMany({
+    where: { paymentVerificationId: verification.id, status: "RESERVED" },
+    data: { status: "APPROVED" },
   });
 
   const deviceLimit = verification.plan.entitlements[0]?.limitValue;

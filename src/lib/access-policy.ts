@@ -3,6 +3,7 @@ export const ACTIVE_ACCOUNT_ROLES = ["SUPERADMIN", "USER"] as const;
 export type ActiveAccountRole = (typeof ACTIVE_ACCOUNT_ROLES)[number];
 
 const SUPERADMIN_DASHBOARD_PREFIXES = [
+  "/dashboard/superadmin",
   "/dashboard/users",
   "/dashboard/commercial",
   "/dashboard/settings",

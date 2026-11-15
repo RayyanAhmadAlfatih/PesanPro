@@ -16,7 +16,6 @@ import {
     Bell,
     Inbox,
     Megaphone,
-    Activity,
     MessageCircleReply,
     CreditCard,
     BadgeDollarSign,
@@ -77,8 +76,7 @@ const navGroups: NavGroup[] = [
         label: "Operasi",
         items: [
             { href: "/dashboard/users", label: "Pengguna", icon: Users },
-            { href: "/dashboard/commercial", label: "Operasi Komersial", icon: BadgeDollarSign },
-            { href: "/dashboard/system-monitor", label: "Monitor Sistem", icon: Activity },
+            { href: "/dashboard/superadmin", label: "SuperAdmin", icon: BadgeDollarSign },
             { href: "/dashboard/notifications", label: "Kirim Pengumuman", icon: Bell },
         ],
     },

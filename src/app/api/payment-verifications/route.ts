@@ -11,6 +11,7 @@ import { queuePaymentSubmittedEmails } from "@/lib/email-notifications";
 import { logger } from "@/lib/logger";
 import { getPaymentMethodsSnapshot } from "@/lib/payment-methods";
 import { parseUserWhatsapp } from "@/lib/whatsapp-number";
+import { assertRedemptionWithinLimits, PromoPurchaseError, quotePurchase } from "@/lib/promo-service";
 
 const submissionSchema = z.object({
   planId: z.string().min(1),
@@ -21,6 +22,9 @@ const submissionSchema = z.object({
   // Rekening pilihan pembayar (opsional di API; UI selalu mengirim saat
   // daftar rekening tampil). Divalidasi harus rekening aktif di bawah.
   bankAccountId: z.string().trim().max(64).optional(),
+  // Kode voucher opsional. Server yang menghitung potongan dan memvalidasi
+  // kuota; harga dari body tidak pernah dipercaya.
+  voucherCode: z.string().trim().max(64).optional(),
   // Nomor WA kontak untuk user lama yang belum menyimpannya (F1.1). Wajib
   // lewat UI kalau profilnya kosong; server menegakkan hal yang sama.
   whatsappNumber: z.string().trim().max(40).optional(),
@@ -98,6 +102,7 @@ export async function POST(request: NextRequest) {
     billingCycle: upload.billingCycle.trim() || undefined,
     bankAccountId: upload.bankAccountId.trim() || undefined,
     whatsappNumber: upload.whatsappNumber.trim() || undefined,
+    voucherCode: upload.voucherCode.trim() || undefined,
   });
   if (!parsed.success) return NextResponse.json({ error: "Invalid payment proof", details: parsed.error.flatten() }, { status: 400 });
 
@@ -152,19 +157,13 @@ export async function POST(request: NextRequest) {
 
   const plan = await prisma.plan.findFirst({ where: { id: parsed.data.planId, isActive: true, priceMonthly: { gt: 0 } } });
   if (!plan) return NextResponse.json({ error: "Active plan not found" }, { status: 404 });
-  // The amount is always read from the plan, never from the request body, so a
-  // caller cannot declare a cheaper price for a yearly period.
-  const amount = parsed.data.billingCycle === "YEARLY" ? plan.priceYearly : plan.priceMonthly;
-  if (!amount) {
-    return NextResponse.json(
-      { error: "This plan does not offer a yearly price", code: "PLAN_YEARLY_PRICE_MISSING" },
-      { status: 422 },
-    );
-  }
   const verificationId = crypto.randomUUID();
   let storedProof: Awaited<ReturnType<typeof storePaymentProof>> | null = null;
   let submission;
   let queuedEmailCount = 0;
+  let chargedAmount = "";
+  let discountAmount = "0";
+  let appliedPromoId: string | null = null;
   try {
     storedProof = await storePaymentProof({
       userId: session.user.id,
@@ -180,13 +179,28 @@ export async function POST(request: NextRequest) {
           data: { whatsappNumber: whatsappToSave },
         });
       }
+      // Harga, promo, dan kuota dihitung ulang di transaksi yang sama. Body
+      // request tidak pernah menentukan nominal transfer.
+      const quote = await quotePurchase({
+        userId: session.user.id,
+        planId: plan.id,
+        cycle: parsed.data.billingCycle,
+        voucherCode: parsed.data.voucherCode,
+        client: tx,
+      });
       const record = await tx.paymentVerification.create({
         data: {
           id: verificationId,
           userId: session.user.id,
           planId: plan.id,
           bankAccountId,
-          amount,
+          amount: quote.amount,
+          baseAmount: quote.baseAmount,
+          discountAmount: quote.discountAmount,
+          listMonthlyPrice: quote.listMonthlyPrice,
+          listYearlyPrice: quote.listYearlyPrice,
+          promoId: quote.promo?.id ?? null,
+          voucherCode: parsed.data.voucherCode ?? null,
           billingCycle: parsed.data.billingCycle,
           currency: plan.currency,
           reference: parsed.data.reference,
@@ -197,21 +211,48 @@ export async function POST(request: NextRequest) {
           proofChecksumSha256: proofRecord.checksumSha256,
         },
       });
+      if (quote.promo) {
+        await tx.promoRedemption.create({
+          data: {
+            promoId: quote.promo.id,
+            userId: session.user.id,
+            paymentVerificationId: record.id,
+            billingCycle: parsed.data.billingCycle,
+            baseAmount: quote.baseAmount,
+            discountAmount: quote.discountAmount,
+            chargedAmount: quote.amount,
+            status: "RESERVED",
+          },
+        });
+        await assertRedemptionWithinLimits(tx, quote.promo.id, session.user.id);
+      }
       const notifications = await queuePaymentSubmittedEmails(tx, {
         verificationId: record.id,
         payerId: record.userId,
         planName: plan.name,
-        amount: amount.toString(),
+        amount: quote.amount,
         currency: plan.currency,
         reference: parsed.data.reference,
         submittedAt: record.createdAt,
       });
-      return { record, notifications };
+      return {
+        record,
+        notifications,
+        chargedAmount: quote.amount,
+        discountAmount: quote.discountAmount,
+        promoId: quote.promo?.id ?? null,
+      };
     });
     submission = created.record;
     queuedEmailCount = created.notifications;
+    chargedAmount = created.chargedAmount;
+    discountAmount = created.discountAmount;
+    appliedPromoId = created.promoId;
   } catch (error) {
     if (storedProof) await deleteStoredPaymentProof(storedProof.storagePath, verificationId);
+    if (error instanceof PromoPurchaseError) {
+      return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
+    }
     if (error instanceof MessageJobError) {
       return NextResponse.json({ error: error.message, code: error.code }, { status: error.status });
     }
@@ -225,7 +266,7 @@ export async function POST(request: NextRequest) {
     resourceId: submission.id,
     ip,
     userAgent: request.headers.get("user-agent"),
-    meta: { planId: plan.id, amount: amount.toString(), billingCycle: parsed.data.billingCycle, currency: plan.currency, bankAccountId, queuedEmailCount },
+    meta: { planId: plan.id, amount: chargedAmount, discountAmount, promoId: appliedPromoId, billingCycle: parsed.data.billingCycle, currency: plan.currency, bankAccountId, queuedEmailCount },
   });
   if (queuedEmailCount === 0) {
     logger.warn("PaymentVerification", `No active superadmin recipient was found for payment ${submission.id}`);

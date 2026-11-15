@@ -236,6 +236,16 @@ export async function getBillingSnapshot(userId: string) {
       code: subscription.plan.code,
       name: subscription.plan.name,
       unlimited: false,
+      priceMonthly: subscription.plan.priceMonthly?.toString() ?? null,
+      priceYearly: subscription.plan.priceYearly?.toString() ?? null,
+    },
+    // Perpanjangan memakai harga terkunci saat pembelian pertama. Null berarti
+    // langganan lama sebelum kolom ini ada; UI memakai harga Plan.
+    renewal: {
+      monthly: (subscription.lockedMonthlyPrice ?? subscription.plan.priceMonthly)?.toString() ?? null,
+      yearly: (subscription.lockedYearlyPrice ?? subscription.plan.priceYearly)?.toString() ?? null,
+      locked: Boolean(subscription.lockedMonthlyPrice || subscription.lockedYearlyPrice),
+      billingCycle: subscription.billingCycle,
     },
     entitlements: subscription.plan.entitlements.filter((item) => isCommercialFeatureVisible(item.feature)).map((item) => {
       const override = overrides.find((candidate) => candidate.feature === item.feature);

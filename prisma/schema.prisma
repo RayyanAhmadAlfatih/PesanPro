@@ -72,6 +72,7 @@ enum PaymentVerificationStatus {
 enum EmailNotificationType {
   PAYMENT_SUBMITTED
   PAYMENT_APPROVED
+  CAPACITY_ALERT
 }
 
 enum EmailOutboxStatus {
@@ -171,30 +172,30 @@ enum OperationalAlertStatus {
 }
 
 model User {
-  id                String        @id @default(cuid())
-  name              String?
-  email             String        @unique
+  id                     String        @id @default(cuid())
+  name                   String?
+  email                  String        @unique
   // Nomor WhatsApp KONTAK pemilik akun (bukan nomor device gateway). Dipakai
   // admin untuk konfirmasi pembayaran dan bantuan. Nullable supaya akun lama
   // tetap valid; diisi saat pendaftaran atau saat checkout pertama.
-  whatsappNumber    String?       @db.VarChar(20)
-  password          String
-  role              Role          @default(USER)
-  status            AccountStatus @default(ACTIVE)
-  ownerId           String?
-  deviceLimit       Int           @default(1)
-  staffLimit        Int           @default(5)
-  allowStaffApiKeys Boolean       @default(false)
-  sessionVersion    Int           @default(0)
+  whatsappNumber         String?       @db.VarChar(20)
+  password               String
+  role                   Role          @default(USER)
+  status                 AccountStatus @default(ACTIVE)
+  ownerId                String?
+  deviceLimit            Int           @default(1)
+  staffLimit             Int           @default(5)
+  allowStaffApiKeys      Boolean       @default(false)
+  sessionVersion         Int           @default(0)
   // Watermark for the in-app announcement popup. It holds the publishedAt of the
   // last announcement this user dismissed, so a popup shows once per publish
   // instead of once per device (localStorage would not survive a device switch).
   lastSeenAnnouncementAt DateTime?
-  apiKey            String?       @unique // SHA-256 hash of API key secret
-  apiKeyPreview     String?
-  apiKeyCreatedAt   DateTime?
-  createdAt         DateTime      @default(now())
-  updatedAt         DateTime      @updatedAt
+  apiKey                 String?       @unique // SHA-256 hash of API key secret
+  apiKeyPreview          String?
+  apiKeyCreatedAt        DateTime?
+  createdAt              DateTime      @default(now())
+  updatedAt              DateTime      @updatedAt
 
   owner                       User?                       @relation("OwnerStaff", fields: [ownerId], references: [id], onDelete: Cascade)
   staffMembers                User[]                      @relation("OwnerStaff")
@@ -236,6 +237,9 @@ model User {
   tenantEntitlementOverrides  TenantEntitlementOverride[] @relation("EntitlementOverrideTenant")
   createdEntitlementOverrides TenantEntitlementOverride[] @relation("EntitlementOverrideCreator")
   createdAnnouncements        Announcement[]              @relation("AnnouncementCreator")
+  createdPromos               Promo[]                     @relation("PromoCreator")
+  promoRedemptions            PromoRedemption[]
+  planPriceChanges            PlanPriceHistory[]          @relation("PlanPriceChanger")
 
   @@index([ownerId, role])
   @@index([status])
@@ -402,6 +406,8 @@ model Plan {
   subscriptions        Subscription[]
   subscriptionHistory  SubscriptionHistory[]
   paymentVerifications PaymentVerification[]
+  promos               PromoPlan[]
+  priceHistory         PlanPriceHistory[]
 
   @@index([isActive, isDefault])
 }
@@ -442,17 +448,22 @@ model TenantEntitlementOverride {
 }
 
 model Subscription {
-  id          String             @id @default(cuid())
-  userId      String             @unique
-  planId      String
-  status      SubscriptionStatus @default(ACTIVE)
-  billingCycle BillingCycle      @default(MONTHLY)
-  startsAt    DateTime           @default(now())
-  trialEndsAt DateTime?
-  endsAt      DateTime?
-  graceEndsAt DateTime?
-  createdAt   DateTime           @default(now())
-  updatedAt   DateTime           @updatedAt
+  id                 String             @id @default(cuid())
+  userId             String             @unique
+  planId             String
+  status             SubscriptionStatus @default(ACTIVE)
+  billingCycle       BillingCycle       @default(MONTHLY)
+  startsAt           DateTime           @default(now())
+  trialEndsAt        DateTime?
+  endsAt             DateTime?
+  graceEndsAt        DateTime?
+  // Harga normal yang dikunci saat pembelian disetujui. Perpanjangan memakai
+  // angka ini, bukan harga Plan terbaru, supaya perubahan harga hanya berlaku
+  // untuk tenant baru. Null = langganan lama, pakai harga Plan saat itu.
+  lockedMonthlyPrice Decimal?           @db.Decimal(18, 2)
+  lockedYearlyPrice  Decimal?           @db.Decimal(18, 2)
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
 
   user User @relation(fields: [userId], references: [id], onDelete: Cascade)
   plan Plan @relation(fields: [planId], references: [id], onDelete: Restrict)
@@ -577,6 +588,15 @@ model PaymentVerification {
   // lama sebelum multi-bank ada; baris lama sudah dibackfill oleh migrasi.
   bankAccountId       String?
   amount              Decimal                   @db.Decimal(18, 2)
+  // Snapshot harga normal dan potongan saat bukti dikirim. `amount` adalah
+  // yang harus ditransfer; baseAmount - discountAmount = amount. Disimpan
+  // supaya laporan pemasukan tidak berubah saat admin mengedit harga Plan.
+  baseAmount          Decimal?                  @db.Decimal(18, 2)
+  discountAmount      Decimal                   @default(0) @db.Decimal(18, 2)
+  listMonthlyPrice    Decimal?                  @db.Decimal(18, 2)
+  listYearlyPrice     Decimal?                  @db.Decimal(18, 2)
+  promoId             String?
+  voucherCode         String?                   @db.VarChar(64)
   billingCycle        BillingCycle              @default(MONTHLY)
   currency            String                    @default("IDR")
   reference           String?
@@ -592,13 +612,16 @@ model PaymentVerification {
   createdAt           DateTime                  @default(now())
   updatedAt           DateTime                  @updatedAt
 
-  user        User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  plan        Plan?           @relation(fields: [planId], references: [id], onDelete: SetNull)
-  bankAccount PaymentAccount? @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+  user        User             @relation(fields: [userId], references: [id], onDelete: Cascade)
+  plan        Plan?            @relation(fields: [planId], references: [id], onDelete: SetNull)
+  bankAccount PaymentAccount?  @relation(fields: [bankAccountId], references: [id], onDelete: Restrict)
+  promo       Promo?           @relation(fields: [promoId], references: [id], onDelete: SetNull)
+  redemption  PromoRedemption?
 
   @@index([status, createdAt])
   @@index([userId, createdAt])
   @@index([bankAccountId])
+  @@index([promoId, createdAt])
 }
 
 model EmailOutbox {
@@ -1470,10 +1493,10 @@ model SystemConfig {
   // dibaca/ditulis aplikasi. Migrasi menyalin isinya ke satu entri
   // PaymentAccount aktif. Kolom dipertahankan agar revert kode tanpa
   // rollback migrasi tetap membaca data lama yang sama.
-  bankName           String  @default("") @db.VarChar(120)
-  bankAccountNumber  String  @default("") @db.VarChar(60)
-  bankAccountHolder  String  @default("") @db.VarChar(160)
-  paymentNote        String? @db.Text
+  bankName          String  @default("") @db.VarChar(120)
+  bankAccountNumber String  @default("") @db.VarChar(60)
+  bankAccountHolder String  @default("") @db.VarChar(160)
+  paymentNote       String? @db.Text
 
   // Saklar utama cara bayar (keputusan pemilik 5 Nov 2026). Keduanya boleh
   // AKTIF bersamaan. Nilai awal migrasi: Manual AKTIF, Midtrans NONAKTIF.
@@ -1482,7 +1505,14 @@ model SystemConfig {
 
   // WhatsApp number customers can reach for help. Empty means the Help page
   // tells the customer that no contact has been configured yet.
-  supportWhatsapp    String  @default("") @db.VarChar(40)
+  supportWhatsapp String @default("") @db.VarChar(40)
+
+  // Biaya tetap VPS per bulan untuk laporan laba bersih, dan batas kapasitas
+  // yang bisa diedit admin. Nilai awal biaya mengikuti keputusan pemilik
+  // (VPS Rp90.000); batas kapasitas null berarti UI memakai pengukuran live
+  // sebagai nilai awal sampai admin menyimpannya.
+  vpsMonthlyCostIdr Decimal @default(90000) @db.Decimal(18, 2)
+  capacityLimits    Json?
 
   updatedAt DateTime @updatedAt
 }
@@ -1819,4 +1849,115 @@ model SuppressionEntry {
 
   @@unique([tenantId, jid])
   @@index([tenantId, removedAt, createdAt])
+}
+
+// ---------------------------------------------------------------------------
+// Promo & voucher (keputusan pemilik 15 Nov 2026)
+// Satu promo hanya punya satu bentuk aktif: potongan persen, harga langsung
+// berubah, atau kode voucher. Promo hanya berlaku untuk pembelian pertama
+// tenant; perpanjangan memakai harga terkunci di Subscription.
+// ---------------------------------------------------------------------------
+
+enum PromoKind {
+  PERCENT
+  FIXED
+  VOUCHER
+}
+
+enum PromoBillingScope {
+  MONTHLY
+  YEARLY
+  BOTH
+}
+
+enum PromoRedemptionStatus {
+  RESERVED
+  APPROVED
+  RELEASED
+}
+
+enum PlanPriceField {
+  MONTHLY
+  YEARLY
+}
+
+model Promo {
+  id                String            @id @default(cuid())
+  name              String            @db.VarChar(120)
+  description       String?           @db.Text
+  kind              PromoKind
+  // PERCENT: wajib 0-100. FIXED: null, harga per paket ada di PromoPlan.
+  // VOUCHER: salah satu dari percent atau fixedPrice per paket.
+  percent           Decimal?          @db.Decimal(5, 2)
+  code              String?           @unique @db.VarChar(64)
+  enabled           Boolean           @default(true)
+  startsAt          DateTime?
+  endsAt            DateTime?
+  usageLimitTotal   Int?
+  usageLimitPerUser Int?
+  billingScope      PromoBillingScope @default(BOTH)
+  createdById       String
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
+
+  createdBy            User                  @relation("PromoCreator", fields: [createdById], references: [id], onDelete: Restrict)
+  plans                PromoPlan[]
+  redemptions          PromoRedemption[]
+  paymentVerifications PaymentVerification[]
+
+  @@index([enabled, startsAt, endsAt])
+  @@index([kind, enabled])
+}
+
+model PromoPlan {
+  id         String   @id @default(cuid())
+  promoId    String
+  planId     String
+  // Harga setelah promo untuk kind FIXED, atau potongan nominal untuk
+  // VOUCHER berbentuk harga tetap. Null untuk promo persen.
+  fixedPrice Decimal? @db.Decimal(18, 2)
+
+  promo Promo @relation(fields: [promoId], references: [id], onDelete: Cascade)
+  plan  Plan  @relation(fields: [planId], references: [id], onDelete: Cascade)
+
+  @@unique([promoId, planId])
+  @@index([planId])
+}
+
+model PromoRedemption {
+  id                    String                @id @default(cuid())
+  promoId               String
+  userId                String
+  paymentVerificationId String?               @unique
+  billingCycle          BillingCycle
+  baseAmount            Decimal               @db.Decimal(18, 2)
+  discountAmount        Decimal               @db.Decimal(18, 2)
+  chargedAmount         Decimal               @db.Decimal(18, 2)
+  status                PromoRedemptionStatus @default(RESERVED)
+  createdAt             DateTime              @default(now())
+  updatedAt             DateTime              @updatedAt
+
+  promo               Promo                @relation(fields: [promoId], references: [id], onDelete: Restrict)
+  user                User                 @relation(fields: [userId], references: [id], onDelete: Cascade)
+  paymentVerification PaymentVerification? @relation(fields: [paymentVerificationId], references: [id], onDelete: SetNull)
+
+  @@index([promoId, userId, status])
+  @@index([promoId, status, createdAt])
+}
+
+model PlanPriceHistory {
+  id          String         @id @default(cuid())
+  planId      String
+  field       PlanPriceField
+  oldPrice    Decimal?       @db.Decimal(18, 2)
+  newPrice    Decimal?       @db.Decimal(18, 2)
+  currency    String         @default("IDR") @db.VarChar(8)
+  changedById String
+  changedAt   DateTime       @default(now())
+
+  plan      Plan @relation(fields: [planId], references: [id], onDelete: Cascade)
+  changedBy User @relation("PlanPriceChanger", fields: [changedById], references: [id], onDelete: Restrict)
+
+  @@index([planId, changedAt])
+  @@index([changedById, changedAt])
 }
