@@ -938,6 +938,9 @@ function PromoEditor({ promo, plans, onClose, onSaved }: { promo: Promo | null; 
               <option value="MONTHLY">Bulanan saja</option>
               <option value="YEARLY">Tahunan saja</option>
             </select>
+            <p className="mt-1 text-xs text-[var(--pp-muted)]">
+              SuperAdmin yang menentukan siklusnya. Satu harga akhir dipakai untuk siklus yang dipilih; kalau mau harga berbeda untuk bulanan dan tahunan, buat dua promo dengan pilihan berbeda.
+            </p>
           </div>
           {kind !== "FIXED" ? <div><Label>Persen diskon</Label><Input value={percent} onChange={(event) => setPercent(event.target.value)} inputMode="decimal" placeholder="Contoh: 20" /></div> : null}
           {kind === "VOUCHER" ? <div><Label>Kode voucher</Label><Input value={code} onChange={(event) => setCode(event.target.value.toUpperCase())} maxLength={64} placeholder="HEMAT20" /></div> : null}
@@ -954,6 +957,7 @@ function PromoEditor({ promo, plans, onClose, onSaved }: { promo: Promo | null; 
 
         <div className="mt-4">
           <p className="text-sm font-semibold">Paket yang ikut promo</p>
+          {kind !== "PERCENT" ? <p className="mt-1 text-xs text-[var(--pp-muted)]">Harga akhir harus lebih murah dari harga normal pada siklus yang dipilih di atas.</p> : null}
           <div className="mt-2 space-y-2">
             {plans.map((plan) => {
               const checked = Object.prototype.hasOwnProperty.call(selected, plan.id);

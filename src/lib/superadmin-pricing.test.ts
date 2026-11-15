@@ -6,6 +6,7 @@ import {
   jakartaDayStart,
   jakartaMonthStart,
   parseJakartaDate,
+  promoFixedPriceError,
   quoteCyclePrice,
   selectBestAutoPromo,
   selectVoucher,
@@ -105,6 +106,65 @@ describe("promo pricing", () => {
       firstPurchase: true, normalAmount: normal, promo: { ...promo, enabled: false }, planId: "plan-starter", cycle: "MONTHLY",
     });
     expect(disabled.amount).toBe(20000);
+  });
+});
+
+/**
+ * Keputusan Rayyan 15 Nov 2026: promo boleh bulanan saja, tahunan saja, atau
+ * keduanya — terserah SuperAdmin yang mengatur per promo.
+ */
+describe("pilihan siklus promo oleh SuperAdmin", () => {
+  const monthly = 20000;
+  const yearly = 200000;
+
+  it("tahunan saja: bulanan tetap normal, tahunan dapat diskon, tahun kedua balik normal", () => {
+    const promo: PromoValue = { ...basePromo, percent: "20", billingScope: "YEARLY" };
+    expect(quoteCyclePrice({ firstPurchase: true, normalAmount: monthly, promo, planId: "plan-bisnis", cycle: "MONTHLY" }))
+      .toEqual({ baseAmount: monthly, discountAmount: 0, amount: monthly });
+    expect(quoteCyclePrice({ firstPurchase: true, normalAmount: yearly, promo, planId: "plan-bisnis", cycle: "YEARLY" }))
+      .toEqual({ baseAmount: yearly, discountAmount: 40000, amount: 160000 });
+    expect(quoteCyclePrice({ firstPurchase: false, normalAmount: yearly, promo, planId: "plan-bisnis", cycle: "YEARLY" }))
+      .toEqual({ baseAmount: yearly, discountAmount: 0, amount: yearly });
+  });
+
+  it("bulanan saja: tahunan tidak berubah", () => {
+    const promo: PromoValue = { ...basePromo, percent: "50", billingScope: "MONTHLY" };
+    expect(quoteCyclePrice({ firstPurchase: true, normalAmount: monthly, promo, planId: "plan-bisnis", cycle: "MONTHLY" }))
+      .toEqual({ baseAmount: monthly, discountAmount: 10000, amount: 10000 });
+    expect(quoteCyclePrice({ firstPurchase: true, normalAmount: yearly, promo, planId: "plan-bisnis", cycle: "YEARLY" }))
+      .toEqual({ baseAmount: yearly, discountAmount: 0, amount: yearly });
+  });
+
+  it("keduanya: dua-duanya dapat diskon", () => {
+    const promo: PromoValue = { ...basePromo, percent: "20", billingScope: "BOTH" };
+    expect(quoteCyclePrice({ firstPurchase: true, normalAmount: monthly, promo, planId: "plan-bisnis", cycle: "MONTHLY" }).amount).toBe(16000);
+    expect(quoteCyclePrice({ firstPurchase: true, normalAmount: yearly, promo, planId: "plan-bisnis", cycle: "YEARLY" }).amount).toBe(160000);
+  });
+
+  it("promo bulanan dan tahunan boleh aktif bersamaan, masing-masing dipilih sesuai siklus", () => {
+    const bulanan: PromoValue = { ...basePromo, id: "promo-bulanan", percent: "50", billingScope: "MONTHLY" };
+    const tahunan: PromoValue = { ...basePromo, id: "promo-tahunan", percent: "20", billingScope: "YEARLY" };
+    expect(selectBestAutoPromo({ promos: [bulanan, tahunan], planId: "plan-bisnis", cycle: "MONTHLY", amount: monthly })?.promo.id).toBe("promo-bulanan");
+    expect(selectBestAutoPromo({ promos: [bulanan, tahunan], planId: "plan-bisnis", cycle: "YEARLY", amount: yearly })?.promo.id).toBe("promo-tahunan");
+  });
+
+  it("validasi harga tetap memakai harga normal siklus yang dipilih, bukan selalu harga bulanan", () => {
+    // Tahunan saja: Rp150.000 valid walau lebih mahal dari Rp20.000/bulan.
+    expect(promoFixedPriceError({ billingScope: "YEARLY", fixedPrice: "150000", monthlyPrice: monthly, yearlyPrice: yearly })).toBeNull();
+    expect(calculatePromoDiscount({
+      promo: { ...basePromo, kind: "FIXED", percent: null, billingScope: "YEARLY", plans: [{ planId: "plan-bisnis", fixedPrice: "150000" }] },
+      planId: "plan-bisnis", cycle: "YEARLY", amount: yearly,
+    })).toMatchObject({ eligible: true, discount: 50000, finalAmount: 150000 });
+    // Bulanan saja dan keduanya tetap dibandingkan dengan harga bulanan.
+    expect(promoFixedPriceError({ billingScope: "MONTHLY", fixedPrice: "150000", monthlyPrice: monthly, yearlyPrice: yearly }))
+      .toBe("HARGA_PROMO_BULANAN_TIDAK_LEBIH_RENDAH");
+    expect(promoFixedPriceError({ billingScope: "BOTH", fixedPrice: "150000", monthlyPrice: monthly, yearlyPrice: yearly }))
+      .toBe("HARGA_PROMO_BULANAN_TIDAK_LEBIH_RENDAH");
+    expect(promoFixedPriceError({ billingScope: "BOTH", fixedPrice: "10000", monthlyPrice: monthly, yearlyPrice: yearly })).toBeNull();
+    expect(promoFixedPriceError({ billingScope: "YEARLY", fixedPrice: "250000", monthlyPrice: monthly, yearlyPrice: yearly }))
+      .toBe("HARGA_PROMO_TAHUNAN_TIDAK_LEBIH_RENDAH");
+    // Promo persen tidak punya harga akhir.
+    expect(promoFixedPriceError({ billingScope: "YEARLY", fixedPrice: null, monthlyPrice: monthly, yearlyPrice: yearly })).toBeNull();
   });
 });
 

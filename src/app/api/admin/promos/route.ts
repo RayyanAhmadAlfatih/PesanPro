@@ -3,10 +3,17 @@ import { getAuthenticatedUser, isAdmin } from "@/lib/api-auth";
 import { recordAudit } from "@/lib/audit";
 import { prisma } from "@/lib/prisma";
 import { normalizePromoInput } from "@/lib/promo-input";
+import { promoFixedPriceError } from "@/lib/promo-pricing";
 import { findActivePromoConflict, PROMO_SELECT, toPromoValue } from "@/lib/promo-service";
 import { getClientIp } from "@/lib/rate-limit";
 
 export const dynamic = "force-dynamic";
+
+const SCOPE_LABEL: Record<"MONTHLY" | "YEARLY" | "BOTH", string> = {
+  MONTHLY: "bulanan",
+  YEARLY: "tahunan",
+  BOTH: "bulanan dan tahunan",
+};
 
 const promoListSelect = {
   ...PROMO_SELECT,
@@ -66,12 +73,16 @@ export async function POST(request: NextRequest) {
     if (!item.fixedPrice) continue;
     const plan = plans.find((candidate) => candidate.id === item.planId);
     if (!plan) continue;
-    const monthly = Number(plan.priceMonthly ?? 0);
-    const yearly = Number(plan.priceYearly ?? 0);
-    const invalidMonthly = monthly > 0 && Number(item.fixedPrice) >= monthly;
-    const invalidYearly = input.billingScope !== "MONTHLY" && yearly > 0 && Number(item.fixedPrice) >= yearly;
-    if (invalidMonthly || invalidYearly) {
-      return NextResponse.json({ error: `Harga promo untuk ${plan.name} harus lebih murah dari harga normal.` }, { status: 400 });
+    const invalid = promoFixedPriceError({
+      billingScope: input.billingScope,
+      fixedPrice: item.fixedPrice,
+      monthlyPrice: plan.priceMonthly?.toString() ?? null,
+      yearlyPrice: plan.priceYearly?.toString() ?? null,
+    });
+    if (invalid) {
+      return NextResponse.json({
+        error: `Harga promo untuk ${plan.name} harus lebih murah dari harga normal siklus yang dipilih (${SCOPE_LABEL[input.billingScope]}).`,
+      }, { status: 400 });
     }
   }
 

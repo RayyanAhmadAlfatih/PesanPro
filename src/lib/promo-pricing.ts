@@ -91,6 +91,34 @@ export function promoHasPlan(promo: Pick<PromoValue, "plans">, planId: string): 
   return promo.plans.some((item) => item.planId === planId);
 }
 
+/**
+ * Validasi harga akhir promo terhadap harga normal PADA SIKLUS YANG DIPILIH
+ * SUPERADMIN. Keputusan Rayyan 15 Nov 2026: promo boleh bulanan saja, tahunan
+ * saja, atau keduanya — terserah SuperAdmin. Karena itu promo "tahunan saja"
+ * dibandingkan dengan harga tahunan, bukan harga bulanan yang jauh lebih kecil.
+ * Satu harga akhir dipakai untuk kedua siklus saat scope BOTH, jadi harus lebih
+ * murah dari keduanya. Untuk harga berbeda per siklus, SuperAdmin membuat dua
+ * promo dengan scope berbeda (bentrok aktif sudah dicegah per scope).
+ */
+export function promoFixedPriceError(input: {
+  billingScope: PromoBillingScopeValue;
+  fixedPrice: string | number | null;
+  monthlyPrice: string | number | null;
+  yearlyPrice: string | number | null;
+}): string | null {
+  const fixed = toRupiah(input.fixedPrice);
+  if (fixed <= 0) return null; // promo persen: tidak ada harga akhir
+  const monthly = toRupiah(input.monthlyPrice);
+  const yearly = toRupiah(input.yearlyPrice);
+  if (input.billingScope !== "YEARLY" && monthly > 0 && fixed >= monthly) {
+    return "HARGA_PROMO_BULANAN_TIDAK_LEBIH_RENDAH";
+  }
+  if (input.billingScope !== "MONTHLY" && yearly > 0 && fixed >= yearly) {
+    return "HARGA_PROMO_TAHUNAN_TIDAK_LEBIH_RENDAH";
+  }
+  return null;
+}
+
 export function voucherMatchesCode(promo: Pick<PromoValue, "kind" | "code">, code: string | null | undefined): boolean {
   if (promo.kind !== "VOUCHER") return false;
   if (!promo.code || !code) return false;
