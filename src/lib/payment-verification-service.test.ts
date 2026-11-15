@@ -32,6 +32,7 @@ function client(billingCycle: "MONTHLY" | "YEARLY" = "MONTHLY") {
       findUnique: vi.fn().mockResolvedValue({ id: "subscription-1", userId: "user-1", planId: "plan-pro", status: "ACTIVE" }),
     },
     subscriptionHistory: { create: vi.fn().mockResolvedValue({ id: "history-1" }) },
+    promoRedemption: { updateMany: vi.fn().mockResolvedValue({ count: 0 }) },
     user: { update: vi.fn().mockResolvedValue({ id: "user-1" }) },
     emailOutbox: { createMany: vi.fn().mockResolvedValue({ count: 1 }) },
   };

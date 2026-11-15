@@ -1,4 +1,4 @@
-import crypto from "node:crypto";
+﻿import crypto from "node:crypto";
 import { Readable } from "node:stream";
 import Busboy from "busboy";
 import { MessageJobError } from "./message-job-errors";
@@ -26,6 +26,8 @@ export type ParsedPaymentProofUpload = {
   bankAccountId: string;
   /** Nomor WA kontak saat checkout, khusus user yang belum menyimpannya. */
   whatsappNumber: string;
+  /** Kode voucher opsional; divalidasi dan dihitung server. */
+  voucherCode: string;
 };
 
 /**
@@ -56,7 +58,8 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
     let billingCycle = "";
     let bankAccountId = "";
     let whatsappNumber = "";
-    let fileResult: Omit<ParsedPaymentProofUpload, "planId" | "reference" | "billingCycle" | "bankAccountId" | "whatsappNumber"> | null = null;
+    let voucherCode = "";
+    let fileResult: Omit<ParsedPaymentProofUpload, "planId" | "reference" | "billingCycle" | "bankAccountId" | "whatsappNumber" | "voucherCode"> | null = null;
     let fileCount = 0;
     let tooLarge = false;
 
@@ -70,8 +73,8 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
     try {
       parser = Busboy({
         headers: Object.fromEntries(request.headers.entries()),
-        // planId, reference, billingCycle, bankAccountId, whatsappNumber
-        limits: { fileSize: PAYMENT_PROOF_MAX_BYTES, files: 1, fields: 6, parts: 8 },
+        // planId, reference, billingCycle, bankAccountId, whatsappNumber, voucherCode
+        limits: { fileSize: PAYMENT_PROOF_MAX_BYTES, files: 1, fields: 7, parts: 9 },
       });
     } catch {
       fail(new MessageJobError("INVALID_MULTIPART_BODY", "Payment proof body is invalid", 400, false));
@@ -84,6 +87,7 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
       if (name === "billingCycle") billingCycle = value;
       if (name === "bankAccountId") bankAccountId = value;
       if (name === "whatsappNumber") whatsappNumber = value;
+      if (name === "voucherCode") voucherCode = value;
     });
     parser.on("file", (fieldName, stream, info) => {
       fileCount += 1;
@@ -123,7 +127,7 @@ export async function parsePaymentProofUpload(request: Request): Promise<ParsedP
         return;
       }
       settled = true;
-      resolve({ ...fileResult, planId, reference, billingCycle, bankAccountId, whatsappNumber });
+      resolve({ ...fileResult, planId, reference, billingCycle, bankAccountId, whatsappNumber, voucherCode });
     });
 
     Readable.fromWeb(request.body as never)

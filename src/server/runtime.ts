@@ -198,7 +198,11 @@ app.prepare().then(async () => {
 
   const operationalScan = setInterval(() => {
     void import("../lib/operations")
-      .then(({ collectOperationalSnapshot }) => collectOperationalSnapshot({ persistAlerts: true }))
+      .then(async ({ collectOperationalSnapshot }) => {
+        const snapshot = await collectOperationalSnapshot({ persistAlerts: true });
+        const { maybeQueueCapacityAlert } = await import("../lib/capacity-alerts");
+        await maybeQueueCapacityAlert({ snapshot });
+      })
       .catch((error) => logger.error("Operations", "Periodic operational scan failed", error));
   }, 60_000);
   operationalScan.unref?.();

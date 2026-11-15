@@ -70,6 +70,28 @@ export async function PATCH(request: NextRequest, { params }: { params: Promise<
           currency: parsed.data.currency,
         },
       });
+      // Simpan riwayat setiap perubahan harga supaya harga langganan lama bisa
+      // dipertanggungjawabkan dan harga terkunci tenant tetap dapat diaudit.
+      const history: Array<{ field: "MONTHLY" | "YEARLY"; oldPrice: string | null; newPrice: string | null }> = [
+        { field: "MONTHLY", oldPrice: current.priceMonthly?.toString() ?? null, newPrice: parsed.data.priceMonthly ?? null },
+        { field: "YEARLY", oldPrice: current.priceYearly?.toString() ?? null, newPrice: parsed.data.priceYearly ?? null },
+      ];
+      for (const item of history) {
+        const changed = item.field === "MONTHLY"
+          ? parsed.data.priceMonthly !== undefined
+          : parsed.data.priceYearly !== undefined;
+        if (!changed || item.oldPrice === item.newPrice) continue;
+        await tx.planPriceHistory.create({
+          data: {
+            planId: id,
+            field: item.field,
+            oldPrice: item.oldPrice,
+            newPrice: item.newPrice,
+            currency: parsed.data.currency ?? current.currency,
+            changedById: actor.id,
+          },
+        });
+      }
       for (const entitlement of parsed.data.entitlements ?? []) {
         await tx.entitlement.upsert({
           where: { planId_feature: { planId: id, feature: entitlement.feature } },

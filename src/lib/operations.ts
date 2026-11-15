@@ -225,7 +225,12 @@ export async function collectOperationalSnapshot(options: { persistAlerts?: bool
     collectBusinessSnapshot(now),
   ]);
   const requiredProcesses = expectedProcesses();
-  const disks = fsSize.map((item) => ({ mount: item.mount || item.fs, usePercent: item.use }));
+  const disks = fsSize.map((item) => ({
+    mount: item.mount || item.fs,
+    usePercent: item.use,
+    usedBytes: item.used.toString(),
+    sizeBytes: item.size.toString(),
+  }));
   const conditions = evaluateOperationalConditions({
     now,
     requiredProcesses,

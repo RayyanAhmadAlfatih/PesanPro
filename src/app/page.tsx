@@ -12,7 +12,8 @@ import {
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
-import { prisma } from "@/lib/prisma";
+import { buildPlanCatalog } from "@/lib/promo-service";
+import { cn } from "@/lib/utils";
 
 // HTML must always reference the assets from the currently running build.
 // Hashed /_next/static assets remain immutable and cacheable.
@@ -110,8 +111,8 @@ const features = [
 
 const privacyCommitments = [
   {
-    title: "Isi pesan tidak disimpan",
-    body: "Teks dan caption tidak pernah ditulis ke database. Kami meneruskannya ke webhook Anda pada detik yang sama, lalu membuangnya.",
+    title: "Isi pesan disimpan maksimal 30 hari",
+    body: "Teks dan caption disimpan untuk antrean pengiriman dan debugging, lalu dihapus otomatis setelah 30 hari.",
   },
   {
     title: "Media tidak diunduh",
@@ -221,13 +222,13 @@ const FEATURE_ROWS: Array<{ feature: string; label: string; kind: LimitKind }> =
   { feature: "MEDIA_STORAGE_BYTES", label: "Penyimpanan media", kind: "bytes" },
 ];
 
-type PlanEntitlements = Array<{ feature: string; enabled: boolean; limitValue: bigint | null }>;
+type PlanEntitlements = Array<{ feature: string; enabled: boolean; limitValue: string | bigint | null }>;
 
 function entitlementLimit(entitlements: PlanEntitlements, feature: string) {
   return entitlements.find((item) => item.feature === feature)?.limitValue ?? null;
 }
 
-function formatLimit(kind: LimitKind, limitValue: bigint | null): string {
+function formatLimit(kind: LimitKind, limitValue: string | bigint | null): string {
   if (limitValue === null) return "Tanpa batas";
   const value = Number(limitValue);
   if (!Number.isFinite(value) || value <= 0) return "Tidak termasuk";
@@ -254,24 +255,13 @@ function yearlySaving(monthly: unknown, yearly: unknown) {
   return { amount: saved, percent: Math.round((saved / fullYear) * 100) };
 }
 
-async function loadPlans() {
+async function loadPlans(userId?: string | null) {
   try {
-    return await prisma.plan.findMany({
-      // Paid plans only. The default plan is an internal placeholder handed to
-      // new accounts before payment, not a package a visitor can buy, so
-      // listing it here would advertise a free tier the product does not sell.
-      where: { isActive: true, priceMonthly: { gt: 0 } },
-      select: {
-        id: true,
-        name: true,
-        description: true,
-        priceMonthly: true,
-        priceYearly: true,
-        currency: true,
-        entitlements: { select: { feature: true, enabled: true, limitValue: true } },
-      },
-      orderBy: [{ priceMonthly: "asc" }, { name: "asc" }],
-    });
+    // Pengunjung baru melihat harga promo yang sedang aktif. Tenant lama
+    // melihat harga yang sudah terkunci di langganannya, supaya halaman
+    // tidak menjanjikan diskon yang tidak berlaku untuk mereka.
+    const catalog = await buildPlanCatalog({ userId: userId ?? undefined, includeEntitlements: true });
+    return catalog.plans;
   } catch {
     // A pricing table is not worth failing the whole page for.
     return [];
@@ -279,8 +269,8 @@ async function loadPlans() {
 }
 
 export default async function Home() {
-  const plans = await loadPlans();
   const session = await auth().catch(() => null);
+  const plans = await loadPlans(session?.user?.id ?? null);
   const signedIn = Boolean(session?.user?.id && session.user.accountActive !== false);
 
   return (
@@ -355,7 +345,7 @@ export default async function Home() {
                   ? `Mulai dari ${formatPrice(plans[0].priceMonthly, plans[0].currency)} /bulan`
                   : null,
                 "Tanpa biaya per pesan",
-                "Isi pesan tidak disimpan",
+                "Isi pesan dihapus otomatis dalam 30 hari",
                 "REST API dan webhook",
               ]
                 .filter((item): item is string => item !== null)
@@ -509,10 +499,11 @@ export default async function Home() {
             <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
               <div>
                 <p className="pp-eyebrow">Privasi</p>
-                <h2 className="pp-section-title mt-3">Kami tidak menyimpan isi pesan Anda.</h2>
+                <h2 className="pp-section-title mt-3">Kami menyimpan pesan Anda maksimal 30 hari.</h2>
                 <p className="pp-page-description">
-                  PesanPro meneruskan pesan ke sistem Anda. Setelah itu tidak ada alasan bagi kami untuk
-                  menyimpannya, jadi memang tidak kami simpan.
+                  Isi pesan disimpan maksimal 30 hari untuk keperluan pengiriman dan debugging, lalu
+                  dihapus otomatis. Meneruskan pesan ke webhook atau sistem Anda bukan berarti kami
+                  tidak menyimpannya.
                 </p>
 
                 <div className="mt-8 grid gap-6 sm:grid-cols-2">
@@ -560,10 +551,20 @@ export default async function Home() {
                   return (
                     <div key={plan.id} className="flex flex-col rounded-xl border border-[var(--pp-line)] bg-[var(--pp-white)] p-6">
                       <h3 className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight">{plan.name}</h3>
-                      <p className="mt-3 font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight">
+                      {Number(plan.discountMonthly) > 0 && plan.listMonthly ? (
+                        <p className="mt-3 text-sm text-[var(--pp-muted)] line-through">
+                          {formatPrice(plan.listMonthly, plan.currency)}
+                        </p>
+                      ) : null}
+                      <p className={cn("font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight", Number(plan.discountMonthly) > 0 ? "mt-0.5" : "mt-3")}>
                         {formatPrice(plan.priceMonthly, plan.currency)}
                         <span className="ml-1 text-sm font-semibold text-[var(--pp-muted)]">/bulan</span>
                       </p>
+                      {plan.promo ? (
+                        <p className="mt-2 inline-flex w-fit rounded-full bg-[var(--pp-highlight)] px-2.5 py-1 text-xs font-semibold">
+                          {plan.promo.percent ? `Promo ${plan.promo.percent}%` : plan.promo.name}
+                        </p>
+                      ) : null}
                       <p className="mt-1 text-sm text-[var(--pp-muted)]">
                         {plan.priceYearly
                           ? `Tahunan ${formatPrice(plan.priceYearly, plan.currency)}${saving ? ` · hemat ${saving.percent}%` : ""}`

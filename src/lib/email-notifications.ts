@@ -165,6 +165,86 @@ export function buildPaymentApprovedEmail(input: PaymentEmailBase & {
   };
 }
 
+export function buildCapacityAlertEmail(input: {
+  statusPercent: number;
+  remainingTenants: number | null;
+  fullest: string | null;
+  /** Bagian paling penuh di antara RAM, CPU, dan disk. */
+  fullestResource: string | null;
+  bounds: Array<{ label: string; usePercent: number; remainingTenants: number | null }>;
+  generatedAt: Date;
+}) {
+  const dashboardUrl = appUrl("/dashboard/superadmin");
+  const subject = emailSubject(`Kapasitas VPS ${input.statusPercent.toFixed(1)}% — periksa sekarang`);
+  const boundLines = input.bounds.map((bound) => `${bound.label}: ${bound.usePercent.toFixed(0)}% terpakai, sisa ${bound.remainingTenants ?? "belum bisa dihitung"} tenant`);
+  const fullestBound = input.bounds.find((bound) => bound.label === input.fullestResource);
+  const fullestLine = `Bagian paling penuh (RAM/CPU/disk): ${input.fullestResource ?? "belum diketahui"}${fullestBound ? ` ${fullestBound.usePercent.toFixed(0)}%` : ""}`;
+  const remainingLine = input.remainingTenants === null
+    ? "Kira-kira sisa kapasitas tenant: belum bisa dihitung."
+    : `Kira-kira masih muat ${input.remainingTenants} tenant lagi.`;
+  const textLines = [
+    "Halo,",
+    "",
+    `Waktu: ${formatDate(input.generatedAt)}`,
+    `Pemakaian VPS: ${input.statusPercent.toFixed(1)}%`,
+    fullestLine,
+    remainingLine,
+    `Batas kapasitas paling sempit: ${input.fullest ?? "belum diketahui"}.`,
+    "",
+    ...boundLines,
+    ...(dashboardUrl ? ["", `Buka SuperAdmin: ${dashboardUrl}`] : []),
+  ];
+  return {
+    subject,
+    textBody: textLines.join("\n"),
+    htmlBody: htmlDocument({
+      heading: "Kapasitas sistem mendekati batas",
+      greeting: "Halo,",
+      paragraphs: [
+        `Pemakaian VPS sudah mencapai ${input.statusPercent.toFixed(1)}%. Periksa VPS dan batas kapasitas sebelum tenant baru ditolak.`,
+        fullestLine,
+        remainingLine,
+        `Batas kapasitas paling sempit: ${input.fullest ?? "belum diketahui"}.`,
+      ],
+      details: [
+        ["Waktu", formatDate(input.generatedAt)],
+        ...input.bounds.map((bound) => [bound.label, `${bound.usePercent.toFixed(0)}% · sisa ${bound.remainingTenants ?? "belum bisa dihitung"} tenant`] as [string, string]),
+      ],
+      action: dashboardUrl ? { label: "Buka SuperAdmin", url: dashboardUrl } : undefined,
+    }),
+  };
+}
+
+/** Satu email per admin per jam, walau pemindaian berjalan tiap menit. */
+export async function queueCapacityAlertEmails(client: EmailQueueClient, input: {
+  statusPercent: number;
+  remainingTenants: number | null;
+  fullest: string | null;
+  fullestResource: string | null;
+  bounds: Array<{ label: string; usePercent: number; remainingTenants: number | null }>;
+  generatedAt: Date;
+}) {
+  const admins = await client.user.findMany({
+    where: { role: "SUPERADMIN", status: "ACTIVE" },
+    select: { id: true, name: true, email: true },
+  });
+  if (admins.length === 0) return 0;
+  const shifted = new Date(input.generatedAt.getTime() + 7 * 60 * 60 * 1000);
+  const hourKey = shifted.toISOString().slice(0, 13).replace(/[-T:]/g, "");
+  const content = buildCapacityAlertEmail(input);
+  const queued = await client.emailOutbox.createMany({
+    data: admins.map((admin) => ({
+      eventKey: `capacity-alert:${hourKey}:${admin.id}`,
+      type: "CAPACITY_ALERT" as const,
+      toEmail: admin.email,
+      toName: admin.name,
+      ...content,
+    })),
+    skipDuplicates: true,
+  });
+  return queued.count;
+}
+
 export async function queuePaymentSubmittedEmails(client: EmailQueueClient, input: PaymentEmailBase & {
   payerId: string;
   submittedAt: Date;

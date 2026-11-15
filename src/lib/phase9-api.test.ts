@@ -4,11 +4,13 @@ import { NextRequest } from "next/server";
 const mocks = vi.hoisted(() => ({
   getAuthenticatedUser: vi.fn(),
   collectOperationalSnapshot: vi.fn(),
+  collectSuperadminOverview: vi.fn(),
   collectReadinessSnapshot: vi.fn(),
 }));
 
 vi.mock("@/lib/api-auth", () => ({ getAuthenticatedUser: mocks.getAuthenticatedUser, isAdmin: (role: string) => role === "SUPERADMIN" }));
 vi.mock("@/lib/operations", () => ({ collectOperationalSnapshot: mocks.collectOperationalSnapshot, collectReadinessSnapshot: mocks.collectReadinessSnapshot }));
+vi.mock("@/lib/superadmin-overview", () => ({ collectSuperadminOverview: mocks.collectSuperadminOverview }));
 
 import { GET as overview } from "@/app/api/admin/operations/overview/route";
 import { GET as readiness } from "@/app/api/health/ready/route";
@@ -20,16 +22,16 @@ describe("Phase 9 operational API boundaries", () => {
     mocks.getAuthenticatedUser.mockResolvedValue({ id: "user", role: "USER" });
     const response = await overview(new NextRequest("http://localhost/api/admin/operations/overview"));
     expect(response.status).toBe(403);
-    expect(mocks.collectOperationalSnapshot).not.toHaveBeenCalled();
+    expect(mocks.collectSuperadminOverview).not.toHaveBeenCalled();
   });
 
   it("returns a no-store snapshot only for superadmin", async () => {
     mocks.getAuthenticatedUser.mockResolvedValue({ id: "admin", role: "SUPERADMIN" });
-    mocks.collectOperationalSnapshot.mockResolvedValue({ timestamp: "now" });
+    mocks.collectSuperadminOverview.mockResolvedValue({ generatedAt: "now" });
     const response = await overview(new NextRequest("http://localhost/api/admin/operations/overview"));
     expect(response.status).toBe(200);
     expect(response.headers.get("cache-control")).toBe("no-store");
-    expect(mocks.collectOperationalSnapshot).toHaveBeenCalledWith({ persistAlerts: true });
+    expect(mocks.collectSuperadminOverview).toHaveBeenCalledWith({ preset: "THIS_MONTH", from: null, to: null });
   });
 
   it("maps dependency failure to readiness HTTP 503 without leaking exceptions", async () => {

@@ -33,7 +33,19 @@ interface BillingSummary {
   // Nomor WA kontak user sendiri (F1.1). Null/empty berarti belum tersimpan,
   // maka checkout memintanya dengan validasi yang sama seperti pendaftaran.
   whatsappNumber?: string | null;
-  plan: { code: string; name: string; unlimited: boolean };
+  plan: {
+    code: string;
+    name: string;
+    unlimited: boolean;
+    priceMonthly?: string | null;
+    priceYearly?: string | null;
+  };
+  renewal?: {
+    monthly: string | null;
+    yearly: string | null;
+    locked: boolean;
+    billingCycle: string;
+  };
   entitlements: Array<{ feature: string; enabled: boolean; limit: string | null }>;
   usage: Array<{ feature: string; consumed: string; reserved: string; periodEnd: string }>;
 }
@@ -43,10 +55,28 @@ interface AvailablePlan {
   code: string;
   name: string;
   description: string | null;
+  listMonthly: string | null;
+  listYearly: string | null;
   priceMonthly: string | null;
   priceYearly: string | null;
+  discountMonthly: string;
+  discountYearly: string;
+  promo: { id: string; name: string; kind: string; percent: string | null } | null;
+  renewalLocked: boolean;
   currency: string;
   entitlements: Array<{ feature: string; enabled: boolean; limitValue: string | null }>;
+}
+
+interface PurchaseQuote {
+  plan: { id: string; code: string; name: string; currency: string };
+  cycle: "MONTHLY" | "YEARLY";
+  listMonthlyPrice: string | null;
+  listYearlyPrice: string | null;
+  baseAmount: string;
+  discountAmount: string;
+  amount: string;
+  firstPurchase: boolean;
+  promo: { id: string; name: string; kind: string; percent: string | null; code: string | null } | null;
 }
 
 interface PaymentSubmission {
@@ -267,6 +297,10 @@ export default function BillingPage() {
   const [proofInputKey, setProofInputKey] = useState(0);
   const [paymentBankAccountId, setPaymentBankAccountId] = useState("");
   const [paymentWhatsapp, setPaymentWhatsapp] = useState("");
+  const [voucherCode, setVoucherCode] = useState("");
+  const [quote, setQuote] = useState<PurchaseQuote | null>(null);
+  const [quoteError, setQuoteError] = useState("");
+  const [quoteLoading, setQuoteLoading] = useState(false);
   const [supportWhatsapp, setSupportWhatsapp] = useState("");
 
   const load = useCallback(async () => {
@@ -321,6 +355,43 @@ export default function BillingPage() {
     return () => window.clearTimeout(timer);
   }, [load]);
 
+  // Server tetap menghitung ulang saat submit; kutipan ini hanya untuk
+  // menampilkan harga promo/voucher sebelum user transfer.
+  useEffect(() => {
+    if (!paymentPlanId) {
+      setQuote(null);
+      setQuoteError("");
+      setQuoteLoading(false);
+      return;
+    }
+    const controller = new AbortController();
+    const timer = window.setTimeout(async () => {
+      setQuoteLoading(true);
+      try {
+        const params = new URLSearchParams({ planId: paymentPlanId, cycle: paymentCycle });
+        if (voucherCode.trim()) params.set("voucher", voucherCode.trim());
+        const response = await fetch(`/api/payment-verifications/quote?${params.toString()}`, {
+          cache: "no-store",
+          signal: controller.signal,
+        });
+        const body = await response.json();
+        if (!response.ok) throw new Error(body.error ?? "Harga promo tidak bisa dihitung.");
+        setQuote(body.data as PurchaseQuote);
+        setQuoteError("");
+      } catch (error) {
+        if (controller.signal.aborted) return;
+        setQuote(null);
+        setQuoteError(error instanceof Error ? error.message : "Harga promo tidak bisa dihitung.");
+      } finally {
+        if (!controller.signal.aborted) setQuoteLoading(false);
+      }
+    }, 350);
+    return () => {
+      controller.abort();
+      window.clearTimeout(timer);
+    };
+  }, [paymentPlanId, paymentCycle, voucherCode]);
+
   const submitPayment = async () => {
     setSubmitting(true);
     try {
@@ -328,6 +399,7 @@ export default function BillingPage() {
       form.set("planId", paymentPlanId);
       form.set("billingCycle", paymentCycle);
       form.set("reference", paymentReference);
+      if (voucherCode.trim()) form.set("voucherCode", voucherCode.trim());
       if (paymentBankAccountId) form.set("bankAccountId", paymentBankAccountId);
       // F1.1: user lama tanpa nomor WA tersimpan mengisinya di checkout yang
       // sama; server memvalidasi dengan aturan yang sama seperti pendaftaran.
@@ -344,6 +416,8 @@ export default function BillingPage() {
       setPaymentReference("");
       setPaymentProof(null);
       setPaymentWhatsapp("");
+      setVoucherCode("");
+      setQuote(null);
       setProofInputKey((current) => current + 1);
       await load();
     } catch (error) {
@@ -368,11 +442,20 @@ export default function BillingPage() {
   const selectedPlan = plans.find((plan) => plan.id === paymentPlanId) ?? null;
   const selectedSaving = selectedPlan ? yearlySaving(selectedPlan) : null;
   const pendingPayment = payments.find((payment) => payment.status === "PENDING") ?? null;
+  const activeQuote = quote && selectedPlan && quote.plan.id === selectedPlan.id && quote.cycle === paymentCycle
+    ? quote
+    : null;
   let paymentAmount = "";
-  if (selectedPlan) {
+  if (activeQuote) {
+    paymentAmount = activeQuote.amount;
+  } else if (selectedPlan) {
     paymentAmount = (paymentCycle === "YEARLY" ? selectedPlan.priceYearly : selectedPlan.priceMonthly) ?? "";
   }
   const paymentAmountMissing = selectedPlan !== null && paymentAmount === "";
+  const paymentDiscount = activeQuote ? Number(activeQuote.discountAmount) : 0;
+  const paymentListPrice = activeQuote
+    ? (paymentCycle === "YEARLY" ? activeQuote.listYearlyPrice : activeQuote.listMonthlyPrice)
+    : null;
   const proofTooLarge = paymentProof !== null && paymentProof.size > 5 * 1024 * 1024;
   const referenceReady = paymentReference.trim().length >= 3;
   // F1.4: transfer manual hanya tersedia saat saklar Manual AKTIF dan ada
@@ -391,6 +474,7 @@ export default function BillingPage() {
     Boolean(paymentProof) &&
     !proofTooLarge &&
     whatsappOk &&
+    !quoteError &&
     !pendingPayment,
   );
 
@@ -616,10 +700,25 @@ export default function BillingPage() {
                       </CardHeader>
                       <CardContent className="flex flex-1 flex-col">
                         <div>
+                          {Number(plan.discountMonthly) > 0 && plan.listMonthly ? (
+                            <p className="text-sm text-[var(--pp-muted)] line-through">{formatRupiah(plan.listMonthly)}</p>
+                          ) : null}
                           <p className="font-[family-name:var(--font-display)] text-3xl font-extrabold tracking-tight">
                             {formatRupiah(plan.priceMonthly)}
                           </p>
                           <p className="text-sm text-[var(--pp-muted)]">per bulan</p>
+                          {plan.promo ? (
+                            <p className="mt-2">
+                              <Badge className="bg-[var(--pp-highlight)]">
+                                {plan.promo.percent ? `Promo ${plan.promo.percent}%` : plan.promo.name}
+                              </Badge>
+                            </p>
+                          ) : null}
+                          {plan.renewalLocked ? (
+                            <p className="mt-2 text-xs leading-relaxed text-[var(--pp-muted)]">
+                              Harga perpanjangan Anda terkunci di harga ini.
+                            </p>
+                          ) : null}
                           {plan.priceYearly ? (
                             <p className="mt-2 text-xs leading-relaxed text-[var(--pp-muted)]">
                               atau {formatRupiah(plan.priceYearly)} per tahun
@@ -749,6 +848,26 @@ export default function BillingPage() {
                   </p>
                 </div>
 
+                <div className="space-y-2">
+                  <Label htmlFor="payment-voucher">Kode voucher (opsional)</Label>
+                  <div className="flex gap-2">
+                    <Input
+                      id="payment-voucher"
+                      value={voucherCode}
+                      onChange={(event) => setVoucherCode(event.target.value.toUpperCase())}
+                      placeholder="Contoh: HEMAT20"
+                      maxLength={64}
+                      autoComplete="off"
+                      aria-invalid={quoteError ? "true" : undefined}
+                      aria-describedby="payment-voucher-help"
+                    />
+                    {quoteLoading ? <Loader2 className="mt-3 h-5 w-5 shrink-0 animate-spin text-[var(--pp-muted)]" aria-label="Menghitung harga" /> : null}
+                  </div>
+                  <p id="payment-voucher-help" className={cn("text-xs", quoteError ? "font-medium text-[var(--pp-danger)]" : "text-[var(--pp-muted)]")}>
+                    {quoteError || "Voucher dan promo hanya berlaku untuk pembelian pertama. Perpanjangan memakai harga normal Anda."}
+                  </p>
+                </div>
+
                 <div className="rounded-lg border border-[var(--pp-ink)] bg-[var(--pp-highlight)]/25 p-4">
                   <p className="text-xs font-semibold uppercase tracking-wide text-[var(--pp-muted)]">
                     Jumlah yang harus ditransfer
@@ -768,6 +887,15 @@ export default function BillingPage() {
                       </Button>
                     ) : null}
                   </div>
+                  {paymentDiscount > 0 && paymentListPrice ? (
+                    <div className="mt-2 space-y-1 text-xs text-[var(--pp-muted)]">
+                      <p>Harga normal {formatRupiah(paymentListPrice)}</p>
+                      <p className="font-medium text-[var(--pp-ink)]">
+                        Diskon {formatRupiah(paymentDiscount)}
+                        {activeQuote?.promo ? ` (${activeQuote.promo.code ?? activeQuote.promo.name})` : ""}
+                      </p>
+                    </div>
+                  ) : null}
                   <p className="mt-2 text-xs leading-relaxed text-[var(--pp-muted)]">
                     {manualReady
                       ? "Transfer tepat sebesar ini ke rekening yang Anda pilih. Jangan ditambah atau dikurangi agar admin mudah mencocokkan."
