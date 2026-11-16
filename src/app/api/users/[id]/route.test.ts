@@ -232,6 +232,20 @@ describe("DELETE /api/users/[id]", () => {
     expect(mocks.tx.user.delete).toHaveBeenCalledWith({ where: { id: "tenant-1" } });
     consoleSpy.mockRestore();
   });
+
+  it("menjalankan transaksi penghapusan dengan opsi timeout minimal 30000 ms", async () => {
+    mocks.prisma.user.findUnique.mockResolvedValue({ id: "tenant-1" });
+
+    const res = await DELETE(request(), { params: Promise.resolve({ id: "tenant-1" }) });
+    expect(res.status).toBe(200);
+
+    expect(mocks.prisma.$transaction).toHaveBeenCalledTimes(1);
+    const callArgs = mocks.prisma.$transaction.mock.calls[0];
+    const options = callArgs[1] as { timeout?: number } | undefined;
+    expect(options).toBeDefined();
+    expect(typeof options?.timeout).toBe("number");
+    expect(options!.timeout).toBeGreaterThanOrEqual(30000);
+  });
 });
 
 describe("PATCH /api/users/[id]", () => {

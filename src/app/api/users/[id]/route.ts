@@ -233,7 +233,7 @@ export async function DELETE(
             }
 
             await tx.user.delete({ where: { id } });
-        });
+        }, { timeout: 30000 });
     } catch (error) {
         console.error("Delete user error:", error);
         const errorMessage = error instanceof Error ? error.message : "Failed to delete user";
