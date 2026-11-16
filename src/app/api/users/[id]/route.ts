@@ -121,13 +121,127 @@ export async function DELETE(
         return NextResponse.json({ status: false, message: "User not found", error: "User not found" }, { status: 404 });
     }
 
+    // Refuse deletion if user is a requester/uploader/creator for another tenant or global records
+    const [foreignJob, foreignMedia, foreignOverride, promoCreated, planPriceChanged] = await Promise.all([
+        prisma.messageJob.findFirst({
+            where: { requestedById: id, tenantId: { not: id } },
+            select: { id: true },
+        }),
+        prisma.privateMedia.findFirst({
+            where: { uploaderId: id, tenantId: { not: id } },
+            select: { id: true },
+        }),
+        prisma.tenantEntitlementOverride.findFirst({
+            where: { createdById: id, tenantId: { not: id } },
+            select: { id: true },
+        }),
+        prisma.promo.findFirst({
+            where: { createdById: id },
+            select: { id: true },
+        }),
+        prisma.planPriceHistory.findFirst({
+            where: { changedById: id },
+            select: { id: true },
+        }),
+    ]);
+
+    if (foreignJob) {
+        return NextResponse.json(
+            {
+                status: false,
+                message: "Cannot delete user: user is the requester of message jobs belonging to another tenant",
+                error: "Cannot delete user: user is the requester of message jobs belonging to another tenant",
+            },
+            { status: 409 }
+        );
+    }
+
+    if (foreignMedia) {
+        return NextResponse.json(
+            {
+                status: false,
+                message: "Cannot delete user: user uploaded media belonging to another tenant",
+                error: "Cannot delete user: user uploaded media belonging to another tenant",
+            },
+            { status: 409 }
+        );
+    }
+
+    if (foreignOverride) {
+        return NextResponse.json(
+            {
+                status: false,
+                message: "Cannot delete user: user created entitlement overrides for another tenant",
+                error: "Cannot delete user: user created entitlement overrides for another tenant",
+            },
+            { status: 409 }
+        );
+    }
+
+    if (promoCreated) {
+        return NextResponse.json(
+            {
+                status: false,
+                message: "Cannot delete user: user created promotional codes",
+                error: "Cannot delete user: user created promotional codes",
+            },
+            { status: 409 }
+        );
+    }
+
+    if (planPriceChanged) {
+        return NextResponse.json(
+            {
+                status: false,
+                message: "Cannot delete user: user has recorded plan price history",
+                error: "Cannot delete user: user has recorded plan price history",
+            },
+            { status: 409 }
+        );
+    }
+
     try {
-        const sessions = await prisma.session.findMany({ where: { userId: id }, select: { sessionId: true } });
+        const sessions = await prisma.session.findMany({ where: { userId: id }, select: { id: true, sessionId: true } });
         await Promise.all(sessions.map((session) => waManager.stopSession(session.sessionId)));
-        await prisma.$transaction([
-            prisma.authState.deleteMany({ where: { sessionId: { in: sessions.map((session) => session.sessionId) } } }),
-            prisma.user.delete({ where: { id } }),
-        ]);
+        const sessionDbIds = sessions.map((s) => s.id);
+        const sessionPublicIds = sessions.map((s) => s.sessionId);
+
+        await prisma.$transaction(async (tx) => {
+            // Delete dependent records that have Restrict relations to PrivateMedia or Session
+            await tx.campaign.deleteMany({ where: { tenantId: id } });
+            await tx.broadcastLog.deleteMany({
+                where: {
+                    OR: [
+                        { tenantId: id },
+                        ...(sessionDbIds.length > 0 ? [{ sessionDbId: { in: sessionDbIds } }] : []),
+                    ],
+                },
+            });
+
+            if (sessionDbIds.length > 0) {
+                await tx.scheduledMessage.deleteMany({ where: { sessionId: { in: sessionDbIds } } });
+                await tx.autoReply.deleteMany({ where: { sessionId: { in: sessionDbIds } } });
+            }
+
+            // Clean Restrict relations on User before deleting user
+            await tx.messageJob.deleteMany({ where: { OR: [{ tenantId: id }, { requestedById: id }] } });
+            await tx.privateMedia.deleteMany({ where: { OR: [{ tenantId: id }, { uploaderId: id }] } });
+            await tx.tenantEntitlementOverride.deleteMany({ where: { OR: [{ tenantId: id }, { createdById: id }] } });
+
+            if (sessionPublicIds.length > 0) {
+                await tx.authState.deleteMany({ where: { sessionId: { in: sessionPublicIds } } });
+            }
+
+            await tx.user.delete({ where: { id } });
+        });
+    } catch (error) {
+        console.error("Delete user error:", error);
+        const errorMessage = error instanceof Error ? error.message : "Failed to delete user";
+        return NextResponse.json({ status: false, message: errorMessage, error: errorMessage }, { status: 500 });
+    }
+
+    // Record audit log outside the deletion failure path so audit failure doesn't mask successful deletion
+    try {
         await recordAudit({
             userId: user.id,
             userEmail: user.email,
@@ -137,9 +251,9 @@ export async function DELETE(
             ip: getClientIp(request.headers),
             userAgent: request.headers.get("user-agent"),
         });
-        return NextResponse.json({ status: true, message: "User deleted successfully" });
-    } catch (error) {
-        console.error("Delete user error:", error);
-        return NextResponse.json({ status: false, message: "Failed to delete user", error: "Failed to delete user" }, { status: 500 });
+    } catch (auditError) {
+        console.error("Record audit error on user delete:", auditError);
     }
+
+    return NextResponse.json({ status: true, message: "User deleted successfully" });
 }

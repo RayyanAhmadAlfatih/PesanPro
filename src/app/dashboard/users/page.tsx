@@ -106,12 +106,12 @@ export default function UsersPage() {
 
         try {
             const res = await fetch(`/api/users/${deleteId}`, { method: "DELETE" });
+            const data = await res.json().catch(() => null);
             if (res.ok) {
                 toast.success("User deleted");
                 fetchUsers();
             } else {
-                const error = await res.json();
-                toast.error(getApiErrorMessage(error, "Failed to delete"));
+                toast.error(getApiErrorMessage(data, "Failed to delete user"));
             }
         } catch {
             toast.error("Failed to delete user");
