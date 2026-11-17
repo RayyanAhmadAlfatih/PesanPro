@@ -9,6 +9,7 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { ErrorScreen, formatDate, LoadingScreen } from "@/components/dashboard/superadmin/shared";
 import { useSuperadminOverview } from "@/components/dashboard/superadmin/use-overview";
+import { formatAccountHolderDisplay } from "@/lib/bank-list";
 import { formatRupiah } from "@/lib/promo-pricing";
 
 export default function SuperadminPembayaranPage() {
@@ -72,7 +73,7 @@ export default function SuperadminPembayaranPage() {
               </p>
               <p className="mt-1 text-xs text-[var(--pp-muted)]">
                 {payment.user.whatsappNumber ?? "Nomor WA belum ada"} · {formatDate(payment.createdAt)}
-                {payment.bankAccount ? ` · ${payment.bankAccount.bankName} ${payment.bankAccount.accountNumber} a.n. ${payment.bankAccount.accountHolder}` : ""}
+                {payment.bankAccount ? ` · ${payment.bankAccount.bankName} ${payment.bankAccount.accountNumber} ${formatAccountHolderDisplay(payment.bankAccount.accountHolder)}` : ""}
               </p>
               {payment.proofUrl ? <a className="mt-1 inline-block text-sm font-semibold underline underline-offset-4" href={payment.proofUrl} target="_blank" rel="noreferrer">Lihat bukti transfer</a> : null}
               <div className="mt-3 flex flex-col gap-2 sm:flex-row">

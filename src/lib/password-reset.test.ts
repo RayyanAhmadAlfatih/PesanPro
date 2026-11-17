@@ -50,6 +50,17 @@ describe("password reset delivery", () => {
     expect(mocks.loggerError).not.toHaveBeenCalled();
   });
 
+  it("sends the reset link in the SMTP plain-text and HTML bodies", async () => {
+    stubTransportEnv({ smtp: true });
+
+    await requestPasswordReset("user@example.com");
+
+    const message = mocks.sendSmtpEmail.mock.calls[0][0];
+    expect(message.textBody.length).toBeGreaterThan(100);
+    expect(message.textBody).toContain("https://pesanpro.example.com/auth/reset-password?token=");
+    expect(message.htmlBody).toContain("https://pesanpro.example.com/auth/reset-password?token=");
+  });
+
   it("delivers over Resend when only Resend is configured", async () => {
     stubTransportEnv({ resend: true });
 
@@ -61,6 +72,10 @@ describe("password reset delivery", () => {
     );
     expect(mocks.sendSmtpEmail).not.toHaveBeenCalled();
     expect(mocks.loggerError).not.toHaveBeenCalled();
+
+    const payload = JSON.parse((fetch as ReturnType<typeof vi.fn>).mock.calls[0][1].body);
+    expect(payload.text).toContain("https://pesanpro.example.com/auth/reset-password?token=");
+    expect(payload.html).toContain("https://pesanpro.example.com/auth/reset-password?token=");
   });
 
   it("prefers SMTP when both transports are configured", async () => {

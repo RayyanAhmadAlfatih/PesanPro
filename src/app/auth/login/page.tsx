@@ -193,7 +193,7 @@ function OtpPanel({ callbackUrl }: { callbackUrl: string }) {
       setCode("");
       // Generic for registered and unknown addresses alike; the neutral
       // sentence below explains the case where no email will arrive.
-      setNotice(`Code sent to ${normalized}.`);
+      setNotice(`Kode dikirim ke ${normalized} kalau alamat itu terdaftar.`);
       setResendIn(Math.max(1, Math.ceil((payload?.data?.resendAfterMs ?? 60_000) / 1000)));
     } catch {
       setError("Kode tidak bisa dikirim. Coba lagi.");

@@ -52,7 +52,7 @@ export default function TermsPage() {
                             1. The Service
                         </h2>
                         <p>
-                            PesanPro is a <strong>hosted WhatsApp Gateway service</strong>. The application runs on infrastructure operated by the service provider, and you access it through the website and dashboard. Your account, plan, and usage records are stored on that infrastructure so the service can operate. Message content exchanged through the gateway is not stored by PesanPro — only delivery records such as status and timestamps.
+                            PesanPro is a <strong>hosted WhatsApp Gateway service</strong>. The application runs on infrastructure operated by the service provider, and you access it through the website and dashboard. Your account, plan, and usage records are stored on that infrastructure so the service can operate. PesanPro stores the content of messages sent through the gateway for up to 30 days for delivery and debugging, then deletes it automatically. Delivery records such as status and timestamps are kept as well.
                         </p>
                         <ul>
                             <li><strong>Your responsibility:</strong> keep your account credentials private, use strong passwords, and revoke API keys or integration tokens you no longer use.</li>
