@@ -10,9 +10,52 @@ import {
 } from "./password-policy";
 
 const RESET_TTL_MS = 30 * 60 * 1000;
+const RESET_SUBJECT = "Reset password PesanPro";
 
 export interface PasswordResetRequestResult {
   accepted: true;
+}
+
+function escapeHtml(value: string): string {
+  return value.replace(/[&<>"']/g, (character) => {
+    switch (character) {
+      case "&": return "&amp;";
+      case "<": return "&lt;";
+      case ">": return "&gt;";
+      case '"': return "&quot;";
+      default: return "&#39;";
+    }
+  });
+}
+
+function buildPasswordResetEmail(resetUrl: string) {
+  const safeUrl = escapeHtml(resetUrl);
+  const textBody = [
+    "Halo,",
+    "",
+    "Kami menerima permintaan untuk mengatur ulang password akun PesanPro Anda.",
+    "",
+    "Buka tautan ini dalam 30 menit:",
+    resetUrl,
+    "",
+    "Kalau Anda tidak meminta reset password, abaikan email ini. Password Anda tidak berubah.",
+    "",
+    "Salam,",
+    "Tim PesanPro",
+  ].join("\n");
+  const htmlBody = [
+    '<div style="background:#fcfaf5;padding:24px;font-family:Arial,sans-serif;color:#1a3300;">',
+    '<div style="max-width:520px;margin:0 auto;background:#ffffff;border:1px solid #b6b6b6;padding:24px;">',
+    '<p style="display:inline-block;background:#ffe95c;color:#1a3300;font-weight:bold;padding:8px 12px;margin:0;">PesanPro</p>',
+    "<h1 style=\"font-size:20px;margin:20px 0 12px;\">Atur ulang password</h1>",
+    "<p>Kami menerima permintaan untuk mengatur ulang password akun PesanPro Anda.</p>",
+    '<p style="margin:24px 0;"><a href="' + safeUrl + '" style="background:#1a3300;color:#ffffff;padding:12px 18px;text-decoration:none;font-weight:bold;">Reset password</a></p>',
+    "<p>Tautan berlaku 30 menit. Kalau Anda tidak meminta reset password, abaikan email ini. Password Anda tidak berubah.</p>",
+    '<p style="font-size:12px;color:#555555;border-top:1px solid #b6b6b6;padding-top:12px;margin-top:24px;">Tautan alternatif: <a href="' + safeUrl + '">' + safeUrl + "</a></p>",
+    "</div>",
+    "</div>",
+  ].join("");
+  return { textBody, htmlBody };
 }
 
 async function sendResetEmail(email: string, resetUrl: string): Promise<boolean> {
@@ -23,6 +66,7 @@ async function sendResetEmail(email: string, resetUrl: string): Promise<boolean>
     return false;
   }
 
+  const { textBody, htmlBody } = buildPasswordResetEmail(resetUrl);
   const response = await fetch("https://api.resend.com/emails", {
     method: "POST",
     headers: {
@@ -32,9 +76,9 @@ async function sendResetEmail(email: string, resetUrl: string): Promise<boolean>
     body: JSON.stringify({
       from,
       to: [email],
-      subject: "Reset password PesanPro",
-      text: `Gunakan tautan berikut untuk mengatur ulang password PesanPro. Tautan berlaku 30 menit: ${resetUrl}`,
-      html: `<p>Gunakan tautan berikut untuk mengatur ulang password PesanPro.</p><p><a href="${resetUrl}">Reset password</a></p><p>Tautan berlaku 30 menit.</p>`,
+      subject: RESET_SUBJECT,
+      text: textBody,
+      html: htmlBody,
     }),
   });
 
@@ -53,13 +97,14 @@ function resendConfigured(): boolean {
 }
 
 async function sendResetEmailViaSmtp(email: string, resetUrl: string): Promise<boolean> {
+  const { textBody, htmlBody } = buildPasswordResetEmail(resetUrl);
   try {
     await sendSmtpEmail({
       messageId: `<${crypto.randomUUID()}@pesanpro>`,
       toEmail: email,
-      subject: "Reset password PesanPro",
-      textBody: `Gunakan tautan berikut untuk mengatur ulang password PesanPro. Tautan berlaku 30 menit: ${resetUrl}`,
-      htmlBody: `<p>Gunakan tautan berikut untuk mengatur ulang password PesanPro.</p><p><a href="${resetUrl}">Reset password</a></p><p>Tautan berlaku 30 menit.</p>`,
+      subject: RESET_SUBJECT,
+      textBody,
+      htmlBody,
     });
     return true;
   } catch (error) {
