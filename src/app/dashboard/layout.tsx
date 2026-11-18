@@ -4,6 +4,7 @@ import { SessionProvider } from "@/components/dashboard/session-provider";
 import { SidebarProvider } from "@/components/dashboard/sidebar-context";
 import { SidebarShell } from "@/components/dashboard/sidebar-shell";
 import { WhatsNewModal } from "@/components/dashboard/whats-new-modal";
+import { DeadLetterModal } from "@/components/dashboard/dead-letter-modal";
 import { getActiveAnnouncementForUser, type ActiveAnnouncement } from "@/lib/announcement-service";
 import { prisma } from "@/lib/prisma";
 import { logger } from "@/lib/logger";
@@ -51,6 +52,7 @@ export default async function DashboardLayout({
                         </main>
                     </div>
                     <WhatsNewModal announcement={announcement} />
+                    <DeadLetterModal />
                     <Toaster toastOptions={{ className: "!border !border-[var(--pp-ink)] !bg-[var(--pp-highlight)] !text-[var(--pp-ink)] !shadow-[2px_2px_0_var(--pp-ink)]" }} />
                 </div>
             </SidebarProvider>

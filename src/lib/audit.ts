@@ -25,7 +25,9 @@ export type AuditAction =
   | "webhook.delete"
   | "webhook.test"
   | "message.send"
-  | "message.broadcast";
+  | "message.broadcast"
+  | "message.dead_letter_resent"
+  | "message.dead_letter_dismissed";
 
 export async function recordAudit(params: {
   userId?: string | null;
