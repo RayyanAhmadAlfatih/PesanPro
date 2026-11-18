@@ -13,6 +13,16 @@
 > - **Sapu bersih SuperAdmin:** semua tombol/aksi di 6 sub-menu dites,
 >   bukan cuma "halaman kebuka".
 >
+> **PERUBAHAN PERAN 18 Nov 2026 (pemilik memutuskan — MENGALAHKAN pembagian
+> di bawah ini kalau bertentangan):** bola pindah dari pemilik ke agent.
+> Kirim pesan tes BOLEH pakai device SuperAdmin yang sudah terhubung (scan
+> QR tenant DITUNDA, bukan lagi blocker Tahap 5/6/7). Cek READ lewat
+> dashboard + WhatsApp Web kalau sesi sudah tertaut di browser. Auto-reply
+> live pakai kata kunci `uji-v4-naga-7315` (sengaja susah) + WA Web kalau
+> sudah tertaut. A2 BOLEH dikerjakan agent (ganti → langsung balikin, atau
+> laporkan password baru di chat supaya pemilik ganti manual). Investigasi
+> #60 dan konfirmasi CSRF dikerjakan agent.
+>
 > Salin prompt di bawah garis ini apa adanya ke AI yang menjalankan tes
 > (QA agent). Isi semua bagian [ISI ...] dulu sebelum AI mulai.
 > Jangan biarkan AI mengarang isi bagian itu. Kalau ada [ISI ...] yang kosong,
@@ -100,26 +110,55 @@ Main saat ini: merge PR #57 (commit `94c5803`, 16 Nov ~21:09 WIB) — cek
 
 | Tugas | Kenapa cuma pemilik yang bisa |
 |---|---|
-| Scan QR device tenant (Tahap 4) | QR harus discan dari aplikasi WA di HP pemilik |
-| Cek pesan SAMPAI + READ di HP (Tahap 5) | Hanya pemilik yang pegang HP penerima |
-| Tes LIVE auto-reply (Tahap 7b) | Balasan otomatis cuma terpicu kalau ada pesan masuk dari HP pemilik ke device tenant; agent tidak bisa kirim WA dari HP pemilik |
-| A2 ganti password SuperAdmin | Keputusan + tindakan pemilik (jangan ubah tanpa konfirmasi — takut mengunci pemilik) |
-| Drill backup Tahap 13 | Perintah terminal hanya pemilik yang jalankan di VPS |
+| Scan QR device tenant (Tahap 4) | QR harus discan dari aplikasi WA di HP pemilik — DITUNDA (bukan blocker lagi, lihat Tahap 4) |
+| Backup drill Tahap 13 | Perintah terminal hanya pemilik yang jalankan di VPS |
 | Keputusan dead-letter (Tahap 12) | Agent boleh LIST dan laporkan 18 item; keputusan retry/hapus tiap item = pemilik |
 | URL halaman status yang benar | Agent run v3 mencoba URL yang salah (404) — pemilik yang tahu URL aslinya |
+| Link WA Web sekali jalan (kalau belum tertaut) | Kalau `web.whatsapp.com` di browser agent minta scan QR untuk menautkan sesi, itu SATU KALI butuh HP pemilik — laporkan, jangan dipaksakan |
 
 ### AGENT KERJAKAN SENDIRI (pemilik hanya konfirmasi sesudahnya)
 
+- Kirim pesan tes (Tahap 5) — pakai device SuperAdmin yang sudah
+  terhubung. Cek READ di dashboard + WhatsApp Web kalau sesi penerima
+  sudah tertaut di browser agent (lihat aturan WA Web di bawah).
 - Buat broadcast ke 2 nomor uji (Tahap 6) — sesudah device CONNECTED.
 - Buat pesan terjadwal (Tahap 7c).
-- Buat RULE auto-reply (keyword + balasan) di dashboard (Tahap 7a) — yang
-  butuh HP cuma tes live-nya (7b), bukan pembuatan rule-nya.
+- Buat RULE auto-reply (keyword + balasan) di dashboard (Tahap 7a) +
+  TES LIVE (Tahap 7b) pakai kata kunci `uji-v4-naga-7315` — kirim pemicu
+  dari WA Web kalau sudah tertaut; kalau WA Web belum tertaut, tulis
+  BLOCKED (butuh link sekali jalan) dan jangan pakai HP pemilik tiap tes.
 - Buat/ubah/hapus promo + voucher (Tahap 9) — dengan revert sesudah tes.
 - Ubah biaya VPS + harga paket + revert (Tahap 9).
 - Hapus tenant uji + semua data uji (Tahap 15) — via dashboard.
 - Cek pemasukan/filter/grafik, kapasitas, System Monitor, legal,
   marketing, mobile nav, isolasi + CSRF (Tahap 8–11, 14).
 - Tes ulang email reset + OTP (Tahap 3) — via tmaily.
+- **A2 ganti password SuperAdmin (Tahap 1):** agent BOLEH mengganti
+  password SuperAdmin (`pesanpro@kingofcoding.my.id`) untuk mengetes alur
+  ganti password — lalu LANGSUNG BALIKKAN ke password semula dan cek login
+  pakai password semula berhasil. Kalau balikin gagal, LAPORKAN password
+  baru di chat supaya pemilik ganti manual. Jangan pernah meninggalkan akun
+  dengan password yang tidak diketahui pemilik.
+- **Investigasi issue #60 (reset password):** agent yang kerjakan — cek
+  audit log `user.password_reset_completed` di dashboard, tes password
+  LAMA (kalau masih bisa login = reset tidak tersimpan), lalu tes ulang
+  bersih satu token baru + password sesuai policy (min 10 karakter, ada
+  huruf kecil + besar + angka). Laporkan bukti tiap langkah; kalau audit
+  log menunjukkan reset tersimpan tapi login gagal = bug sisi login.
+- **Konfirmasi CSRF (Tahap 11):** agent yang kerjakan — buktikan dengan
+  request lintas-origin beneran pakai cookie login (lihat Tahap 11).
+
+## ATURAN WHATSAPP WEB (pengganti HP pemilik)
+
+- Buka `web.whatsapp.com` di tab browser agent. Kalau sesi penerima
+  (nomor uji) SUDAH tertaut dan tampil daftar chat, pakai itu untuk:
+  cek centang biru/READ, dan kirim pesan pemicu auto-reply.
+- Kalau WA Web minta scan QR untuk menautkan sesi: JANGAN scan sendiri.
+  Tulis BLOCKED (butuh HP pemilik SATU KALI untuk link) dan lanjut ke
+  tugas lain. Jangan jadikan ini alasan berhenti total.
+- Dashboard PesanPro tetap sumber status resmi (SENT/DELIVERED/READ) —
+  WA Web adalah konfirmasi independen (pelajaran pesan 08:19: dashboard
+  bilang SENT tapi HP kosong).
 
 ## ATURAN KERAS (pelanggaran = STOP, laporkan)
 
@@ -162,9 +201,13 @@ catat HEAD baru.
 ## TAHAP 1 — AKUN & AKSES (browser)
 
 1. Login SuperAdmin di browser. Cek ada 2 SuperAdmin aktif
-   (pesanpro@ dan rayyan@). Cek "Keamanan akun" — ganti password SuperAdmin
-   sesudah sesi QA (A2, BUTUH PEMILIK). Bukti: screenshot dashboard
-   sesudah login.
+   (pesanpro@ dan rayyan@). Cek "Keamanan akun" — A2 (ganti password
+   SuperAdmin) BOLEH dikerjakan agent: ganti password
+   `pesanpro@kingofcoding.my.id` pakai password sementara yang lolos
+   policy, cek login pakai password baru berhasil, lalu LANGSUNG BALIKKAN
+   ke password semula dan cek login pakai password semula berhasil. Kalau
+   balikin gagal, laporkan password baru di chat supaya pemilik ganti
+   manual. Bukti: screenshot dashboard sesudah login.
 2. Buka `/dashboard/users` sebagai tenant biasa (login akun tenant aktif
    kalau ada, atau akun tes) — harus DITOLAK (bukan halaman users).
    Buka `/dashboard/superadmin/*` sebagai tenant — harus DITOLAK semua.
@@ -203,30 +246,50 @@ catat HEAD baru.
    sendiri (F2: dulu terkunci SuperAdminOnly).
 6. DOCS: baca docs login/OTP/reset — catat kalau langkah reset tidak
    dijelaskan di docs.
+7. **INVESTIGASI ISSUE #60 (agent yang kerjakan):** tes ulang di run
+   v4 lanjutan tetap gagal login sesudah reset, padahal situs sehat —
+   jadi BUKAN efek outage. Jalur kode sudah dicek Muse dan BENAR (reset
+   menulis `passwordHash`, login `bcrypt.compare` field sama). Kerjakan
+   3 cek penentu ini, laporkan bukti tiap langkah:
+   a. Cek audit log di dashboard: ada `user.password_reset_completed`
+      untuk tenant tes? Kalau ADA → reset tersimpan, masalah di login.
+      Kalau TIDAK ADA → submit reset gagal.
+   b. Tes password LAMA: kalau masih bisa login → reset tidak tersimpan.
+   c. Tes ulang bersih: satu token baru + password sesuai policy (min 10
+      karakter, ada huruf kecil + besar + angka), satu kali percobaan,
+      lalu login. Catat persis apa yang tampil di form reset (sukses /
+      pesan error / 400 / 429) — JANGAN menyimpulkan "reset berhasil"
+      tanpa melihat pesan sukses.
+   Kalau audit log menunjukkan reset tersimpan tapi login gagal = bug
+   sisi login → buat draf issue dengan bukti. Kalau submit gagal karena
+   policy/rate-limit → laporkan sebagai temuan tes (bukan bug kode).
 
-## TAHAP 4 — DEVICE TENANT VIA QR (browser + HP pemilik) — BUTUH PEMILIK
+## TAHAP 4 — DEVICE TENANT VIA QR (browser) — DITUNDA, BUKAN BLOCKER
 
 1. Sebagai tenant tes, buka Sessions → hubungkan perangkat → QR tampil.
-2. Scan QR pakai HP pemilik (nomor WA tenant, BUKAN nomor uji).
-   Cek: status CONNECTED di dashboard.
-3. Kalau QR tidak tampil / tidak bisa scan, tulis GAGAL + screenshot,
-   jangan lanjut ke Tahap 5 pakai device SuperAdmin — Tahap 5 dan 6
-   BLOCKED sampai QR beres.
-4. Kalau pemilik belum bisa scan saat run berjalan: tulis BLOCKED
-   (butuh pemilik), LANJUT ke tahap yang tidak butuh device (8–11, 14),
-   dan kembali ke tahap ini sesudah pemilik scan.
-5. DOCS: ikuti docs hubungkan device — catat kalau docs tidak menjelaskan
+   Catat QR tampil atau tidak (screenshot).
+2. **QR TIDAK DISCANS di run ini (keputusan pemilik 18 Nov).** Scan QR
+   DITUNDA ke lain waktu — Tahap 4 TIDAK lagi mem-BLOCK Tahap 5, 6, 7.
+3. **Kirim pesan tes (Tahap 5) dan broadcast/jadwal (Tahap 6/7) BOLEH
+   pakai device SuperAdmin yang sudah terhubung.** Aturan lama "jangan
+   lanjut ke Tahap 5 pakai device SuperAdmin" DICABUT.
+4. DOCS: ikuti docs hubungkan device — catat kalau docs tidak menjelaskan
    QR kedaluwarsa / cara putuskan device.
 
-## TAHAP 5 — KIRIM PESAN (browser + HP penerima) — BUTUH PEMILIK (cek READ)
+## TAHAP 5 — KIRIM PESAN (browser — AGENT SENDIRI, pakai device SuperAdmin)
 
-1. Dari device tenant (Tahap 4), kirim pesan pertama ke nomor uji 1:
-   "uji-launch-v4-1". Jeda 1–2 menit. Cek di HP penerima: pesan SAMPAI dan
-   status di dashboard jadi READ (bukan cuma SENT).
-2. Kirim pesan kedua, isi beda: "uji-launch-v4-2". Cek lagi SAMPAI + READ.
+1. Dari device SuperAdmin yang sudah terhubung, kirim pesan pertama ke
+   nomor uji 1: "uji-launch-v4-1". Jeda 1–2 menit. Cek status di dashboard
+   jadi READ (bukan cuma SENT).
+2. Cek READ independen: buka `web.whatsapp.com` (kalau sesi penerima sudah
+   tertaut) dan lihat centang biru di chat nomor uji 1. Kalau WA Web minta
+   scan QR untuk menautkan: tulis BLOCKED (butuh HP sekali jalan) untuk
+   cek ini saja, dan lanjut — status READ dashboard tetap dicatat.
+3. Kirim pesan kedua, isi beda: "uji-launch-v4-2". Cek lagi SAMPAI + READ
+   (dashboard + WA Web kalau ada).
    (Ini tes ulang pesan 08:19 yang dulu SENT tapi tidak ada di HP.)
-3. Kirim ke nomor TIDAK VALID — cek ditolak bersih (bukan 500).
-4. DOCS: ikuti docs kirim pesan — catat kalau status SENT/DELIVERED/READ
+4. Kirim ke nomor TIDAK VALID — cek ditolak bersih (bukan 500).
+5. DOCS: ikuti docs kirim pesan — catat kalau status SENT/DELIVERED/READ
    tidak dijelaskan artinya.
 
 ## TAHAP 6 — BROADCAST (browser — AGENT SENDIRI)
@@ -240,12 +303,17 @@ catat HEAD baru.
 
 ## TAHAP 7 — BALASAN OTOMATIS + JADWAL (browser)
 
-1. **7a — BUAT RULE (agent sendiri):** buat 1 auto-reply keyword di
-   dashboard. Cek rule tersimpan dan tampil di daftar.
-2. **7b — TES LIVE (BUTUH PEMILIK):** pemilik kirim pesan berisi keyword
-   dari HP-nya (nomor uji) ke device tenant → cek balasan otomatis
-   terkirim dan sampai di HP pemilik. Kalau pemilik belum bisa: tulis
-   BLOCKED (butuh pemilik), rule tetap tercatat sebagai dibuat.
+1. **7a — BUAT RULE (agent sendiri):** buat 1 auto-reply di dashboard
+   pada session SuperAdmin, kata kunci `uji-v4-naga-7315` (sengaja susah —
+   panjang + angka, supaya tidak terpicu tidak sengaja), balasan
+   "Auto-reply uji v4 aktif: naga-7315." Cek rule tersimpan dan tampil
+   di daftar.
+2. **7b — TES LIVE (agent sendiri, via WA Web):** dari WA Web (kalau sesi
+   nomor uji sudah tertaut), kirim pesan `uji-v4-naga-7315` ke nomor
+   device SuperAdmin → cek balasan otomatis terkirim dan sampai di WA Web.
+   Kalau WA Web belum tertaut: tulis BLOCKED (butuh HP sekali jalan untuk
+   link WA Web), rule tetap tercatat sebagai dibuat, dan cek pemicu lewat
+   preview auto-reply (`/api/v1/autoreplies/preview`) + log trigger.
 3. **7c — JADWAL (agent sendiri):** buat 1 pesan terjadwal → cek terkirim
    pada waktunya (atau tampil di antrean dengan waktu benar).
 4. DOCS: ikuti docs auto-reply + jadwal — catat kalau pemicu auto-reply
@@ -295,12 +363,24 @@ catat HEAD baru.
    2 profil browser / 1 biasa + 1 incognito). Cek: tenant A TIDAK bisa
    lihat/buka data tenant B (sessions, broadcast, billing, webhook) —
    coba buka URL milik B dari sesi A, harus ditolak.
-2. CSRF, 3 kasus (pakai browser: tab origin lain kirim POST ke API tanpa
-   token/Origin benar — kalau browser tidak bisa, SATU curl per kasus):
-   a. POST ubah data tanpa Origin → harus 403.
-   b. POST dengan Origin asing → harus 403.
-   c. POST tanpa token CSRF (kalau endpoint memakainya) → harus 403.
-   Tulis status HTTP tiap kasus + bukti.
+2. CSRF, 3 kasus — buktikan dengan request lintas-origin BENAR-BENAR
+   pakai cookie login (curl tanpa cookie tidak cukup — semua akan 401
+   karena belum login). Caranya di browser: login sebagai tenant di satu
+   tab, lalu di tab lain buka origin asing (mis. `https://example.com`)
+   dan jalankan `fetch` POST ke endpoint API PesanPro dengan
+   `credentials: "include"` (satu endpoint ubah data per kasus, mis.
+   buat/ubah auto-reply atau kirim pesan). Catat status HTTP + apakah
+   ada perubahan state:
+   a. POST lintas-origin tanpa Origin yang benar → harap 403
+      (`CSRF_ORIGIN_REJECTED`) ATAU 401 (cookie tidak dikirim karena
+      SameSite=Lax) — keduanya = TERLINDUNGI, bukan gagal.
+   b. POST lintas-origin dengan Origin asing eksplisit → harap 403.
+   c. POST lintas-origin tanpa token CSRF (kalau endpoint memakainya) →
+      harap 403.
+   **Hanya 200 + state BERUBAH yang berarti GAGAL.** Kalau semua kasus
+   401/403 tanpa perubahan state, tulis LOLOS + buktinya. Kalau browser
+   tidak bisa menjalankan fetch lintas-origin, tulis BELUM LENGKAP +
+   alasannya, jangan klaim PASS.
 3. DOCS: baca docs keamanan/API key/webhook — catat kalau isolasi tenant
    / CSRF tidak disebutkan sama sekali.
 
@@ -369,9 +449,15 @@ Catat juga: apakah run backup 15 Nov 03:00 menghasilkan file (cek `ls`).
 
 Beri vonis per tingkat (satu FAIL/BLOCKED/NOT VERIFIED = NOT READY):
 
-- **SOFT LAUNCH:** READY kalau Tahap 1–5 + 15 PASS dan A2 (ganti password
-  SuperAdmin) selesai.
-- **PUBLIC LAUNCH:** READY kalau SEMUA tahap 1–15 PASS.
+- **SOFT LAUNCH:** READY kalau Tahap 1–3, 5–15 PASS dan A2 selesai
+  (Tahap 4 QR tenant DITUNDA per keputusan pemilik 18 Nov — dicatat
+  sebagai item tertunda, bukan blocker soft launch karena kirim pesan
+  memakai device SuperAdmin) dan issue #60 sudah terjawab (tuntas atau
+  terbukti bukan bug).
+- **PUBLIC LAUNCH:** READY kalau SEMUA tahap 1–15 PASS — termasuk Tahap 4
+  (QR tenant harus sudah dites sebelum public launch, karena tenant asli
+  wajib bisa menghubungkan device sendiri). Kalau Tahap 4 masih DITUNDA,
+  vonis tetap NOT READY dengan Tahap 4 sebagai blocker bernama.
 
 Tulis juga: 3 blocker terbesar (kalau ada), dan perkiraan jujur kapan
 public launch bisa jalan.
