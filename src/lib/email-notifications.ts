@@ -175,7 +175,7 @@ export function buildCapacityAlertEmail(input: {
   generatedAt: Date;
 }) {
   const dashboardUrl = appUrl("/dashboard/superadmin");
-  const subject = emailSubject(`Kapasitas VPS ${input.statusPercent.toFixed(1)}% — periksa sekarang`);
+  const subject = emailSubject(`Kapasitas VPS ${input.statusPercent.toFixed(1)}%, periksa sekarang`);
   const boundLines = input.bounds.map((bound) => `${bound.label}: ${bound.usePercent.toFixed(0)}% terpakai, sisa ${bound.remainingTenants ?? "belum bisa dihitung"} tenant`);
   const fullestBound = input.bounds.find((bound) => bound.label === input.fullestResource);
   const fullestLine = `Bagian paling penuh (RAM/CPU/disk): ${input.fullestResource ?? "belum diketahui"}${fullestBound ? ` ${fullestBound.usePercent.toFixed(0)}%` : ""}`;
@@ -215,7 +215,7 @@ export function buildCapacityAlertEmail(input: {
   };
 }
 
-/** Satu email per admin per jam, walau pemindaian berjalan tiap menit. */
+/** Satu email per hari ke alamat ops, walau pemindaian berjalan tiap menit. */
 export async function queueCapacityAlertEmails(client: EmailQueueClient, input: {
   statusPercent: number;
   remainingTenants: number | null;
@@ -224,22 +224,28 @@ export async function queueCapacityAlertEmails(client: EmailQueueClient, input: 
   bounds: Array<{ label: string; usePercent: number; remainingTenants: number | null }>;
   generatedAt: Date;
 }) {
+  const configuredEmail = getEnv().CAPACITY_ALERT_EMAIL;
   const admins = await client.user.findMany({
     where: { role: "SUPERADMIN", status: "ACTIVE" },
     select: { id: true, name: true, email: true },
   });
-  if (admins.length === 0) return 0;
+  const recipient = configuredEmail
+    ? admins.find((admin) => admin.email.toLowerCase() === configuredEmail.toLowerCase())
+      ?? admins[0]
+      ?? { id: "ops", name: "Admin", email: configuredEmail }
+    : admins[0];
+  if (!recipient) return 0;
   const shifted = new Date(input.generatedAt.getTime() + 7 * 60 * 60 * 1000);
-  const hourKey = shifted.toISOString().slice(0, 13).replace(/[-T:]/g, "");
+  const dayKey = shifted.toISOString().slice(0, 10).replace(/-/g, "");
   const content = buildCapacityAlertEmail(input);
   const queued = await client.emailOutbox.createMany({
-    data: admins.map((admin) => ({
-      eventKey: `capacity-alert:${hourKey}:${admin.id}`,
+    data: [{
+      eventKey: `capacity-alert:${dayKey}:${recipient.id}`,
       type: "CAPACITY_ALERT" as const,
-      toEmail: admin.email,
-      toName: admin.name,
+      toEmail: recipient.email,
+      toName: recipient.name,
       ...content,
-    })),
+    }],
     skipDuplicates: true,
   });
   return queued.count;

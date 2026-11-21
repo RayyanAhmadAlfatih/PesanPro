@@ -30,6 +30,7 @@ const envSchema = z.object({
   SMTP_USER: optionalString(z.string().min(1)),
   SMTP_PASSWORD: optionalString(z.string().min(1)),
   SMTP_FROM: optionalString(z.string().min(3)),
+  CAPACITY_ALERT_EMAIL: optionalString(z.string().email()),
   EMAIL_WORKER_POLL_MS: z.coerce.number().int().min(250).max(60_000).default(2000),
   EMAIL_WORKER_LEASE_MS: z.coerce.number().int().min(5000).max(300_000).default(30_000),
   ENCRYPTION_KEY: z
