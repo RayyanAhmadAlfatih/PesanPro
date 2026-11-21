@@ -80,7 +80,7 @@ describe("email peringatan kapasitas VPS", () => {
     expect(email.textBody).toContain("Pemakaian VPS: 85.0%");
     expect(email.textBody).toContain("Bagian paling penuh (RAM/CPU/disk): RAM 85%");
     expect(email.textBody).toMatch(/Kira-kira (masih muat \d+ tenant lagi|sisa kapasitas tenant: belum bisa dihitung)/);
-    expect(email.eventKey).toMatch(/^capacity-alert:\d{10}:admin-1$/);
+    expect(email.eventKey).toMatch(/^capacity-alert:\d{8}:admin-1$/);
   });
 
   it("tidak mengirim email saat pemakaian turun di bawah 80%", async () => {
@@ -92,12 +92,39 @@ describe("email peringatan kapasitas VPS", () => {
     expect(mocks.emailOutboxCreateMany).not.toHaveBeenCalled();
   });
 
-  it("satu email per jam: jam sama terduplikasi, jam berikutnya eventKey baru", async () => {
+  it("satu email per hari: jam berbeda di hari sama terduplikasi, hari berikutnya eventKey baru", async () => {
     await maybeQueueCapacityAlert({ snapshot: snapshot(3.4), now: new Date("2026-11-15T03:05:00.000Z") });
     await maybeQueueCapacityAlert({ snapshot: snapshot(3.4), now: new Date("2026-11-15T03:55:00.000Z") });
     await maybeQueueCapacityAlert({ snapshot: snapshot(3.4), now: new Date("2026-11-15T04:05:00.000Z") });
+    await maybeQueueCapacityAlert({ snapshot: snapshot(3.4), now: new Date("2026-11-16T04:05:00.000Z") });
     const keys = mocks.emailOutboxCreateMany.mock.calls.map((call) => call[0].data[0].eventKey as string);
     expect(keys[0]).toBe(keys[1]);
-    expect(keys[2]).not.toBe(keys[0]);
+    expect(keys[1]).toBe(keys[2]);
+    expect(keys[3]).not.toBe(keys[0]);
+  });
+
+  it("mengirim hanya ke satu alamat ops, bukan ke semua SuperAdmin", async () => {
+    mocks.userFindMany.mockResolvedValue([
+      { id: "admin-1", name: "PesanPro", email: "pesanpro@kingofcoding.my.id" },
+      { id: "admin-2", name: "Rayyan", email: "rayyan@kingofcoding.my.id" },
+    ]);
+    vi.stubEnv("CAPACITY_ALERT_EMAIL", "pesanpro@kingofcoding.my.id");
+    _resetEnvCache();
+    await maybeQueueCapacityAlert({ snapshot: snapshot(3.4), now: new Date("2026-11-15T03:30:00.000Z") });
+    expect(mocks.emailOutboxCreateMany).toHaveBeenCalledTimes(1);
+    const data = mocks.emailOutboxCreateMany.mock.calls[0][0].data;
+    expect(data).toHaveLength(1);
+    expect(data[0].toEmail).toBe("pesanpro@kingofcoding.my.id");
+  });
+
+  it("tanpa alamat ops, tetap satu penerima (SuperAdmin pertama)", async () => {
+    mocks.userFindMany.mockResolvedValue([
+      { id: "admin-1", name: "PesanPro", email: "pesanpro@kingofcoding.my.id" },
+      { id: "admin-2", name: "Rayyan", email: "rayyan@kingofcoding.my.id" },
+    ]);
+    await maybeQueueCapacityAlert({ snapshot: snapshot(3.4), now: new Date("2026-11-15T03:30:00.000Z") });
+    const data = mocks.emailOutboxCreateMany.mock.calls[0][0].data;
+    expect(data).toHaveLength(1);
+    expect(data[0].toEmail).toBe("pesanpro@kingofcoding.my.id");
   });
 });
