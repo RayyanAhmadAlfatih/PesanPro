@@ -1,0 +1,840 @@
+<!DOCTYPE html>
+<html lang="id">
+<!--
+  LANDING PAGE LONG COPY PESANPRO (draft untuk direview pemilik)
+
+  CARA GANTI GAMBAR:
+  Gambar dashboard, alur, dan broadcast sudah terisi dengan mockup
+  buatan AI (berkas di public/lp/). Untuk mengganti dengan screenshot
+  asli, ubah src pada tag img di seksi Hero, Solusi, dan Fitur.
+
+  BRANDING:
+  Logo navbar dan footer, favicon, serta maskot memakai berkas asli
+  dari folder brand/ proyek (logo-lockup.png, logo-icon.png,
+  maskot-netral.png, maskot-senang.png) lewat path relatif dari
+  lokasi file ini. Kalau file ini dipindah dari docs/marketing/,
+  sesuaikan path-nya atau embed gambar sebagai base64.
+
+  CATATAN DESAIN (alasan keputusan utama):
+  - Palet: diambil dari DESIGN.md PesanPro (paper #FCFAF5, ink #1A3300,
+    highlight #FFE95C, mint #D5F5C2, terracotta #CB5521). Bukan palet
+    default AI. Aksen kuning (highlight) hanya dipakai sebagai stabilo
+    pada frasa kunci; terracotta hanya untuk momen masalah/peringatan.
+  - Motif identitas: efek stabilo (class hl) pada frasa kunci sesuai
+    token highlight brand, ditambah maskot burung resmi dari brand/.
+  - Tipografi: Bricolage Grotesque untuk judul, Inter untuk isi,
+    sesuai DESIGN.md.
+  - Dial: ENERGY 2 / RHYTHM 2 / MOTION 1. Copy panjang persuasif,
+    komposisi tiap seksi berbeda, gerakan halus (reveal sekali jalan,
+    angka statistik beranimasi sekali). Hormati prefers-reduced-motion.
+  - Semua angka punya sumber tercantum (DataReportal Digital 2026:
+    Indonesia; APJII Survei Profil Internet Indonesia 2025) atau berasal
+    dari fakta produk terverifikasi di docs/marketing/. Kalkulator
+    adalah aritmetika dari isian pengguna, bukan statistik.
+  - Tidak ada testimoni (belum ada testimoni asli, jadi tidak dibuat).
+  - Tidak ada tautan mati: Syarat dan Ketentuan serta Kebijakan Privasi
+    belum dipublish sehingga tidak dicantumkan di footer.
+  - CTA mengarah ke halaman daftar resmi:
+    https://pesanpro.kingofcoding.my.id/auth/register
+-->
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>PesanPro: WhatsApp bisnis, dikelola dari satu tempat</title>
+  <meta name="description" content="Notifikasi order, broadcast berjeda otomatis, dan balasan kata kunci WhatsApp, dijalankan dari satu dashboard. Pembayaran transfer bank, diverifikasi admin.">
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link rel="icon" type="image/png" href="../../brand/logo-icon.png">
+  <link href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:wght@600;700;800&family=Inter:wght@400;500;600;700&display=swap" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/css/bootstrap.min.css" rel="stylesheet">
+  <link href="https://cdn.jsdelivr.net/npm/bootstrap-icons@1.11.3/font/bootstrap-icons.min.css" rel="stylesheet">
+  <style>
+    :root {
+      --pp-paper: #FCFAF5;
+      --pp-ink: #1A3300;
+      --pp-highlight: #FFE95C;
+      --pp-mint: #D5F5C2;
+      --pp-terracotta: #CB5521;
+      --pp-danger: #8B2F0B;
+      --pp-line: #B6B6B6;
+      --pp-muted: #607054;
+      --pp-white: #FFFFFF;
+    }
+    html { scroll-behavior: smooth; }
+    body {
+      background: var(--pp-paper);
+      color: var(--pp-ink);
+      font-family: "Inter", sans-serif;
+      font-size: 1.05rem;
+      line-height: 1.75;
+    }
+    h1, h2, h3, h4, .display-4 {
+      font-family: "Bricolage Grotesque", sans-serif;
+      font-weight: 800;
+      line-height: 1.2;
+      letter-spacing: -0.01em;
+    }
+    /* Motif stabilo: token highlight brand, dipakai pada frasa kunci */
+    .hl { background: linear-gradient(transparent 58%, var(--pp-highlight) 58%); padding: 0 2px; }
+    .btn-pp {
+      background: var(--pp-ink);
+      color: var(--pp-white);
+      border: 2px solid var(--pp-ink);
+      border-radius: 6px;
+      min-height: 44px;
+      padding: 10px 24px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-pp:hover, .btn-pp:focus-visible {
+      background: var(--pp-highlight);
+      border-color: var(--pp-ink);
+      color: var(--pp-ink);
+    }
+    .btn-pp:active { background: var(--pp-ink); color: var(--pp-white); }
+    .btn-pp-outline {
+      background: transparent;
+      color: var(--pp-ink);
+      border: 2px solid var(--pp-ink);
+      border-radius: 6px;
+      min-height: 44px;
+      padding: 10px 24px;
+      font-weight: 600;
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .btn-pp-outline:hover, .btn-pp-outline:focus-visible {
+      background: var(--pp-mint);
+      color: var(--pp-ink);
+    }
+    .btn-pp:focus-visible, .btn-pp-outline:focus-visible,
+    a:focus-visible, button:focus-visible, input:focus-visible, .form-control:focus-visible {
+      outline: 3px solid var(--pp-highlight);
+      outline-offset: 2px;
+      box-shadow: none;
+    }
+    .form-control:focus { border-color: var(--pp-ink); box-shadow: none; }
+    /* Navbar */
+    .navbar {
+      background: var(--pp-paper);
+      border-bottom: 1px solid var(--pp-line);
+      transition: box-shadow .25s ease;
+    }
+    .navbar.scrolled { box-shadow: 0 2px 0 var(--pp-ink); }
+    .navbar .nav-link { color: var(--pp-ink); font-weight: 500; min-height: 44px; display: inline-flex; align-items: center; }
+    .navbar .nav-link:hover { color: var(--pp-terracotta); }
+    .navbar-brand { font-family: "Bricolage Grotesque", sans-serif; font-weight: 800; font-size: 1.4rem; color: var(--pp-ink); }
+    .navbar-brand img { display: block; height: 34px; width: auto; }
+    footer .navbar-brand img { height: 28px; }
+    .mascot { width: 150px; height: auto; }
+    /* Placeholder gambar (ganti dengan <img> asli) */
+    .img-ph {
+      border: 2px dashed var(--pp-line);
+      border-radius: 12px;
+      background: var(--pp-white);
+      min-height: 260px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      text-align: center;
+      color: var(--pp-muted);
+      padding: 24px;
+      font-size: .95rem;
+    }
+    .img-ph i { font-size: 2rem; display: block; margin-bottom: 8px; color: var(--pp-line); }
+    /* Band data */
+    .band-ink { background: var(--pp-ink); color: var(--pp-white); }
+    .band-ink .stat-num {
+      font-family: "Bricolage Grotesque", sans-serif;
+      font-weight: 800;
+      font-size: clamp(2.2rem, 5vw, 3.2rem);
+      color: var(--pp-highlight);
+      line-height: 1.1;
+    }
+    .band-ink .stat-src { color: var(--pp-mint); font-size: .85rem; }
+    /* Kartu */
+    .card-pp {
+      background: var(--pp-white);
+      border: 1px solid var(--pp-line);
+      border-radius: 12px;
+    }
+    /* Kalkulator */
+    .kalkulator-wrap { background: var(--pp-mint); border-radius: 12px; }
+    .kalkulator-wrap .form-control { border: 1px solid var(--pp-ink); border-radius: 6px; min-height: 44px; }
+    .hasil-box { border-left: 4px solid var(--pp-ink); background: var(--pp-white); border-radius: 0 12px 12px 0; }
+    .hasil-error { color: var(--pp-danger); font-weight: 600; }
+    /* Kolom baca panjang */
+    .read-col { max-width: 740px; }
+    /* Tabel perbandingan & harga */
+    .table-pp { border-color: var(--pp-line); }
+    .table-pp th { background: var(--pp-mint); color: var(--pp-ink); vertical-align: middle; }
+    .table-pp td { vertical-align: top; }
+    .table-pp .col-hl { background: #FFF9DB; }
+    /* Langkah */
+    .langkah-num {
+      font-family: "Bricolage Grotesque", sans-serif;
+      font-weight: 800;
+      font-size: 2rem;
+      color: var(--pp-white);
+      background: var(--pp-ink);
+      width: 56px;
+      height: 56px;
+      border-radius: 6px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+    }
+    /* Akordeon FAQ */
+    .accordion-item { border: 1px solid var(--pp-line); background: var(--pp-white); }
+    .accordion-button { font-family: "Bricolage Grotesque", sans-serif; font-weight: 700; color: var(--pp-ink); background: var(--pp-white); }
+    .accordion-button:not(.collapsed) { background: var(--pp-mint); color: var(--pp-ink); box-shadow: none; }
+    .accordion-button:focus { box-shadow: none; outline: 3px solid var(--pp-highlight); }
+    /* Reveal halus: sekali jalan saat masuk viewport */
+    .reveal { opacity: 0; transform: translateY(16px); transition: opacity .5s ease, transform .5s ease; }
+    .reveal.in { opacity: 1; transform: none; }
+    @media (prefers-reduced-motion: reduce) {
+      html { scroll-behavior: auto; }
+      .reveal { opacity: 1; transform: none; transition: none; }
+    }
+    .section-pad { padding: 72px 0; }
+    .eyebrow-note { color: var(--pp-muted); font-size: .9rem; }
+    footer { border-top: 1px solid var(--pp-line); }
+    footer a { color: var(--pp-ink); }
+    footer a:hover { color: var(--pp-terracotta); }
+  </style>
+</head>
+<body data-bs-spy="scroll" data-bs-target="#navMenu" data-bs-offset="90" tabindex="0">
+
+  <!-- ================= NAVBAR ================= -->
+  <nav class="navbar navbar-expand-lg sticky-top" id="topbar">
+    <div class="container">
+      <!-- Logo resmi dari folder brand/. Kalau file ini dipindah, sesuaikan path. -->
+      <a class="navbar-brand" href="#utama"><img src="../../brand/logo-lockup.png" alt="PesanPro"></a>
+      <button class="navbar-toggler border-0" type="button" data-bs-toggle="collapse" data-bs-target="#navMenu" aria-controls="navMenu" aria-expanded="false" aria-label="Buka menu navigasi">
+        <i class="bi bi-list fs-3" aria-hidden="true"></i>
+      </button>
+      <div class="collapse navbar-collapse" id="navMenu">
+        <ul class="navbar-nav ms-auto align-items-lg-center gap-lg-1">
+          <li class="nav-item"><a class="nav-link" href="#masalah">Masalah</a></li>
+          <li class="nav-item"><a class="nav-link" href="#kalkulator">Hitung kerugian</a></li>
+          <li class="nav-item"><a class="nav-link" href="#solusi">Solusi</a></li>
+          <li class="nav-item"><a class="nav-link" href="#fitur">Fitur</a></li>
+          <li class="nav-item"><a class="nav-link" href="#cara">Cara kerja</a></li>
+          <li class="nav-item"><a class="nav-link" href="#harga">Harga</a></li>
+          <li class="nav-item"><a class="nav-link" href="#faq">FAQ</a></li>
+          <li class="nav-item ms-lg-3"><a class="btn btn-pp" href="https://pesanpro.kingofcoding.my.id/auth/register">Daftar</a></li>
+        </ul>
+      </div>
+    </div>
+  </nav>
+
+  <!-- ================= HERO ================= -->
+  <header id="utama" class="section-pad">
+    <div class="container">
+      <div class="row align-items-center g-5">
+        <div class="col-lg-6">
+          <h1 class="display-4 mb-4">Chat pelanggan datang nonstop. <span class="hl">Tangan Anda cuma dua.</span></h1>
+          <p class="fs-5 mb-4">
+            Pertanyaan harga yang sama dijawab ulang tiap hari. Notifikasi resi disalin manual satu per satu.
+            Broadcast diketik nomor demi nomor sampai malam. Semua itu makan waktu Anda yang seharusnya dipakai jualan.
+          </p>
+          <p class="fs-5 mb-4">
+            PesanPro memindahkan pekerjaan itu ke satu dashboard: notifikasi otomatis lewat API,
+            broadcast berjeda, dan balasan langsung lewat kata kunci. <strong>Anda tetap jualan, sistem yang mengetik.</strong>
+          </p>
+          <a class="btn btn-pp btn-lg mb-3" href="https://pesanpro.kingofcoding.my.id/auth/register">
+            Daftar dan hubungkan WhatsApp
+          </a>
+          <p class="eyebrow-note mb-0">Pembayaran lewat transfer bank dan diverifikasi admin. Tanpa kartu kredit.</p>
+        </div>
+        <div class="col-lg-6">
+          <img src="../../public/lp/hero-dashboard.png" alt="Tampilan dashboard PesanPro: antrean pesan dan status perangkat terhubung" class="img-fluid rounded-3" style="border:1px solid var(--pp-line)">
+        </div>
+      </div>
+    </div>
+  </header>
+
+  <!-- ================= BAND DATA (sumber tercantum) ================= -->
+  <section class="band-ink section-pad" id="data">
+    <div class="container">
+      <div class="row g-4 justify-content-center text-center">
+        <div class="col-md-4 reveal">
+          <div class="stat-num"><span class="angka" data-count="90.8" data-decimals="1">0</span>%</div>
+          <p class="mb-1">pengguna internet Indonesia (usia 16+) memakai WhatsApp dalam satu bulan terakhir</p>
+          <p class="stat-src mb-0">Sumber: DataReportal, Digital 2026: Indonesia</p>
+        </div>
+        <div class="col-md-4 reveal">
+          <div class="stat-num"><span class="angka" data-count="229.4" data-decimals="1">0</span>&nbsp;juta</div>
+          <p class="mb-1">orang Indonesia terhubung internet, atau 80,66% populasi</p>
+          <p class="stat-src mb-0">Sumber: APJII, Survei Profil Internet Indonesia 2025</p>
+        </div>
+        <div class="col-md-4 reveal">
+          <div class="stat-num"><span class="angka" data-count="36.5" data-decimals="1">0</span>%</div>
+          <p class="mb-1">menyebut WhatsApp platform favorit mereka, tertinggi di atas TikTok (22,6%)</p>
+          <p class="stat-src mb-0">Sumber: DataReportal, Digital 2026: Indonesia</p>
+        </div>
+      </div>
+      <p class="text-center mt-4 mb-0" style="color:#D5F5C2; font-size:.9rem;">
+        Artinya: pelanggan Anda memang ada di WhatsApp. Yang menentukan penjualan adalah seberapa cepat chat itu dijawab.
+      </p>
+    </div>
+  </section>
+
+  <!-- ================= CERITA MASALAH (agitate) ================= -->
+  <section id="masalah" class="section-pad">
+    <div class="container read-col">
+      <h2 class="mb-4">Hari yang terasa seperti ini, <span class="hl">hampir tiap hari</span></h2>
+      <div class="reveal">
+        <p>Jam 8 pagi, pesanan pertama masuk. Anda ketik konfirmasi, salin nomor resi, kirim. Jam 10, ada yang tanya stok. Pertanyaan yang sama dengan yang masuk jam 9 kemarin, dan jam 9 seminggu lalu. Anda ketik ulang jawaban yang sama, untuk kesekian kalinya.</p>
+        <p>Jam 1 siang, Anda sedang mengantar barang ke kurir. Ponsel bergetar lima kali. Anda tahu itu pelanggan yang menunggu jawaban. Anda juga tahu sebagian dari mereka bisa saja membuka toko pesaing sambil menunggu.</p>
+        <p>Jam 9 malam, keluarga sudah di meja makan. Layar menyala: <em>"Kak, masih buka tidak?"</em>. Membalas berarti kembali bekerja. Tidak membalas berarti menonton chat itu terbaca, tanpa jawaban, sampai besok pagi.</p>
+        <p>Dan Anda tidak akan pernah tahu berapa banyak orang yang tidak mengetik apa-apa. Mereka membandingkan toko Anda dengan toko lain di tab bersebelahan, memilih yang membalas lebih dulu, lalu pergi tanpa meninggalkan jejak.</p>
+        <p class="mb-0">Ini bukan soal kerja keras. Anda sudah bekerja keras. Masalahnya, satu nomor WhatsApp tidak dirancang untuk menggantikan tiga pekerjaan sekaligus: layanan pelanggan, pengirim notifikasi, dan mesin pemasaran ulang. Ketiga pekerjaan itu tetap harus jalan. Pertanyaannya cuma satu: <strong>diketik oleh tangan Anda, atau dijalankan sistem?</strong></p>
+      </div>
+      <div class="d-flex flex-wrap gap-3 mt-4">
+        <a class="btn btn-pp-outline" href="#kalkulator"><i class="bi bi-calculator" aria-hidden="true"></i> Hitung dulu waktunya berapa</a>
+        <a class="btn btn-pp-outline" href="#solusi">Langsung lihat solusinya</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= KALKULATOR (aritmetika dari isian pengguna) ================= -->
+  <section id="kalkulator" class="section-pad pt-0">
+    <div class="container">
+      <div class="kalkulator-wrap p-4 p-md-5 reveal">
+        <div class="row g-4 align-items-center">
+          <div class="col-lg-6">
+            <h2 class="h3 mb-3">Hitung sendiri, dua angka saja</h2>
+            <p class="mb-4">Tidak perlu percaya klaim siapa pun, termasuk halaman ini. Masukkan dua angka dari pengalaman Anda sendiri, dan lihat berapa jam yang hilang tiap bulan hanya untuk mengetik ulang.</p>
+            <form id="formKalkulator" novalidate>
+              <div class="mb-3">
+                <label for="inChat" class="form-label fw-semibold">Rata-rata chat pelanggan per hari</label>
+                <input type="number" min="1" step="1" class="form-control" id="inChat" placeholder="contoh: 40" inputmode="numeric">
+              </div>
+              <div class="mb-3">
+                <label for="inMenit" class="form-label fw-semibold">Menit yang Anda habiskan untuk membalas satu chat</label>
+                <input type="number" min="1" step="1" class="form-control" id="inMenit" placeholder="contoh: 5" inputmode="numeric">
+              </div>
+              <button type="submit" class="btn btn-pp"><i class="bi bi-play-fill" aria-hidden="true"></i> Hitung estimasi</button>
+              <p class="hasil-error mt-3 mb-0 d-none" id="hasilError" role="alert">Isi kedua kolom dengan angka lebih dari nol.</p>
+            </form>
+          </div>
+          <div class="col-lg-6">
+            <!-- Hasil: kosong sampai dihitung, pesan error kalau isian salah -->
+            <div class="hasil-box p-4 d-none" id="hasilBox" aria-live="polite">
+              <p class="eyebrow-note mb-2">Perkiraan waktu mengetik chat per bulan (26 hari kerja):</p>
+              <p class="display-6 fw-bold mb-2"><span id="hasilJam">0</span> jam</p>
+              <p class="mb-2">Setara <strong><span id="hasilHari">0</span> hari kerja penuh</strong> (8 jam per hari).</p>
+              <p class="mb-0 small" style="color: var(--pp-muted);">
+                Ini hitungan aritmetika sederhana dari isian Anda sendiri, bukan hasil riset. Gunakan sebagai gambaran kasar,
+                bukan janji. Yang jelas: waktu ini berulang setiap bulan selama pembalasan masih manual.
+              </p>
+            </div>
+            <div class="p-4 card-pp" id="hasilKosong" aria-live="polite">
+              <p class="mb-0" style="color: var(--pp-muted);">Hasil perhitungan akan muncul di sini setelah Anda mengisi dua angka di sebelah kiri dan menekan tombol hitung.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= SOLUSI (bridge) ================= -->
+  <section id="solusi" class="section-pad">
+    <div class="container">
+      <div class="row align-items-center g-5">
+        <div class="col-lg-6 order-lg-2">
+          <h2 class="mb-4">Sekarang bagian pentingnya: <span class="hl">kebocoran itu bisa ditutup</span></h2>
+          <div class="reveal">
+            <p>PesanPro adalah WhatsApp gateway. Satu dashboard yang menjalankan pekerjaan WhatsApp bisnis Anda secara otomatis, tanpa Anda mengetik semuanya.</p>
+            <p>Caranya sederhana. Anda memindai QR dari ponsel (seperti saat login WhatsApp Web), lalu menyetel aturannya sekali. Setelah itu:</p>
+            <p class="mb-2"><strong>Notifikasi resi dan status pesanan</strong> terkirim sendiri begitu sistem toko Anda memanggil API.</p>
+            <p class="mb-2"><strong>Pertanyaan "harga", "stok", "jam buka"</strong> dijawab langsung lewat kata kunci, termasuk di luar jam kerja.</p>
+            <p class="mb-2"><strong>Daftar 500 sampai 3.000 penerima</strong> menerima broadcast yang sama, dengan jeda otomatis yang menjaga ritme kirim.</p>
+            <p class="mb-0">Sekali disetel, berulang setiap hari. Tangan Anda kembali ke pekerjaan yang benar-benar menambah penjualan.</p>
+          </div>
+        </div>
+        <div class="col-lg-6 order-lg-1">
+          <img src="../../public/lp/alur-3-langkah.png" alt="Alur PesanPro: pindai QR, setel aturan di dashboard, pesan terkirim otomatis" class="img-fluid rounded-3" style="border:1px solid var(--pp-line)">
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= FITUR (fakta terverifikasi, komposisi bervariasi) ================= -->
+  <section id="fitur" class="section-pad" style="background: var(--pp-white); border-top: 1px solid var(--pp-line); border-bottom: 1px solid var(--pp-line);">
+    <div class="container">
+      <div class="read-col mb-5">
+        <h2 class="mb-3">Sembilan pekerjaan yang berhenti jadi tanggung jawab Anda</h2>
+        <p class="mb-0">Semua di bawah ini sudah jalan di PesanPro hari ini, bukan jadwal rilis. Yang paling banyak menghemat waktu ada di urutan pertama.</p>
+      </div>
+
+      <!-- Fitur utama: layar lebar -->
+      <div class="row g-4 align-items-center mb-4">
+        <div class="col-lg-7">
+          <h3 class="h4">1. Broadcast dengan jeda otomatis</h3>
+          <p class="mb-2">Satu pesan untuk seluruh daftar penerima. Impor nomor dari CSV, sisipkan variabel seperti <code>{nama}</code> supaya tiap orang menerima versi namanya sendiri, dan gunakan spintax supaya isi pesan bervariasi.</p>
+          <p class="mb-0">Sistem menjaga ritme kirim dengan jeda antar pesan. Broadcast 500 sampai 3.000 penerima per batch berjalan tanpa Anda menekan kirim satu per satu.</p>
+        </div>
+        <div class="col-lg-5">
+          <img src="../../public/lp/broadcast.png" alt="Halaman broadcast PesanPro: daftar penerima dari CSV, isi pesan dengan variabel nama, dan jeda otomatis" class="img-fluid rounded-3" style="border:1px solid var(--pp-line)">
+        </div>
+      </div>
+
+      <!-- Fitur pendukung: daftar dua kolom -->
+      <div class="row g-4">
+        <div class="col-md-6">
+          <div class="d-flex gap-3">
+            <i class="bi bi-bell-fill fs-4 flex-shrink-0" style="color: var(--pp-terracotta);" aria-hidden="true"></i>
+            <div>
+              <h4 class="h6 fw-bold mb-1">2. Notifikasi otomatis lewat API</h4>
+              <p class="mb-0 small">Sistem toko atau aplikasimu memanggil API, pesanan dan nomor resi terkirim ke WhatsApp pelanggan tanpa diketik ulang.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex gap-3">
+            <i class="bi bi-reply-all-fill fs-4 flex-shrink-0" style="color: var(--pp-terracotta);" aria-hidden="true"></i>
+            <div>
+              <h4 class="h6 fw-bold mb-1">3. Balasan otomatis kata kunci</h4>
+              <p class="mb-0 small">Pelanggan mengetik "harga" atau "jam buka", jawaban terkirim langsung, termasuk di luar jam kerja.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex gap-3">
+            <i class="bi bi-clock-history fs-4 flex-shrink-0" style="color: var(--pp-terracotta);" aria-hidden="true"></i>
+            <div>
+              <h4 class="h6 fw-bold mb-1">4. Pesan terjadwal</h4>
+              <p class="mb-0 small">Siapkan pesannya sekarang, kirim pada waktu yang Anda tentukan. Cocok untuk pengingat bayar dan follow up.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex gap-3">
+            <i class="bi bi-broadcast-pin fs-4 flex-shrink-0" style="color: var(--pp-terracotta);" aria-hidden="true"></i>
+            <div>
+              <h4 class="h6 fw-bold mb-1">5. Webhook untuk setiap kejadian</h4>
+              <p class="mb-0 small">PesanPro memberi tahu server Anda saat ada pesan masuk atau status pengiriman berubah, dengan tanda tangan supaya bisa diverifikasi.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex gap-3">
+            <i class="bi bi-cpu fs-4 flex-shrink-0" style="color: var(--pp-terracotta);" aria-hidden="true"></i>
+            <div>
+              <h4 class="h6 fw-bold mb-1">6. Sambungkan ke AI</h4>
+              <p class="mb-0 small">Pesan masuk diteruskan lewat webhook ke ChatGPT atau Claude, balasannya dikirim kembali ke pelanggan. Panduan lengkap dalam Bahasa Indonesia.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex gap-3">
+            <i class="bi bi-plug fs-4 flex-shrink-0" style="color: var(--pp-terracotta);" aria-hidden="true"></i>
+            <div>
+              <h4 class="h6 fw-bold mb-1">7. Integrasi tanpa kode</h4>
+              <p class="mb-0 small">Contact Form 7, Google Forms, WooCommerce, dan WordPress bisa mengirim WhatsApp tanpa membangun aplikasi baru.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex gap-3">
+            <i class="bi bi-phone fs-4 flex-shrink-0" style="color: var(--pp-terracotta);" aria-hidden="true"></i>
+            <div>
+              <h4 class="h6 fw-bold mb-1">8. Banyak nomor dalam satu akun</h4>
+              <p class="mb-0 small">Pisahkan nomor untuk penjualan, dukungan, dan pengiriman. Jumlahnya mengikuti paket: 1, 3, atau 5 nomor.</p>
+            </div>
+          </div>
+        </div>
+        <div class="col-md-6">
+          <div class="d-flex gap-3">
+            <i class="bi bi-file-earmark-image fs-4 flex-shrink-0" style="color: var(--pp-terracotta);" aria-hidden="true"></i>
+            <div>
+              <h4 class="h6 fw-bold mb-1">9. Gambar dikompres otomatis</h4>
+              <p class="mb-0 small">Media diperkecil sebelum dikirim, jadi kuota dan waktu unggah lebih hemat.</p>
+            </div>
+          </div>
+        </div>
+      </div>
+      <p class="eyebrow-note mt-4 mb-0">Alasan ikon: glyph Bootstrap Icons dipilih karena relevan langsung dengan tiap fitur dan konsisten dengan stack Bootstrap 5 halaman ini.</p>
+    </div>
+  </section>
+
+  <!-- ================= CARA KERJA (proses asli, bukan ikon bulat klise) ================= -->
+  <section id="cara" class="section-pad">
+    <div class="container read-col">
+      <h2 class="mb-4">Dari daftar sampai pesan pertama terkirim</h2>
+      <div class="d-flex gap-4 mb-4 reveal">
+        <div class="langkah-num">1</div>
+        <div>
+          <h3 class="h5 fw-bold">Daftar, pilih paket, bayar</h3>
+          <p class="mb-0">Isi data akun di halaman daftar, pilih paket dan periode, transfer ke rekening yang tampil di halaman itu, lalu unggah bukti transfer. Akun berstatus menunggu sampai admin memeriksa dan menyetujui pembayaran Anda.</p>
+        </div>
+      </div>
+      <div class="d-flex gap-4 mb-4 reveal">
+        <div class="langkah-num">2</div>
+        <div>
+          <h3 class="h5 fw-bold">Hubungkan WhatsApp lewat QR</h3>
+          <p class="mb-0">Masuk ke dashboard dan pindai QR dari ponsel, sama seperti login WhatsApp Web. Satu nomor cukup untuk mulai.</p>
+        </div>
+      </div>
+      <div class="d-flex gap-4 reveal">
+        <div class="langkah-num">3</div>
+        <div>
+          <h3 class="h5 fw-bold">Kirim pesan pertama</h3>
+          <p class="mb-0">Kirim dari dashboard tanpa koding, atau lewat API kalau Anda punya sistem sendiri. Panduan mulai cepat tersedia dalam Bahasa Indonesia, targetnya sekitar 5 menit setelah akun aktif.</p>
+        </div>
+      </div>
+      <div class="mt-4">
+        <a class="btn btn-pp" href="https://pesanpro.kingofcoding.my.id/auth/register">Mulai langkah 1: daftar</a>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= PERBANDINGAN JUJUR ================= -->
+  <section class="section-pad" style="background: var(--pp-white); border-top: 1px solid var(--pp-line);">
+    <div class="container">
+      <div class="read-col mb-4">
+        <h2 class="mb-3">WhatsApp biasa melawan WhatsApp yang dijalankan sistem</h2>
+        <p class="mb-0">Perbandingan ini berdasarkan cara kerja keduanya, bukan angka promosi.</p>
+      </div>
+      <div class="table-responsive">
+        <table class="table table-pp align-middle">
+          <thead>
+            <tr>
+              <th scope="col" style="width: 26%;">Kebutuhan</th>
+              <th scope="col" style="width: 37%;">Diketik manual di WhatsApp biasa</th>
+              <th scope="col" class="col-hl" style="width: 37%;">Dijalankan PesanPro</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row" class="fw-semibold">Pertanyaan berulang (harga, stok, jam buka)</th>
+              <td>Ketik ulang jawaban yang sama setiap kali masuk</td>
+              <td class="col-hl">Auto-reply menjawab kata kunci langsung, termasuk di luar jam kerja</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Notifikasi resi dan status pesanan</th>
+              <td>Salin dari sistem, tempel ke chat, kirim, ulangi</td>
+              <td class="col-hl">Sistem Anda memanggil API sekali, PesanPro mengirim ke pelanggan</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Promosi ke daftar pelanggan</th>
+              <td>Buka chat satu per satu, ketik, kirim, berulang sampai selesai</td>
+              <td class="col-hl">Impor CSV, satu pesan untuk semua, jeda otomatis menjaga ritme</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Pesan untuk besok pagi</th>
+              <td>Harus diingat dan dikirim tepat waktu, atau lewat</td>
+              <td class="col-hl">Disetel sekarang, terkirim di waktu yang Anda pilih</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Nomor penjualan, dukungan, pengiriman</th>
+              <td>Beberapa ponsel, beberapa aplikasi, sulit dipantau</td>
+              <td class="col-hl">Satu dashboard, jumlah nomor mengikuti paket (1, 3, atau 5)</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= HARGA (fakta terverifikasi) ================= -->
+  <section id="harga" class="section-pad">
+    <div class="container">
+      <div class="read-col mb-4">
+        <h2 class="mb-3">Harga yang bisa Anda hitung sejak awal</h2>
+        <p class="mb-0">Semua paket mendapat fitur yang sama. Yang berbeda hanya batas pemakaian. Tidak ada paket gratis, tidak ada biaya tersembunyi: pembayaran lewat transfer bank dan diverifikasi admin.</p>
+      </div>
+      <div class="table-responsive reveal">
+        <table class="table table-pp">
+          <thead>
+            <tr>
+              <th scope="col" style="width: 34%;">Isi paket</th>
+              <th scope="col" style="width: 22%;">Starter</th>
+              <th scope="col" style="width: 22%;">Bisnis</th>
+              <th scope="col" style="width: 22%;">Pro</th>
+            </tr>
+          </thead>
+          <tbody>
+            <tr>
+              <th scope="row" class="fw-semibold">Bulanan</th>
+              <td>Rp20.000</td>
+              <td>Rp49.000</td>
+              <td>Rp99.000</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Tahunan (setara bayar 10 bulan untuk 12 bulan)</th>
+              <td>Rp200.000</td>
+              <td>Rp490.000</td>
+              <td>Rp990.000</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Nomor WhatsApp</th>
+              <td>1</td>
+              <td>3</td>
+              <td>5</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Pesan per bulan</th>
+              <td>3.000</td>
+              <td>12.000</td>
+              <td>40.000</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Broadcast per bulan (penerima per batch)</th>
+              <td>50 (500)</td>
+              <td>200 (1.500)</td>
+              <td>500 (3.000)</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Auto-reply</th>
+              <td>10 aturan</td>
+              <td>50 aturan</td>
+              <td>Tanpa batas</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Pesan terjadwal</th>
+              <td>20</td>
+              <td>100</td>
+              <td>Tanpa batas</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Upload per file</th>
+              <td>50 MB</td>
+              <td>75 MB</td>
+              <td>100 MB</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Penyimpanan media</th>
+              <td>1 GB</td>
+              <td>5 GB</td>
+              <td>20 GB</td>
+            </tr>
+            <tr>
+              <th scope="row" class="fw-semibold">Webhook / kunci API / permintaan API per menit</th>
+              <td>2 / 2 / 30</td>
+              <td>5 / 5 / 60</td>
+              <td>15 / 10 / 150</td>
+            </tr>
+          </tbody>
+        </table>
+      </div>
+      <p class="eyebrow-note mb-4">Bantuan tersedia untuk semua paket lewat halaman Bantuan, tanpa dibeda-bedakan.</p>
+      <a class="btn btn-pp btn-lg" href="https://pesanpro.kingofcoding.my.id/auth/register">Daftar dan pilih paket Anda</a>
+    </div>
+  </section>
+
+  <!-- ================= FAQ (pertanyaan nyata produk, jawaban jujur) ================= -->
+  <section id="faq" class="section-pad" style="background: var(--pp-white); border-top: 1px solid var(--pp-line);">
+    <div class="container read-col">
+      <h2 class="mb-4">Pertanyaan yang paling menentukan keputusan</h2>
+      <div class="accordion" id="faqAcc">
+        <div class="accordion-item mb-2">
+          <h3 class="accordion-header">
+            <button class="accordion-button" type="button" data-bs-toggle="collapse" data-bs-target="#faq1" aria-expanded="true" aria-controls="faq1">
+              Apakah ada paket gratis atau trial?
+            </button>
+          </h3>
+          <div id="faq1" class="accordion-collapse collapse show" data-bs-parent="#faqAcc">
+            <div class="accordion-body">Tidak. PesanPro berbayar sejak awal, dan tidak ada masa percobaan. Akun baru aktif setelah pembayaran disetujui admin.</div>
+          </div>
+        </div>
+        <div class="accordion-item mb-2">
+          <h3 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq2" aria-expanded="false" aria-controls="faq2">
+              Saya tidak bisa koding. Tetap bisa memakai PesanPro?
+            </button>
+          </h3>
+          <div id="faq2" class="accordion-collapse collapse" data-bs-parent="#faqAcc">
+            <div class="accordion-body">Bisa. Dashboard dipakai lewat klik, tanpa menulis kode. API hanya diperlukan kalau Anda ingin menghubungkan sistem sendiri, misalnya toko online atau aplikasi kasir.</div>
+          </div>
+        </div>
+        <div class="accordion-item mb-2">
+          <h3 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq3" aria-expanded="false" aria-controls="faq3">
+              Berapa lama akun aktif setelah transfer?
+            </button>
+          </h3>
+          <div id="faq3" class="accordion-collapse collapse" data-bs-parent="#faqAcc">
+            <div class="accordion-body">Akun berstatus menunggu sampai admin memeriksa bukti transfer. Setelah disetujui, paket langsung aktif dan Anda bisa menghubungkan WhatsApp lewat QR.</div>
+          </div>
+        </div>
+        <div class="accordion-item mb-2">
+          <h3 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq4" aria-expanded="false" aria-controls="faq4">
+              Apakah saya perlu nomor WhatsApp baru?
+            </button>
+          </h3>
+          <div id="faq4" class="accordion-collapse collapse" data-bs-parent="#faqAcc">
+            <div class="accordion-body">Disarankan memakai nomor khusus usaha. Nomor pribadi bisa dipakai, tetapi lebih rawan tercampur dengan percakapan pribadi.</div>
+          </div>
+        </div>
+        <div class="accordion-item mb-2">
+          <h3 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq5" aria-expanded="false" aria-controls="faq5">
+              Apakah nomor saya dijamin aman dari blokir WhatsApp?
+            </button>
+          </h3>
+          <div id="faq5" class="accordion-collapse collapse" data-bs-parent="#faqAcc">
+            <div class="accordion-body">Tidak ada layanan yang bisa menjamin itu, dan kami tidak akan mengklaim sebaliknya. PesanPro menyediakan jeda otomatis dan batas pengiriman untuk menurunkan risiko. Anda tetap perlu mengikuti aturan WhatsApp, termasuk hanya mengirim ke nomor yang setuju menerima pesan Anda.</div>
+          </div>
+        </div>
+        <div class="accordion-item">
+          <h3 class="accordion-header">
+            <button class="accordion-button collapsed" type="button" data-bs-toggle="collapse" data-bs-target="#faq6" aria-expanded="false" aria-controls="faq6">
+              Berapa nomor WhatsApp yang bisa dihubungkan?
+            </button>
+          </h3>
+          <div id="faq6" class="accordion-collapse collapse" data-bs-parent="#faqAcc">
+            <div class="accordion-body">Starter 1 nomor, Bisnis 3 nomor, Pro 5 nomor. Semua nomor berjalan dalam satu dashboard yang sama.</div>
+          </div>
+        </div>
+      </div>
+    </div>
+  </section>
+
+  <!-- ================= CTA AKHIR (future pacing) ================= -->
+  <section class="section-pad">
+    <div class="container read-col text-center">
+      <h2 class="mb-4">Tiga bulan dari hari ini, chat jam 9 malam bisa punya dua nasib</h2>
+      <p class="fs-5 mb-4 reveal">
+        Nasib pertama: dijawab otomatis saat Anda duduk bersama keluarga, dan order masuk tercatat rapi besok pagi.
+        Nasib kedua: tetap terbaca di layar tanpa jawaban, dan pembeli lanjut ke toko sebelah yang membalas lebih dulu.
+        Perbedaan kedua nasib itu cuma satu keputusan yang Anda buat hari ini.
+      </p>
+      <a class="btn btn-pp btn-lg mb-3" href="https://pesanpro.kingofcoding.my.id/auth/register">Daftar sekarang dan aktifkan paket Anda</a>
+      <p class="eyebrow-note mb-0">Isi data, transfer, unggah bukti. Akun aktif setelah pembayaran disetujui admin.</p>
+    </div>
+  </section>
+
+  <!-- ================= FOOTER ================= -->
+  <footer class="py-4">
+    <div class="container">
+      <div class="row align-items-center g-3">
+        <div class="col-md-6">
+          <span class="navbar-brand me-2"><img src="../../brand/logo-lockup.png" alt="PesanPro"></span>
+          <span class="small" style="color: var(--pp-muted);">WhatsApp bisnis, dikelola dari satu tempat.</span>
+        </div>
+        <div class="col-md-6 text-md-end">
+          <a class="btn btn-sm btn-pp-outline me-2" href="https://pesanpro.kingofcoding.my.id">Beranda</a>
+          <a class="btn btn-sm btn-pp" href="https://pesanpro.kingofcoding.my.id/auth/register">Daftar</a>
+        </div>
+      </div>
+      <p class="small mt-3 mb-0" style="color: var(--pp-muted);">
+        Bantuan tersedia untuk semua paket lewat halaman Bantuan di dalam dashboard.
+        <!-- Catatan: tautan Syarat & Ketentuan dan Kebijakan Privasi sengaja belum dicantumkan
+             karena halamannya belum dipublish (lihat docs/marketing/). Tambahkan setelah halamannya ada,
+             supaya tidak ada tautan mati. -->
+      </p>
+    </div>
+  </footer>
+
+  <script src="https://cdn.jsdelivr.net/npm/bootstrap@5.3.3/dist/js/bootstrap.bundle.min.js"></script>
+  <script>
+    (function () {
+      "use strict";
+
+      // Navbar: garis bawah saat digulir, penanda bahwa menu menempel
+      var topbar = document.getElementById("topbar");
+      var onScroll = function () {
+        topbar.classList.toggle("scrolled", window.scrollY > 8);
+      };
+      window.addEventListener("scroll", onScroll, { passive: true });
+      onScroll();
+
+      // Tutup menu mobile setelah tautan diklik
+      var navMenu = document.getElementById("navMenu");
+      navMenu.addEventListener("click", function (e) {
+        if (e.target.closest("a") && navMenu.classList.contains("show")) {
+          bootstrap.Collapse.getInstance(navMenu).hide();
+        }
+      });
+
+      // Reveal sekali jalan saat seksi masuk viewport (menghormati reduced motion)
+      var reduceMotion = window.matchMedia("(prefers-reduced-motion: reduce)").matches;
+      var revealEls = document.querySelectorAll(".reveal");
+      if (reduceMotion || !("IntersectionObserver" in window)) {
+        revealEls.forEach(function (el) { el.classList.add("in"); });
+      } else {
+        var io = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              entry.target.classList.add("in");
+              io.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.15 });
+        revealEls.forEach(function (el) { io.observe(el); });
+      }
+
+      // Angka statistik beranimasi sekali saat terlihat (format Indonesia)
+      function animateNumber(el) {
+        var target = parseFloat(el.getAttribute("data-count"));
+        var decimals = parseInt(el.getAttribute("data-decimals") || "0", 10);
+        if (reduceMotion) {
+          el.textContent = target.toLocaleString("id-ID", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+          return;
+        }
+        var start = null;
+        var durasi = 1200;
+        function step(ts) {
+          if (!start) { start = ts; }
+          var progress = Math.min((ts - start) / durasi, 1);
+          var eased = 1 - Math.pow(1 - progress, 3);
+          el.textContent = (target * eased).toLocaleString("id-ID", { minimumFractionDigits: decimals, maximumFractionDigits: decimals });
+          if (progress < 1) { requestAnimationFrame(step); }
+        }
+        requestAnimationFrame(step);
+      }
+      var angkaEls = document.querySelectorAll(".angka");
+      if ("IntersectionObserver" in window) {
+        var ioAngka = new IntersectionObserver(function (entries) {
+          entries.forEach(function (entry) {
+            if (entry.isIntersecting) {
+              animateNumber(entry.target);
+              ioAngka.unobserve(entry.target);
+            }
+          });
+        }, { threshold: 0.4 });
+        angkaEls.forEach(function (el) { ioAngka.observe(el); });
+      } else {
+        angkaEls.forEach(animateNumber);
+      }
+
+      // Kalkulator: aritmetika dari isian pengguna, dengan status kosong dan error
+      var form = document.getElementById("formKalkulator");
+      var inChat = document.getElementById("inChat");
+      var inMenit = document.getElementById("inMenit");
+      var hasilBox = document.getElementById("hasilBox");
+      var hasilKosong = document.getElementById("hasilKosong");
+      var hasilError = document.getElementById("hasilError");
+      var hasilJam = document.getElementById("hasilJam");
+      var hasilHari = document.getElementById("hasilHari");
+
+      form.addEventListener("submit", function (e) {
+        e.preventDefault();
+        var chat = parseFloat(inChat.value);
+        var menit = parseFloat(inMenit.value);
+        var valid = chat > 0 && menit > 0 && isFinite(chat) && isFinite(menit);
+        if (!valid) {
+          hasilError.classList.remove("d-none");
+          hasilBox.classList.add("d-none");
+          hasilKosong.classList.add("d-none");
+          return;
+        }
+        hasilError.classList.add("d-none");
+        var jamBulan = (chat * menit * 26) / 60;
+        hasilJam.textContent = jamBulan.toLocaleString("id-ID", { maximumFractionDigits: 1 });
+        hasilHari.textContent = (jamBulan / 8).toLocaleString("id-ID", { maximumFractionDigits: 1 });
+        hasilKosong.classList.add("d-none");
+        hasilBox.classList.remove("d-none");
+      });
+    })();
+  </script>
+</body>
+</html>

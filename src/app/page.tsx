@@ -1,19 +1,21 @@
 import Link from "next/link";
 import Image from "next/image";
 import {
+  BellRing,
   Bot,
   CalendarClock,
   Check,
-  Code2,
-  Megaphone,
+  ImageDown,
+  MessageSquareReply,
+  Plug,
+  Smartphone,
   Webhook,
-  X,
-  Zap,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { auth } from "@/lib/auth";
 import { buildPlanCatalog } from "@/lib/promo-service";
 import { cn } from "@/lib/utils";
+import { KalkulatorWaktu, StatBand } from "@/components/landing/lp-interactive";
 
 // HTML must always reference the assets from the currently running build.
 // Hashed /_next/static assets remain immutable and cacheable.
@@ -41,71 +43,126 @@ export const metadata = {
   },
 };
 
-const manualWork = [
-  "Nomor pelanggan dicatat satu per satu di HP.",
-  "Pesan yang sama diketik ulang untuk setiap penerima.",
-  "Pengiriman berhenti saat HP dipakai untuk hal lain.",
-  "Tidak ada catatan pesan mana yang gagal.",
+// Narasi masalah: hari kerja yang berulang, dibaca sebagai hipotesis diri
+// pembaca, bukan statistik. Setiap angka di halaman ini punya sumber atau
+// berasal dari isian pengguna di kalkulator.
+const masalahCerita = [
+  'Jam 8 pagi, pesanan pertama masuk. Anda ketik konfirmasi, salin nomor resi, kirim. Jam 10, ada yang tanya stok. Pertanyaan yang sama dengan yang masuk jam 9 kemarin, dan jam 9 seminggu lalu. Anda ketik ulang jawaban yang sama, untuk kesekian kalinya.',
+  'Jam 1 siang, Anda sedang mengantar barang ke kurir. Ponsel bergetar lima kali. Anda tahu itu pelanggan yang menunggu jawaban. Anda juga tahu sebagian dari mereka bisa saja membuka toko pesaing sambil menunggu.',
+  'Jam 9 malam, keluarga sudah di meja makan. Layar menyala: "Kak, masih buka tidak?". Membalas berarti kembali bekerja. Tidak membalas berarti menonton chat itu terbaca, tanpa jawaban, sampai besok pagi.',
+  'Dan Anda tidak akan pernah tahu berapa banyak orang yang tidak mengetik apa-apa. Mereka membandingkan toko Anda dengan toko lain di tab bersebelahan, memilih yang membalas lebih dulu, lalu pergi tanpa meninggalkan jejak.',
+  'Ini bukan soal kerja keras. Anda sudah bekerja keras. Masalahnya, satu nomor WhatsApp tidak dirancang untuk menggantikan tiga pekerjaan sekaligus: layanan pelanggan, pengirim notifikasi, dan mesin pemasaran ulang. Ketiga pekerjaan itu tetap harus jalan. Pertanyaannya cuma satu: diketik oleh tangan Anda, atau dijalankan sistem?',
 ];
 
-const apiResult = [
-  "Pesan masuk antrian dan dikirim dengan jeda acak.",
-  "Kalau gagal, sistem mencoba ulang sendiri.",
-  "Status setiap pesan tersimpan sebagai metadata.",
-  "Pesan masuk diteruskan ke webhook Anda.",
+const solusiPembuka = [
+  'PesanPro adalah WhatsApp gateway. Satu dashboard yang menjalankan pekerjaan WhatsApp bisnis Anda secara otomatis, tanpa Anda mengetik semuanya.',
+  'Caranya sederhana. Anda memindai QR dari ponsel (seperti saat login WhatsApp Web), lalu menyetel aturannya sekali. Setelah itu:',
 ];
 
-const startSteps = [
+const solusiPoin = [
   {
-    title: "Daftar, pilih paket, bayar",
-    body: "Isi data akun, pilih paket dan periode, lalu transfer ke rekening yang tampil di halaman daftar. Unggah bukti transfer, dan admin memverifikasinya.",
+    label: 'Notifikasi resi dan status pesanan',
+    body: 'terkirim sendiri begitu sistem toko Anda memanggil API.',
   },
   {
-    title: "Pindai QR",
-    body: "Setelah pembayaran disetujui, masuk ke dashboard dan pindai QR dari ponsel. Satu nomor cukup untuk mulai; paket lebih besar menampung lebih banyak nomor.",
+    label: 'Pertanyaan "harga", "stok", "jam buka"',
+    body: 'dijawab langsung lewat kata kunci, termasuk di luar jam kerja.',
   },
   {
-    title: "Kirim pesan pertama",
-    body: "Kirim dari dashboard, atau panggil API dari sistem Anda. Panduan mulai cepat tersedia di halaman dokumentasi.",
+    label: 'Daftar 500 sampai 3.000 penerima',
+    body: 'menerima broadcast yang sama, dengan jeda otomatis yang menjaga ritme kirim.',
   },
 ];
 
-const features = [
+const solusiPenutup =
+  'Sekali disetel, berulang setiap hari. Tangan Anda kembali ke pekerjaan yang benar-benar menambah penjualan.';
+
+// Ikon lucide dipilih karena relevan langsung dengan tiap fitur dan konsisten
+// dengan stack ikon aplikasi (bukan ikon dekoratif generik).
+const fiturPendukung = [
   {
-    icon: Zap,
-    title: "Notifikasi otomatis",
-    body: "Update pesanan, status pembayaran, atau nomor resi terkirim sendiri. Sistem Anda memanggil API saat ada kejadian.",
-    tone: "bg-[var(--pp-highlight)]",
+    icon: BellRing,
+    title: "Notifikasi otomatis lewat API",
+    body: "Sistem toko atau aplikasimu memanggil API, pesanan dan nomor resi terkirim ke WhatsApp pelanggan tanpa diketik ulang.",
   },
   {
-    icon: Megaphone,
-    title: "Broadcast",
-    body: "Satu pesan ke banyak penerima dengan jeda otomatis. Cocok untuk stok baru, promo, atau info jam operasional.",
-    tone: "bg-[var(--pp-mint)]",
-  },
-  {
-    icon: Bot,
-    title: "Balasan otomatis",
-    body: "Tentukan kata kunci dan jawabannya. Pelanggan yang mengetik \"harga\" atau \"jam buka\" langsung terjawab, termasuk di luar jam kerja.",
-    tone: "bg-[var(--pp-teal)]",
-  },
-  {
-    icon: Webhook,
-    title: "Webhook",
-    body: "Terima pemberitahuan saat ada pesan masuk atau status pengiriman berubah. Sambungkan ke kasir, toko online, atau sistem lain.",
-    tone: "bg-[var(--pp-blush)]",
-  },
-  {
-    icon: Code2,
-    title: "REST API",
-    body: "Kirim pesan dari aplikasi apa pun yang bisa memanggil HTTP. Contoh cURL, Node.js, dan PHP tersedia di dokumentasi.",
-    tone: "bg-[var(--pp-mint)]",
+    icon: MessageSquareReply,
+    title: "Balasan otomatis kata kunci",
+    body: 'Pelanggan mengetik "harga" atau "jam buka", jawaban terkirim langsung, termasuk di luar jam kerja.',
   },
   {
     icon: CalendarClock,
     title: "Pesan terjadwal",
-    body: "Siapkan pesan sekarang, kirim pada waktu yang Anda tentukan.",
-    tone: "bg-[var(--pp-highlight)]",
+    body: "Siapkan pesannya sekarang, kirim pada waktu yang Anda tentukan. Cocok untuk pengingat bayar dan follow up.",
+  },
+  {
+    icon: Webhook,
+    title: "Webhook untuk setiap kejadian",
+    body: "PesanPro memberi tahu server Anda saat ada pesan masuk atau status pengiriman berubah, dengan tanda tangan supaya bisa diverifikasi.",
+  },
+  {
+    icon: Bot,
+    title: "Sambungkan ke AI",
+    body: "Pesan masuk diteruskan lewat webhook ke ChatGPT atau Claude, balasannya dikirim kembali ke pelanggan. Panduan lengkap dalam Bahasa Indonesia.",
+  },
+  {
+    icon: Plug,
+    title: "Integrasi tanpa kode",
+    body: "Contact Form 7, Google Forms, WooCommerce, dan WordPress bisa mengirim WhatsApp tanpa membangun aplikasi baru.",
+  },
+  {
+    icon: Smartphone,
+    title: "Banyak nomor dalam satu akun",
+    body: "Pisahkan nomor untuk penjualan, dukungan, dan pengiriman. Jumlahnya mengikuti paket: 1, 3, atau 5 nomor.",
+  },
+  {
+    icon: ImageDown,
+    title: "Gambar dikompres otomatis",
+    body: "Media diperkecil sebelum dikirim, jadi kuota dan waktu unggah lebih hemat.",
+  },
+];
+
+const langkahMulai = [
+  {
+    title: "Daftar, pilih paket, bayar",
+    body: "Isi data akun di halaman daftar, pilih paket dan periode, transfer ke rekening yang tampil di halaman itu, lalu unggah bukti transfer. Akun berstatus menunggu sampai admin memeriksa dan menyetujui pembayaran Anda.",
+  },
+  {
+    title: "Hubungkan WhatsApp lewat QR",
+    body: "Masuk ke dashboard dan pindai QR dari ponsel, sama seperti login WhatsApp Web. Satu nomor cukup untuk mulai.",
+  },
+  {
+    title: "Kirim pesan pertama",
+    body: "Kirim dari dashboard tanpa koding, atau lewat API kalau Anda punya sistem sendiri. Panduan mulai cepat tersedia dalam Bahasa Indonesia, targetnya sekitar 5 menit setelah akun aktif.",
+  },
+];
+
+// Perbandingan berdasarkan cara kerja, bukan angka promosi.
+const perbandingan = [
+  {
+    kebutuhan: "Pertanyaan berulang (harga, stok, jam buka)",
+    manual: "Ketik ulang jawaban yang sama setiap kali masuk",
+    sistem: "Auto-reply menjawab kata kunci langsung, termasuk di luar jam kerja",
+  },
+  {
+    kebutuhan: "Notifikasi resi dan status pesanan",
+    manual: "Salin dari sistem, tempel ke chat, kirim, ulangi",
+    sistem: "Sistem Anda memanggil API sekali, PesanPro mengirim ke pelanggan",
+  },
+  {
+    kebutuhan: "Promosi ke daftar pelanggan",
+    manual: "Buka chat satu per satu, ketik, kirim, berulang sampai selesai",
+    sistem: "Impor CSV, satu pesan untuk semua, jeda otomatis menjaga ritme",
+  },
+  {
+    kebutuhan: "Pesan untuk besok pagi",
+    manual: "Harus diingat dan dikirim tepat waktu, atau lewat",
+    sistem: "Disetel sekarang, terkirim di waktu yang Anda pilih",
+  },
+  {
+    kebutuhan: "Nomor penjualan, dukungan, pengiriman",
+    manual: "Beberapa ponsel, beberapa aplikasi, sulit dipantau",
+    sistem: "Satu dashboard, jumlah nomor mengikuti paket (1, 3, atau 5)",
   },
 ];
 
@@ -143,21 +200,13 @@ const queueGuarantees = [
   },
 ];
 
+// Gabungan pertanyaan LP dan FAQ aplikasi yang sudah terverifikasi. Jawaban
+// blokir sengaja jujur: tidak ada jaminan, yang ada hanya penurunan risiko.
 const faq = [
   {
     question: "Apakah ada paket gratis atau trial?",
     answer:
       "Tidak. PesanPro berbayar sejak awal, dan akun baru aktif setelah pembayaran disetujui admin.",
-  },
-  {
-    question: "Apakah PesanPro membaca isi pesan saya?",
-    answer:
-      "Tidak. Isi pesan tidak pernah ditulis ke database kami. Teks diteruskan ke webhook milik Anda, lalu dibuang. Kami juga tidak menyimpan media, dan tidak pernah menarik riwayat percakapan lama.",
-  },
-  {
-    question: "Apakah nomor WhatsApp saya bisa diblokir?",
-    answer:
-      "Ada kemungkinan. WhatsApp bisa membatasi nomor yang tertaut ke layanan pihak ketiga, dan risiko itu tidak bisa kami jamin nol. Yang bisa kami lakukan adalah menjaga aktivitas tetap wajar: jeda acak antar pesan, batas laju per nomor, dan daftar opt-out yang dihormati. Kalau nomor Anda penting, pakai nomor terpisah dari nomor utama.",
   },
   {
     question: "Saya tidak bisa coding. Apakah tetap bisa memakai PesanPro?",
@@ -170,9 +219,24 @@ const faq = [
       "Akun berstatus menunggu sampai admin memeriksa bukti transfer. Setelah disetujui, paket langsung aktif dan Anda bisa menghubungkan WhatsApp.",
   },
   {
+    question: "Apakah PesanPro membaca isi pesan saya?",
+    answer:
+      "Tidak. Isi pesan tidak pernah ditulis ke database kami. Teks diteruskan ke webhook milik Anda, lalu dibuang. Kami juga tidak menyimpan media, dan tidak pernah menarik riwayat percakapan lama.",
+  },
+  {
+    question: "Apakah nomor WhatsApp saya bisa diblokir?",
+    answer:
+      "Ada kemungkinan. WhatsApp bisa membatasi nomor yang tertaut ke layanan pihak ketiga, dan risiko itu tidak bisa kami jamin nol. Yang bisa kami lakukan adalah menjaga aktivitas tetap wajar: jeda otomatis antar pesan, batas laju per nomor, dan daftar opt-out yang dihormati. Kalau nomor Anda penting, pakai nomor terpisah dari nomor utama.",
+  },
+  {
+    question: "Apakah saya perlu nomor WhatsApp baru?",
+    answer:
+      "Disarankan memakai nomor khusus usaha. Nomor pribadi bisa dipakai, tetapi lebih rawan tercampur dengan percakapan pribadi.",
+  },
+  {
     question: "Bisakah satu akun memakai beberapa nomor?",
     answer:
-      "Bisa. Setiap nomor berjalan sebagai sesi terpisah dengan kunci API dan webhook sendiri, jadi Anda bisa memisahkan nomor penjualan dan nomor dukungan tanpa saling mengganggu.",
+      "Bisa. Jumlahnya mengikuti paket: Starter 1 nomor, Bisnis 3 nomor, Pro 5 nomor. Setiap nomor berjalan sebagai sesi terpisah dengan kunci API dan webhook sendiri, jadi Anda bisa memisahkan nomor penjualan dan nomor dukungan tanpa saling mengganggu.",
   },
   {
     question: "Apakah harus selalu menyalakan HP?",
@@ -288,7 +352,16 @@ export default async function Home() {
             />
           </Link>
 
-          <nav className="flex items-center gap-6">
+          <nav className="flex items-center gap-5">
+            <Link href="#masalah" className="hidden text-sm font-medium text-[var(--pp-muted)] transition-colors hover:text-[var(--pp-ink)] md:block">
+              Masalah
+            </Link>
+            <Link href="#kalkulator" className="hidden text-sm font-medium text-[var(--pp-muted)] transition-colors hover:text-[var(--pp-ink)] md:block">
+              Hitung kerugian
+            </Link>
+            <Link href="#solusi" className="hidden text-sm font-medium text-[var(--pp-muted)] transition-colors hover:text-[var(--pp-ink)] md:block">
+              Solusi
+            </Link>
             <Link href="#fitur" className="hidden text-sm font-medium text-[var(--pp-muted)] transition-colors hover:text-[var(--pp-ink)] md:block">
               Fitur
             </Link>
@@ -316,46 +389,56 @@ export default async function Home() {
       </header>
 
       <main className="flex-1">
+        {/* HERO: masalah dulu, baru solusi */}
         <section className="mx-auto w-full max-w-5xl px-4 pb-14 pt-14 sm:px-6 sm:pt-20">
-          <div className="mx-auto max-w-3xl text-center">
-            <h1 className="text-4xl font-extrabold leading-[1.06] tracking-tight sm:text-5xl">
-              Gateway WhatsApp untuk bisnis yang terjangkau.
-            </h1>
-            <p className="mx-auto mt-6 max-w-xl text-lg leading-relaxed text-[var(--pp-muted)]">
-              Hubungkan nomor WhatsApp lewat QR, lalu kirim notifikasi, broadcast, dan balasan
-              otomatis dari dashboard atau sistem Anda sendiri.
-            </p>
-            <div className="mt-8 flex flex-wrap items-center justify-center gap-4">
-              <Link href="/auth/register">
-                <Button size="lg" className="rounded-lg px-6 text-base">
-                  Daftar sekarang
-                </Button>
-              </Link>
-              {plans.length > 0 && (
-                <Link href="#harga">
-                  <Button variant="outline" size="lg" className="rounded-lg px-6 text-base">
-                    Lihat harga
+          <div className="grid items-center gap-10 lg:grid-cols-2">
+            <div>
+              <h1 className="text-4xl font-extrabold leading-[1.08] tracking-tight sm:text-5xl">
+                Chat pelanggan datang nonstop.{" "}
+                <span className="bg-[linear-gradient(transparent_58%,var(--pp-highlight)_58%)] px-0.5">
+                  Tangan Anda cuma dua.
+                </span>
+              </h1>
+              <p className="mt-6 text-lg leading-relaxed text-[var(--pp-muted)]">
+                Pertanyaan harga yang sama dijawab ulang tiap hari. Notifikasi resi disalin manual
+                satu per satu. Broadcast diketik nomor demi nomor sampai malam. Semua itu makan
+                waktu Anda yang seharusnya dipakai jualan.
+              </p>
+              <p className="mt-4 text-lg leading-relaxed text-[var(--pp-muted)]">
+                {appName} memindahkan pekerjaan itu ke satu dashboard: notifikasi otomatis lewat
+                API, broadcast berjeda, dan balasan langsung lewat kata kunci.{" "}
+                <strong className="text-[var(--pp-ink)]">
+                  Anda tetap jualan, sistem yang mengetik.
+                </strong>
+              </p>
+              <div className="mt-8 flex flex-wrap items-center gap-4">
+                <Link href="/auth/register">
+                  <Button size="lg" className="rounded-lg px-6 text-base">
+                    Daftar dan hubungkan WhatsApp
                   </Button>
                 </Link>
-              )}
+                {plans.length > 0 && (
+                  <Link href="#harga">
+                    <Button variant="outline" size="lg" className="rounded-lg px-6 text-base">
+                      Lihat harga
+                    </Button>
+                  </Link>
+                )}
+              </div>
+              <p className="mt-4 text-sm text-[var(--pp-muted)]">
+                Pembayaran lewat transfer bank dan diverifikasi admin. Tanpa kartu kredit.
+              </p>
             </div>
-            <ul className="mx-auto mt-8 grid max-w-xl gap-2 text-sm text-[var(--pp-muted)] sm:grid-cols-2">
-              {[
-                plans.length > 0 && Number(plans[0].priceMonthly) > 0
-                  ? `Mulai dari ${formatPrice(plans[0].priceMonthly, plans[0].currency)} /bulan`
-                  : null,
-                "Tanpa biaya per pesan",
-                "Isi pesan dihapus otomatis dalam 30 hari",
-                "REST API dan webhook",
-              ]
-                .filter((item): item is string => item !== null)
-                .map((item) => (
-                  <li key={item} className="flex items-center justify-center gap-2 sm:justify-start">
-                    <Check aria-hidden="true" className="h-4 w-4 flex-none text-[var(--pp-ink)]" />
-                    <span>{item}</span>
-                  </li>
-                ))}
-            </ul>
+            <div>
+              <Image
+                src="/lp/hero-dashboard.png"
+                alt="Tampilan dashboard PesanPro: antrean pesan dan status perangkat terhubung"
+                width={1536}
+                height={1024}
+                className="h-auto w-full rounded-xl border border-[var(--pp-line)]"
+                priority
+              />
+            </div>
           </div>
 
           <div className="mx-auto mt-14 max-w-2xl rounded-xl border border-[var(--pp-line)] bg-[var(--pp-white)] px-6 py-5 text-center">
@@ -371,83 +454,205 @@ export default async function Home() {
           </div>
         </section>
 
-        <section id="sebelum-sesudah" className="border-t border-[var(--pp-line)] bg-[var(--pp-white)]">
-          <div className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
-            <p className="pp-eyebrow">Sebelum &amp; sesudah</p>
-            <h2 className="pp-section-title mt-3">Dari kirim manual jadi satu panggilan API.</h2>
+        {/* BAND DATA: setiap angka bersumber */}
+        <StatBand />
 
-            <div className="mt-10 grid gap-4 lg:grid-cols-2">
-              <div className="rounded-xl border border-[var(--pp-line)] bg-[var(--pp-paper)] p-6">
-                <h3 className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight">Sebelum</h3>
-                <ul className="mt-4 space-y-3 text-sm leading-relaxed text-[var(--pp-muted)]">
-                  {manualWork.map((item) => (
-                    <li key={item} className="flex gap-3">
-                      <X aria-hidden="true" className="mt-0.5 h-4 w-4 flex-none text-[var(--pp-terracotta)]" />
-                      <span>{item}</span>
+        {/* CERITA MASALAH */}
+        <section id="masalah" className="mx-auto w-full max-w-3xl px-4 py-16 sm:px-6">
+          <h2 className="pp-section-title">
+            Hari yang terasa seperti ini,{" "}
+            <span className="bg-[linear-gradient(transparent_58%,var(--pp-highlight)_58%)] px-0.5">
+              hampir tiap hari
+            </span>
+          </h2>
+          <div className="mt-6 space-y-4 text-base leading-relaxed">
+            {masalahCerita.map((paragraf) => (
+              <p key={paragraf.slice(0, 24)}>{paragraf}</p>
+            ))}
+          </div>
+          <div className="mt-8 flex flex-wrap gap-4">
+            <Link href="#kalkulator">
+              <Button variant="outline" className="rounded-md">
+                Hitung dulu waktunya berapa
+              </Button>
+            </Link>
+            <Link href="#solusi">
+              <Button variant="outline" className="rounded-md">
+                Langsung lihat solusinya
+              </Button>
+            </Link>
+          </div>
+        </section>
+
+        {/* KALKULATOR: aritmetika dari isian pengguna, bukan statistik */}
+        <section id="kalkulator" className="mx-auto w-full max-w-5xl px-4 pb-16 sm:px-6">
+          <KalkulatorWaktu />
+        </section>
+
+        {/* SOLUSI */}
+        <section id="solusi" className="border-t border-[var(--pp-line)] bg-[var(--pp-white)]">
+          <div className="mx-auto grid w-full max-w-5xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2">
+            <div className="order-2 lg:order-1">
+              <Image
+                src="/lp/alur-3-langkah.png"
+                alt="Alur PesanPro: pindai QR, setel aturan di dashboard, pesan terkirim otomatis"
+                width={1536}
+                height={1024}
+                className="h-auto w-full rounded-xl border border-[var(--pp-line)]"
+              />
+            </div>
+            <div className="order-1 lg:order-2">
+              <p className="pp-eyebrow">Solusi</p>
+              <h2 className="pp-section-title mt-3">
+                Sekarang bagian pentingnya: kebocoran itu bisa ditutup
+              </h2>
+              <div className="mt-6 space-y-4 text-base leading-relaxed">
+                {solusiPembuka.map((paragraf) => (
+                  <p key={paragraf.slice(0, 24)}>{paragraf}</p>
+                ))}
+                <ul className="space-y-3">
+                  {solusiPoin.map((poin) => (
+                    <li key={poin.label} className="flex gap-3">
+                      <Check aria-hidden="true" className="mt-1 h-4 w-4 flex-none" />
+                      <span>
+                        <strong>{poin.label}</strong> {poin.body}
+                      </span>
                     </li>
                   ))}
                 </ul>
-              </div>
-
-              <div className="rounded-xl border border-[var(--pp-ink)] bg-[var(--pp-mint)] p-6">
-                <h3 className="font-[family-name:var(--font-display)] text-lg font-bold tracking-tight">Sesudah pakai {appName}</h3>
-                <ul className="mt-4 space-y-3 text-sm leading-relaxed">
-                  {apiResult.map((item) => (
-                    <li key={item} className="flex gap-3">
-                      <Check aria-hidden="true" className="mt-0.5 h-4 w-4 flex-none" />
-                      <span>{item}</span>
-                    </li>
-                  ))}
-                </ul>
+                <p>{solusiPenutup}</p>
               </div>
             </div>
           </div>
         </section>
 
-        <section id="cara-mulai" className="border-t border-[var(--pp-line)] bg-[var(--pp-mint)]">
-          <div className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
-            <p className="pp-eyebrow">Cara mulai</p>
-            <h2 className="pp-section-title mt-3">Tiga langkah, hari ini juga.</h2>
-            <p className="pp-page-description">
-              Tanpa instal aplikasi dan tanpa setup server. Semuanya dari browser.
-            </p>
+        {/* FITUR */}
+        <section id="fitur" className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
+          <p className="pp-eyebrow">Fitur</p>
+          <h2 className="pp-section-title mt-3">Sembilan pekerjaan yang berhenti jadi tanggung jawab Anda</h2>
+          <p className="pp-page-description">
+            Semua di bawah ini sudah jalan di {appName} hari ini, bukan jadwal rilis. Yang paling
+            banyak menghemat waktu ada di urutan pertama.
+          </p>
 
-            <ol className="mt-10 grid gap-4 sm:grid-cols-3">
-              {startSteps.map((step, index) => (
-                <li key={step.title} className="rounded-xl border border-[var(--pp-ink)] bg-[var(--pp-paper)] p-6">
-                  <span className="grid h-9 w-9 place-items-center rounded-lg border border-[var(--pp-ink)] bg-[var(--pp-highlight)] font-[family-name:var(--font-display)] text-sm font-extrabold">
+          <div className="mt-10 grid items-center gap-8 lg:grid-cols-[1.15fr_0.85fr]">
+            <div>
+              <h3 className="font-[family-name:var(--font-display)] text-xl font-bold tracking-tight">
+                <span className="bg-[var(--pp-highlight)] px-1">1. Broadcast dengan jeda otomatis</span>
+              </h3>
+              <p className="mt-4 leading-relaxed">
+                Satu pesan untuk seluruh daftar penerima. Impor nomor dari CSV, sisipkan variabel
+                seperti {"{nama}"} supaya tiap orang menerima versi namanya sendiri, dan gunakan
+                spintax supaya isi pesan bervariasi.
+              </p>
+              <p className="mt-3 leading-relaxed">
+                Sistem menjaga ritme kirim dengan jeda antar pesan. Broadcast 500 sampai 3.000
+                penerima per batch berjalan tanpa Anda menekan kirim satu per satu.
+              </p>
+            </div>
+            <div>
+              <Image
+                src="/lp/broadcast.png"
+                alt="Halaman broadcast PesanPro: daftar penerima dari CSV, isi pesan dengan variabel nama, dan jeda otomatis"
+                width={1024}
+                height={1024}
+                className="h-auto w-full rounded-xl border border-[var(--pp-line)]"
+              />
+            </div>
+          </div>
+
+          <div className="mt-12 grid gap-x-10 gap-y-8 sm:grid-cols-2">
+            {fiturPendukung.map((fitur, index) => (
+              <div key={fitur.title} className="flex gap-4">
+                <span
+                  aria-hidden="true"
+                  className="grid h-10 w-10 flex-none place-items-center rounded-lg border border-[var(--pp-ink)] bg-[var(--pp-paper)]"
+                >
+                  <fitur.icon className="h-5 w-5" />
+                </span>
+                <div>
+                  <h3 className="font-semibold tracking-tight">
+                    {index + 2}. {fitur.title}
+                  </h3>
+                  <p className="mt-1.5 text-sm leading-relaxed text-[var(--pp-muted)]">{fitur.body}</p>
+                </div>
+              </div>
+            ))}
+          </div>
+        </section>
+
+        {/* CARA MULAI */}
+        <section id="cara-mulai" className="border-t border-[var(--pp-line)] bg-[var(--pp-white)]">
+          <div className="mx-auto w-full max-w-3xl px-4 py-16 sm:px-6">
+            <p className="pp-eyebrow">Cara mulai</p>
+            <h2 className="pp-section-title mt-3">Dari daftar sampai pesan pertama terkirim</h2>
+
+            <ol className="mt-10 space-y-8">
+              {langkahMulai.map((langkah, index) => (
+                <li key={langkah.title} className="flex gap-5">
+                  <span className="grid h-14 w-14 flex-none place-items-center rounded-lg bg-[var(--pp-ink)] font-[family-name:var(--font-display)] text-2xl font-extrabold text-[var(--pp-paper)]">
                     {index + 1}
                   </span>
-                  <h3 className="mt-4 text-lg font-bold tracking-tight">{step.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--pp-muted)]">{step.body}</p>
+                  <div>
+                    <h3 className="text-lg font-bold tracking-tight">{langkah.title}</h3>
+                    <p className="mt-2 leading-relaxed text-[var(--pp-muted)]">{langkah.body}</p>
+                  </div>
                 </li>
               ))}
             </ol>
-          </div>
-        </section>
 
-        <section id="fitur">
-          <div className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
-            <p className="pp-eyebrow">Fitur</p>
-            <h2 className="pp-section-title mt-3">Yang bisa kamu pakai.</h2>
-            <p className="pp-page-description">
-              Semua paket mendapat fitur yang sama. Yang membedakan hanya batas pemakaiannya.
-            </p>
-
-            <div className="mt-10 grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {features.map((feature) => (
-                <div key={feature.title} className="rounded-xl border border-[var(--pp-line)] bg-[var(--pp-white)] p-6">
-                  <span aria-hidden="true" className={`mb-4 grid h-10 w-10 place-items-center rounded-lg border border-[var(--pp-ink)] ${feature.tone}`}>
-                    <feature.icon className="h-5 w-5" />
-                  </span>
-                  <h3 className="text-lg font-bold tracking-tight">{feature.title}</h3>
-                  <p className="mt-2 text-sm leading-relaxed text-[var(--pp-muted)]">{feature.body}</p>
-                </div>
-              ))}
+            <div className="mt-10">
+              <Link href="/auth/register">
+                <Button size="lg" className="rounded-lg px-6 text-base">
+                  Mulai langkah 1: daftar
+                </Button>
+              </Link>
             </div>
           </div>
         </section>
 
+        {/* PERBANDINGAN JUJUR */}
+        <section className="border-t border-[var(--pp-line)]">
+          <div className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
+            <p className="pp-eyebrow">Perbandingan</p>
+            <h2 className="pp-section-title mt-3">WhatsApp biasa melawan WhatsApp yang dijalankan sistem</h2>
+            <p className="pp-page-description">
+              Perbandingan ini berdasarkan cara kerja keduanya, bukan angka promosi.
+            </p>
+
+            <div className="mt-8 overflow-x-auto rounded-xl border border-[var(--pp-line)]">
+              <table className="w-full min-w-[44rem] border-collapse text-sm">
+                <caption className="sr-only">Perbandingan kerja manual dan {appName}</caption>
+                <thead>
+                  <tr className="bg-[var(--pp-mint)]">
+                    <th scope="col" className="border border-[var(--pp-line)] px-4 py-3 text-left font-semibold">
+                      Kebutuhan
+                    </th>
+                    <th scope="col" className="border border-[var(--pp-line)] px-4 py-3 text-left font-semibold">
+                      Diketik manual di WhatsApp biasa
+                    </th>
+                    <th scope="col" className="border border-[var(--pp-line)] bg-[#FFF9DB] px-4 py-3 text-left font-semibold">
+                      Dijalankan {appName}
+                    </th>
+                  </tr>
+                </thead>
+                <tbody>
+                  {perbandingan.map((row) => (
+                    <tr key={row.kebutuhan} className="bg-[var(--pp-paper)]">
+                      <th scope="row" className="border border-[var(--pp-line)] px-4 py-3 text-left font-medium">
+                        {row.kebutuhan}
+                      </th>
+                      <td className="border border-[var(--pp-line)] px-4 py-3">{row.manual}</td>
+                      <td className="border border-[var(--pp-line)] bg-[#FFF9DB] px-4 py-3">{row.sistem}</td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
+            </div>
+          </div>
+        </section>
+
+        {/* UNTUK PENGEMBANG */}
         <section className="border-t border-[var(--pp-line)] bg-[var(--pp-white)]">
           <div className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
             <div className="grid gap-10 lg:grid-cols-2 lg:items-center">
@@ -494,55 +699,44 @@ export default async function Home() {
           </div>
         </section>
 
+        {/* PRIVASI */}
         <section className="border-t border-[var(--pp-line)] bg-[var(--pp-mint)]">
           <div className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
-            <div className="grid gap-10 lg:grid-cols-[1.2fr_0.8fr]">
-              <div>
-                <p className="pp-eyebrow">Privasi</p>
-                <h2 className="pp-section-title mt-3">Kami menyimpan pesan Anda maksimal 30 hari.</h2>
-                <p className="pp-page-description">
-                  Isi pesan disimpan maksimal 30 hari untuk keperluan pengiriman dan debugging, lalu
-                  dihapus otomatis. Meneruskan pesan ke webhook atau sistem Anda bukan berarti kami
-                  tidak menyimpannya.
-                </p>
+            <p className="pp-eyebrow">Privasi</p>
+            <h2 className="pp-section-title mt-3">Kami menyimpan pesan Anda maksimal 30 hari.</h2>
+            <p className="pp-page-description">
+              Isi pesan disimpan maksimal 30 hari untuk keperluan pengiriman dan debugging, lalu
+              dihapus otomatis. Meneruskan pesan ke webhook atau sistem Anda bukan berarti kami
+              tidak menyimpannya.
+            </p>
 
-                <div className="mt-8 grid gap-6 sm:grid-cols-2">
-                  {privacyCommitments.map((item) => (
-                    <div key={item.title}>
-                      <h3 className="font-semibold">{item.title}</h3>
-                      <p className="mt-2 text-sm leading-relaxed text-[var(--pp-muted)]">{item.body}</p>
-                    </div>
-                  ))}
+            <div className="mt-8 grid gap-6 sm:grid-cols-2">
+              {privacyCommitments.map((item) => (
+                <div key={item.title}>
+                  <h3 className="font-semibold">{item.title}</h3>
+                  <p className="mt-2 text-sm leading-relaxed text-[var(--pp-muted)]">{item.body}</p>
                 </div>
-
-                <p className="mt-8 text-sm">
-                  <Link href="/privacy" className="font-semibold underline decoration-[var(--pp-line)] underline-offset-4 transition-colors hover:decoration-[var(--pp-ink)]">
-                    Baca kebijakan privasi
-                  </Link>
-                </p>
-              </div>
-
-              <div className="justify-self-center self-center">
-                <Image
-                  src="/brand/maskot-senang.png"
-                  alt="Maskot PesanPro dengan ekspresi senang dan sayap terbuka"
-                  width={336}
-                  height={328}
-                  className="h-auto w-40 sm:w-48 lg:w-full lg:max-w-[220px]"
-                />
-              </div>
+              ))}
             </div>
+
+            <p className="mt-8 text-sm">
+              <Link href="/privacy" className="font-semibold underline decoration-[var(--pp-line)] underline-offset-4 transition-colors hover:decoration-[var(--pp-ink)]">
+                Baca kebijakan privasi
+              </Link>
+            </p>
           </div>
         </section>
 
+        {/* HARGA: angka dibaca langsung dari paket aktif (promo-aware) */}
         {plans.length > 0 && (
           <section id="harga" className="border-t border-[var(--pp-line)]">
             <div className="mx-auto w-full max-w-5xl px-4 py-16 sm:px-6">
               <p className="pp-eyebrow">Harga</p>
-              <h2 className="pp-section-title mt-3">Harga jelas, tanpa biaya tersembunyi.</h2>
+              <h2 className="pp-section-title mt-3">Harga yang bisa Anda hitung sejak awal</h2>
               <p className="mt-3 max-w-2xl text-sm leading-relaxed text-[var(--pp-muted)]">
-                Angka di bawah dibaca langsung dari paket yang sedang aktif, jadi sama dengan yang
-                berlaku di akun Anda. Pembayaran lewat transfer manual, diverifikasi admin.
+                Semua paket mendapat fitur yang sama. Yang berbeda hanya batas pemakaian. Angka di
+                bawah dibaca langsung dari paket yang sedang aktif, jadi sama dengan yang berlaku di
+                akun Anda. Pembayaran lewat transfer bank, diverifikasi admin.
               </p>
 
               <div className="mt-10 grid gap-4 md:grid-cols-3">
@@ -634,9 +828,10 @@ export default async function Home() {
           </section>
         )}
 
+        {/* FAQ */}
         <section id="faq" className="border-t border-[var(--pp-line)] bg-[var(--pp-white)]">
           <div className="mx-auto w-full max-w-3xl px-4 py-16 sm:px-6">
-            <h2 className="pp-section-title text-center">Pertanyaan yang sering muncul.</h2>
+            <h2 className="pp-section-title">Pertanyaan yang paling menentukan keputusan</h2>
 
             <div className="mt-10 space-y-3">
               {faq.map((item) => (
@@ -651,18 +846,23 @@ export default async function Home() {
           </div>
         </section>
 
+        {/* CTA AKHIR: future pacing */}
         <section className="border-t border-[var(--pp-line)] bg-[var(--pp-paper)] py-16">
           <div className="mx-auto w-full max-w-5xl px-4 sm:px-6">
             <div className="rounded-2xl border border-[var(--pp-ink)] bg-[var(--pp-ink)] px-8 py-14 text-center text-[var(--pp-paper)]">
-              <h2 className="pp-section-title text-[var(--pp-paper)]">Siap memindahkan WhatsApp bisnis ke satu tempat?</h2>
-              <p className="mx-auto mt-4 max-w-xl text-sm leading-relaxed text-[#c9d6bc]">
-                Daftar, pilih paket, dan unggah bukti transfer. Setelah disetujui, hubungkan nomor lewat
-                QR dan kirim pesan pertama hari itu juga.
+              <h2 className="pp-section-title text-[var(--pp-paper)]">
+                Tiga bulan dari hari ini, chat jam 9 malam bisa punya dua nasib
+              </h2>
+              <p className="mx-auto mt-4 max-w-2xl text-sm leading-relaxed text-[#c9d6bc]">
+                Nasib pertama: dijawab otomatis saat Anda duduk bersama keluarga, dan order masuk
+                tercatat rapi besok pagi. Nasib kedua: tetap terbaca di layar tanpa jawaban, dan
+                pembeli lanjut ke toko sebelah yang membalas lebih dulu. Perbedaan kedua nasib itu
+                cuma satu keputusan yang Anda buat hari ini.
               </p>
               <div className="mt-8 flex flex-wrap justify-center gap-4">
                 <Link href="/auth/register">
                   <Button size="lg" className="pp-accent-yellow rounded-lg px-8 text-base text-[var(--pp-ink)]">
-                    Daftar sekarang
+                    Daftar sekarang dan aktifkan paket Anda
                   </Button>
                 </Link>
                 <Link href="/docs">
@@ -671,6 +871,9 @@ export default async function Home() {
                   </Button>
                 </Link>
               </div>
+              <p className="mt-6 text-xs text-[#c9d6bc]">
+                Isi data, transfer, unggah bukti. Akun aktif setelah pembayaran disetujui admin.
+              </p>
             </div>
           </div>
         </section>
