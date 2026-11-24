@@ -92,8 +92,8 @@ const alurLangkah = [
   },
   {
     src: '/lp/langkah-kirim.png',
-    caption: 'Langkah 3: kirim massal dengan jeda yang aman',
-    alt: 'Halaman Broadcast di dashboard PesanPro: pilih penerima, tulis pesan, atur jeda antar pesan',
+    caption: 'Langkah 3: kirim dan pantau sampai dibaca',
+    alt: 'Halaman Antrian Pesan di dashboard PesanPro: status tiap pesan dari terkirim sampai dibaca, dengan percobaan ulang otomatis',
   },
 ];
 
