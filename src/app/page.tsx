@@ -221,7 +221,7 @@ const faq = [
   {
     question: "Apakah PesanPro membaca isi pesan saya?",
     answer:
-      "Tidak. Isi pesan tidak pernah ditulis ke database kami. Teks diteruskan ke webhook milik Anda, lalu dibuang. Kami juga tidak menyimpan media, dan tidak pernah menarik riwayat percakapan lama.",
+      "Kami tidak membaca isi pesan Anda untuk keperluan lain selain pengiriman dan debugging. Pesan disimpan maksimal 30 hari, lalu dihapus otomatis. Pesan yang masuk juga diteruskan ke webhook milik Anda, dan riwayat percakapan lama tidak kami tarik dari WhatsApp.",
   },
   {
     question: "Apakah nomor WhatsApp saya bisa diblokir?",
@@ -246,7 +246,7 @@ const faq = [
   {
     question: "Berapa lama data pengiriman disimpan?",
     answer:
-      "Metadata pengiriman disimpan 30 hari lalu dihapus otomatis. Isi pesan dan media tidak masuk hitungan karena memang tidak pernah kami simpan.",
+      "Metadata pengiriman dan isi pesan disimpan maksimal 30 hari, lalu dihapus otomatis. Media yang Anda unggah untuk dikirim ikut terhapus setelah 30 hari. Media yang masuk ke nomor Anda tidak diunduh ke server kami.",
   },
 ];
 
