@@ -77,6 +77,26 @@ const solusiPoin = [
 const solusiPenutup =
   'Sekali disetel, berulang setiap hari. Tangan Anda kembali ke pekerjaan yang benar-benar menambah penjualan.';
 
+// Screenshot halaman dashboard yang sebenarnya (bukan ilustrasi). Nama akun,
+// email, dan jam di gambar sudah diganti contoh sebelum gambar dirender.
+const alurLangkah = [
+  {
+    src: '/lp/langkah-hubungkan.png',
+    caption: 'Langkah 1: hubungkan perangkat WhatsApp',
+    alt: 'Halaman Kelola sesi di dashboard PesanPro: form membuat sesi baru dan daftar sesi aktif',
+  },
+  {
+    src: '/lp/langkah-atur.png',
+    caption: 'Langkah 2: setel balasan otomatis sekali saja',
+    alt: 'Halaman Balasan Otomatis di dashboard PesanPro: satu aturan aktif dengan kata kunci dan teks jawaban',
+  },
+  {
+    src: '/lp/langkah-kirim.png',
+    caption: 'Langkah 3: kirim massal dengan jeda yang aman',
+    alt: 'Halaman Broadcast di dashboard PesanPro: pilih penerima, tulis pesan, atur jeda antar pesan',
+  },
+];
+
 // Ikon lucide dipilih karena relevan langsung dengan tiap fitur dan konsisten
 // dengan stack ikon aplikasi (bukan ikon dekoratif generik).
 const fiturPendukung = [
@@ -433,8 +453,8 @@ export default async function Home() {
               <Image
                 src="/lp/hero-dashboard.png"
                 alt="Tampilan dashboard PesanPro: antrean pesan dan status perangkat terhubung"
-                width={1536}
-                height={1024}
+                width={1356}
+                height={459}
                 className="h-auto w-full rounded-xl border border-[var(--pp-line)]"
                 priority
               />
@@ -492,14 +512,21 @@ export default async function Home() {
         {/* SOLUSI */}
         <section id="solusi" className="border-t border-[var(--pp-line)] bg-[var(--pp-white)]">
           <div className="mx-auto grid w-full max-w-5xl items-center gap-10 px-4 py-16 sm:px-6 lg:grid-cols-2">
-            <div className="order-2 lg:order-1">
-              <Image
-                src="/lp/alur-3-langkah.png"
-                alt="Alur PesanPro: pindai QR, setel aturan di dashboard, pesan terkirim otomatis"
-                width={1536}
-                height={1024}
-                className="h-auto w-full rounded-xl border border-[var(--pp-line)]"
-              />
+            <div className="order-2 grid gap-6 lg:order-1">
+              {alurLangkah.map((langkah) => (
+                <figure key={langkah.src}>
+                  <Image
+                    src={langkah.src}
+                    alt={langkah.alt}
+                    width={1356}
+                    height={459}
+                    className="h-auto w-full rounded-xl border border-[var(--pp-line)]"
+                  />
+                  <figcaption className="mt-2 text-sm font-semibold text-[var(--pp-muted)]">
+                    {langkah.caption}
+                  </figcaption>
+                </figure>
+              ))}
             </div>
             <div className="order-1 lg:order-2">
               <p className="pp-eyebrow">Solusi</p>
@@ -554,8 +581,8 @@ export default async function Home() {
               <Image
                 src="/lp/broadcast.png"
                 alt="Halaman broadcast PesanPro: daftar penerima dari CSV, isi pesan dengan variabel nama, dan jeda otomatis"
-                width={1024}
-                height={1024}
+                width={1356}
+                height={459}
                 className="h-auto w-full rounded-xl border border-[var(--pp-line)]"
               />
             </div>
