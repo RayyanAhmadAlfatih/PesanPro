@@ -62,12 +62,12 @@
     "cron-parser": "^5.6.1",
     "date-fns": "^4.1.0",
     "emailjs": "5.0.3",
-    "jimp": "^1.6.0",
+    "jimp": "^1.7.0",
     "lucide-react": "^0.562.0",
     "marked": "^18.1.2",
     "moment": "^2.31.0",
     "moment-timezone": "^0.6.0",
-    "next": "16.4.2",
+    "next": "16.4.6",
     "next-auth": "5.0.0-beta.32",
     "nextjs-toploader": "^3.9.17",
     "node-cron": "^4.2.1",
@@ -94,12 +94,12 @@
     "@tailwindcss/postcss": "^4",
     "@types/bcryptjs": "^2.4.6",
     "@types/busboy": "^1.5.4",
-    "@types/node": "^20",
+    "@types/node": "^24.19.2",
     "@types/qrcode": "^1.5.6",
     "@types/react": "^19.2.7",
     "@types/react-dom": "^19",
     "eslint": "^9",
-    "eslint-config-next": "16.1.1",
+    "eslint-config-next": "16.4.6",
     "patch-package": "^8.0.1",
     "postinstall-postinstall": "^2.1.0",
     "prisma": "^5.22.0",
@@ -108,7 +108,7 @@
     "ts-node": "^10.9.2",
     "tsx": "^4.21.0",
     "typescript": "^5.9.3",
-    "vitest": "^4.1.11"
+    "vitest": "^5.1.1"
   },
   "overrides": {
     "engine.io": "6.6.10",
@@ -117,6 +117,8 @@
     "socket.io-parser": "4.2.7",
     "source-map-js": "1.2.2",
     "ws": "8.21.3",
-    "music-metadata": "11.16.1"
+    "music-metadata": "11.16.1",
+    "postcss-selector-parser": "6.1.6",
+    "eslint-plugin-react-hooks": "7.0.1"
   }
 }
