@@ -23,6 +23,7 @@ const TENANT_DASHBOARD_PREFIXES = [
   "/dashboard/webhooks",
   "/dashboard/billing",
   "/dashboard/inbox",
+  "/dashboard/media",
 ] as const;
 
 const REMOVED_DASHBOARD_FEATURE_PREFIXES = [
@@ -32,7 +33,6 @@ const REMOVED_DASHBOARD_FEATURE_PREFIXES = [
   "/dashboard/bot-settings",
   "/dashboard/profile",
   "/dashboard/chat",
-  "/dashboard/media",
   "/dashboard/campaigns",
   "/dashboard/labels",
 ] as const;

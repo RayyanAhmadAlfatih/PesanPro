@@ -17,6 +17,7 @@ import {
     Inbox,
     Megaphone,
     MessageCircleReply,
+    Images,
     CreditCard,
     BadgeDollarSign,
     ListRestart,
@@ -48,6 +49,7 @@ const navGroups: NavGroup[] = [
         label: "Pengiriman",
         items: [
             { href: "/dashboard/message-queue", label: "Antrian Pesan", icon: ListRestart },
+            { href: "/dashboard/media", label: "Pustaka Media", icon: Images },
             { href: "/dashboard/broadcast", label: "Kirim Massal", icon: Megaphone },
             { href: "/dashboard/scheduler", label: "Jadwal Kirim", icon: CalendarClock },
             { href: "/dashboard/autoreply", label: "Balasan Otomatis", icon: MessageCircleReply },
