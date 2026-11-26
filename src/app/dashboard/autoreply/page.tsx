@@ -117,6 +117,9 @@ export default function AutoReplyPage() {
     }
   }
 
+  // Skipped triggers stay in the database for audit/retention, but they only add noise here: the card is meant to show messages that actually triggered an auto-reply.
+  const visibleLogs = logs.filter((log) => log.status !== "SKIPPED");
+
   const loadEffect = useEffectEvent(load);
   useEffect(() => { void loadEffect(); }, [sessionId]);
 
@@ -230,7 +233,7 @@ export default function AutoReplyPage() {
           </div>
         </div>
 
-        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-sky-700" />Trigger log terbaru</CardTitle></CardHeader><CardContent>{logs.length === 0 ? <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Log akan muncul setelah pesan inbound diproses.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="border-b text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="p-3">Waktu</th><th className="p-3">Pengirim (disamarkan)</th><th className="p-3">Pesan</th><th className="p-3">Status</th><th className="p-3">Alasan</th><th className="p-3">Job</th></tr></thead><tbody className="divide-y">{logs.map((log) => <tr key={log.id}><td className="p-3 text-muted-foreground">{new Date(log.createdAt).toLocaleString("id-ID")}</td><td className="p-3 font-mono text-xs">{log.senderJid}</td><td className="max-w-xs truncate p-3">{log.sourceText || (log.status === "SKIPPED" ? "Dihapus sesuai kebijakan minimisasi" : "-")}</td><td className="p-3"><Badge variant={log.status === "ENQUEUED" ? "default" : "outline"}>{log.status}</Badge></td><td className="p-3 font-mono text-xs">{log.reasonCode || "-"}</td><td className="p-3 font-mono text-xs">{log.messageJobId || "-"}</td></tr>)}</tbody></table></div>}</CardContent></Card>
+        <Card><CardHeader><CardTitle className="flex items-center gap-2"><Activity className="h-5 w-5 text-sky-700" />Trigger log terbaru</CardTitle></CardHeader><CardContent>{visibleLogs.length === 0 ? <p className="rounded-xl border border-dashed p-8 text-center text-sm text-muted-foreground">Belum ada pesan yang memicu auto-reply. Pesan yang tidak cocok dengan rule tidak ditampilkan di sini.</p> : <div className="overflow-x-auto"><table className="w-full min-w-[850px] text-left text-sm"><thead className="border-b text-xs uppercase tracking-wider text-muted-foreground"><tr><th className="p-3">Waktu</th><th className="p-3">Pengirim (disamarkan)</th><th className="p-3">Pesan</th><th className="p-3">Status</th><th className="p-3">Alasan</th><th className="p-3">Job</th></tr></thead><tbody className="divide-y">{visibleLogs.map((log) => <tr key={log.id}><td className="p-3 text-muted-foreground">{new Date(log.createdAt).toLocaleString("id-ID")}</td><td className="p-3 font-mono text-xs">{log.senderJid}</td><td className="max-w-xs truncate p-3">{log.sourceText || "-"}</td><td className="p-3"><Badge variant={log.status === "ENQUEUED" ? "default" : "outline"}>{log.status}</Badge></td><td className="p-3 font-mono text-xs">{log.reasonCode || "-"}</td><td className="p-3 font-mono text-xs">{log.messageJobId || "-"}</td></tr>)}</tbody></table></div>}</CardContent></Card>
       </div>
     </SessionGuard>
   );
