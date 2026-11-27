@@ -2,8 +2,7 @@ import { existsSync, readFileSync } from "node:fs";
 import { describe, expect, it } from "vitest";
 
 describe("eager media download retirement", () => {
-  it("removes the Media Manager page and its routes", () => {
-    expect(existsSync("src/app/dashboard/media/page.tsx")).toBe(false);
+  it("keeps the retired Media Manager routes removed", () => {
     expect(existsSync("src/app/api/media/route.ts")).toBe(false);
     expect(existsSync("src/app/api/media/[filename]/route.ts")).toBe(false);
   });
@@ -13,8 +12,21 @@ describe("eager media download retirement", () => {
       "src/components/dashboard/sidebar-nav.tsx",
       "src/components/dashboard/mobile-nav.tsx",
     ]) {
-      expect(readFileSync(filename, "utf8")).not.toContain("/dashboard/media");
+      const source = readFileSync(filename, "utf8");
+      expect(source).not.toContain("Media Manager");
+      // The replacement Media Library uses the tenant-scoped v1 media API.
+      expect(source).toContain('{ href: "/dashboard/media", label: "Pustaka Media"');
     }
+  });
+
+  it("uses the private media API for the Media Library page", () => {
+    const page = readFileSync("src/app/dashboard/media/page.tsx", "utf8");
+    const library = readFileSync("src/components/dashboard/media-library.tsx", "utf8");
+    for (const source of [page, library]) {
+      expect(source).not.toContain("data/media");
+      expect(source).not.toContain("/api/media/[filename]");
+    }
+    expect(library).toContain("/api/v1/media");
   });
 
   it("answers the legacy message-media download with 410 Gone", () => {

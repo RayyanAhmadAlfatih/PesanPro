@@ -44,7 +44,6 @@ describe("access policy", () => {
       "/dashboard/bot-settings",
       "/dashboard/profile",
       "/dashboard/chat",
-      "/dashboard/media",
       "/dashboard/campaigns",
       "/dashboard/labels",
     ];
@@ -61,6 +60,7 @@ describe("access policy", () => {
     expect(canAccessDashboardPath("USER", "/dashboard/billing")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/developer")).toBe(true);
     expect(canAccessDashboardPath("USER", "/dashboard/inbox")).toBe(true);
+    expect(canAccessDashboardPath("USER", "/dashboard/media")).toBe(true);
     expect(isSuperadmin("USER")).toBe(false);
   });
 
@@ -71,6 +71,7 @@ describe("access policy", () => {
       "/dashboard/developer",
       "/dashboard/billing",
       "/dashboard/inbox",
+      "/dashboard/media",
     ];
     for (const path of tenantPaths) {
       expect(isTenantDashboardPath(path)).toBe(true);
