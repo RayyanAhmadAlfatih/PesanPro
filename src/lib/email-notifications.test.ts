@@ -3,7 +3,10 @@ import { _resetEnvCache } from "./env";
 import {
   buildPaymentApprovedEmail,
   buildPaymentSubmittedEmail,
+  buildPaymentSubmittedUserEmail,
+  buildSubscriptionReminderEmail,
   queuePaymentSubmittedEmails,
+  queuePaymentSubmittedUserEmail,
 } from "./email-notifications";
 
 describe("payment email notifications", () => {
@@ -103,5 +106,84 @@ describe("payment email notifications", () => {
       ]),
       skipDuplicates: true,
     });
+  });
+
+  it("tells the user the proof arrived and is being reviewed", () => {
+    const email = buildPaymentSubmittedUserEmail({
+      verificationId: "payment-1",
+      userName: "Raka",
+      planName: "Pro",
+      amount: "100000",
+      currency: "IDR",
+      reference: "BANK-001",
+      submittedAt: new Date("2026-11-26T02:00:00.000Z"),
+    });
+
+    expect(email.subject).toBe("Bukti pembayaran Pro sudah kami terima");
+    expect(email.textBody).toContain("Halo Raka,");
+    expect(email.textBody).toContain("tidak perlu mengunggah ulang");
+    expect(email.textBody).toContain("Status: menunggu pemeriksaan admin");
+    expect(email.textBody).toContain("Lihat status: https://pesanpro.example.com/dashboard/billing");
+    expect(`${email.subject}${email.textBody}${email.htmlBody}`).not.toContain("—");
+  });
+
+  it("queues the user confirmation once per payment verification", async () => {
+    const createMany = vi.fn().mockResolvedValue({ count: 1 });
+    const client = {
+      user: { findUnique: vi.fn().mockResolvedValue({ name: "Raka", email: "raka@example.com" }), findMany: vi.fn() },
+      emailOutbox: { createMany },
+    };
+
+    await expect(queuePaymentSubmittedUserEmail(client as never, {
+      verificationId: "payment-1",
+      userId: "user-1",
+      planName: "Pro",
+      amount: "100000",
+      currency: "IDR",
+      reference: "BANK-001",
+      submittedAt: new Date("2026-11-26T02:00:00.000Z"),
+    })).resolves.toBe(1);
+
+    const call = createMany.mock.calls[0][0];
+    expect(call.skipDuplicates).toBe(true);
+    expect(call.data[0]).toMatchObject({
+      eventKey: "payment-submitted-user:payment-1:user-1",
+      type: "PAYMENT_SUBMITTED_USER",
+      toEmail: "raka@example.com",
+      toName: "Raka",
+    });
+  });
+
+  it("tidak mengantre apa pun kalau user penerima tidak ditemukan", async () => {
+    const createMany = vi.fn();
+    const client = {
+      user: { findUnique: vi.fn().mockResolvedValue(null), findMany: vi.fn() },
+      emailOutbox: { createMany },
+    };
+
+    await expect(queuePaymentSubmittedUserEmail(client as never, {
+      verificationId: "payment-1",
+      userId: "user-hilang",
+      planName: "Pro",
+      amount: "100000",
+      currency: "IDR",
+      reference: "BANK-001",
+      submittedAt: new Date("2026-11-26T02:00:00.000Z"),
+    })).resolves.toBe(0);
+    expect(createMany).not.toHaveBeenCalled();
+  });
+
+  it("mengingatkan H-3 dengan sisa waktu dan tautan perpanjangan", () => {
+    const email = buildSubscriptionReminderEmail({
+      userName: "Raka",
+      planName: "Pro",
+      endsAt: new Date("2026-11-29T16:00:00.000Z"),
+      stage: "h3",
+    });
+
+    expect(email.subject).toBe("Paket Pro berakhir 3 hari lagi");
+    expect(email.textBody).toContain("Sisa waktu: 3 hari");
+    expect(email.textBody).toContain("harga paket Anda yang terkunci");
+    expect(email.textBody).toContain("Perpanjang di halaman Tagihan: https://pesanpro.example.com/dashboard/billing");
   });
 });

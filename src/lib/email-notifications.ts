@@ -11,6 +11,29 @@ type PaymentEmailBase = {
   reference: string;
 };
 
+/**
+ * H-3 dan H-1 dihitung per tanggal kalender, bukan selisih jam, supaya email
+ * yang dikirim pagi dan malam untuk tanggal berakhir yang sama tidak berbeda
+ * tahap. Huruf kecil dipakai di eventKey.
+ */
+export type SubscriptionReminderStage = "h3" | "h1";
+
+export type SubscriptionReminderInput = {
+  userId: string;
+  userName: string | null;
+  userEmail: string;
+  planName: string;
+  endsAt: Date;
+  stage: SubscriptionReminderStage;
+  /** Hanya terisi kalau user sudah mengirim bukti dan menunggu persetujuan. */
+  pending: {
+    amount: string;
+    currency: string;
+    reference: string;
+    submittedAt: Date;
+  } | null;
+};
+
 function escapeHtml(value: string) {
   return value.replace(/[&<>"']/g, (character) => ({
     "&": "&amp;",
@@ -35,6 +58,13 @@ function formatDate(value: Date) {
   return new Intl.DateTimeFormat("id-ID", {
     dateStyle: "long",
     timeStyle: "short",
+    timeZone: getEnv().TZ,
+  }).format(value);
+}
+
+function formatDateOnly(value: Date) {
+  return new Intl.DateTimeFormat("id-ID", {
+    dateStyle: "long",
     timeZone: getEnv().TZ,
   }).format(value);
 }
@@ -293,4 +323,224 @@ export async function queuePaymentApprovedEmail(client: EmailQueueClient, input:
     skipDuplicates: true,
   });
   return queued.count === 1;
+}
+
+/**
+ * Konfirmasi ke user bahwa bukti transfernya sudah diterima dan sedang
+ * diperiksa. Tanpa email ini user hanya melihat status di halaman Tagihan dan
+ * sering mengunggah bukti yang sama dua kali.
+ */
+export function buildPaymentSubmittedUserEmail(input: PaymentEmailBase & {
+  userName: string | null;
+  submittedAt: Date;
+}) {
+  const greeting = input.userName?.trim() ? `Halo ${input.userName.trim()},` : "Halo,";
+  const amount = formatMoney(input.amount, input.currency);
+  const billingUrl = appUrl("/dashboard/billing");
+  const subject = emailSubject(`Bukti pembayaran ${input.planName} sudah kami terima`);
+  const summary = `Bukti pembayaran Anda untuk paket ${input.planName} sudah masuk dan sedang diperiksa admin. Anda tidak perlu mengunggah ulang.`;
+  const textLines = [
+    greeting,
+    "",
+    summary,
+    "",
+    `Paket: ${input.planName}`,
+    `Jumlah: ${amount}`,
+    `Referensi: ${input.reference}`,
+    `Dikirim: ${formatDate(input.submittedAt)}`,
+    "Status: menunggu pemeriksaan admin",
+    ...(billingUrl ? ["", `Lihat status: ${billingUrl}`] : []),
+  ];
+  return {
+    subject,
+    textBody: textLines.join("\n"),
+    htmlBody: htmlDocument({
+      heading: "Bukti pembayaran sudah kami terima",
+      greeting,
+      paragraphs: [summary],
+      details: [
+        ["Paket", input.planName],
+        ["Jumlah", amount],
+        ["Referensi", input.reference],
+        ["Dikirim", formatDate(input.submittedAt)],
+        ["Status", "Menunggu pemeriksaan admin"],
+      ],
+      action: billingUrl ? { label: "Lihat status pembayaran", url: billingUrl } : undefined,
+    }),
+  };
+}
+
+/**
+ * Dikirim tepat satu kali per bukti pembayaran. `eventKey` memakai id
+ * verifikasi supaya unggahan ulang tidak menghasilkan email kedua.
+ */
+export async function queuePaymentSubmittedUserEmail(client: EmailQueueClient, input: PaymentEmailBase & {
+  userId: string;
+  submittedAt: Date;
+}) {
+  const user = await client.user.findUnique({
+    where: { id: input.userId },
+    select: { name: true, email: true },
+  });
+  if (!user) return 0;
+  const content = buildPaymentSubmittedUserEmail({ ...input, userName: user.name });
+  const queued = await client.emailOutbox.createMany({
+    data: [{
+      eventKey: `payment-submitted-user:${input.verificationId}:${input.userId}`,
+      type: "PAYMENT_SUBMITTED_USER" as const,
+      toEmail: user.email,
+      toName: user.name,
+      ...content,
+    }],
+    skipDuplicates: true,
+  });
+  return queued.count;
+}
+
+function reminderLeadLabel(stage: SubscriptionReminderStage) {
+  return stage === "h1" ? "besok" : "3 hari lagi";
+}
+
+function reminderLeadDetail(stage: SubscriptionReminderStage) {
+  return stage === "h1" ? "1 hari" : "3 hari";
+}
+
+/** Pengingat ke user bahwa paketnya hampir berakhir. */
+export function buildSubscriptionReminderEmail(input: {
+  userName: string | null;
+  planName: string;
+  endsAt: Date;
+  stage: SubscriptionReminderStage;
+}) {
+  const greeting = input.userName?.trim() ? `Halo ${input.userName.trim()},` : "Halo,";
+  const lead = reminderLeadLabel(input.stage);
+  const endsAt = formatDateOnly(input.endsAt);
+  const billingUrl = appUrl("/dashboard/billing");
+  const subject = emailSubject(`Paket ${input.planName} berakhir ${lead}`);
+  const summary = `Paket ${input.planName} Anda berakhir ${lead}, yaitu ${endsAt}. Perpanjang sebelum tanggal itu supaya pengiriman pesan, balasan otomatis, dan webhook tidak berhenti.`;
+  const textLines = [
+    greeting,
+    "",
+    summary,
+    "",
+    `Paket: ${input.planName}`,
+    `Berakhir: ${endsAt}`,
+    `Sisa waktu: ${reminderLeadDetail(input.stage)}`,
+    "Perpanjangan memakai harga paket Anda yang terkunci, dan masa aktif ditambahkan dari tanggal berakhir sekarang.",
+    ...(billingUrl ? ["", `Perpanjang di halaman Tagihan: ${billingUrl}`] : []),
+  ];
+  return {
+    subject,
+    textBody: textLines.join("\n"),
+    htmlBody: htmlDocument({
+      heading: `Paket ${input.planName} berakhir ${lead}`,
+      greeting,
+      paragraphs: [
+        summary,
+        "Perpanjangan memakai harga paket Anda yang terkunci, dan masa aktif ditambahkan dari tanggal berakhir sekarang. Sisa hari yang sudah dibayar tidak hangus.",
+      ],
+      details: [
+        ["Paket", input.planName],
+        ["Berakhir", endsAt],
+        ["Sisa waktu", reminderLeadDetail(input.stage)],
+      ],
+      action: billingUrl ? { label: "Perpanjang sekarang", url: billingUrl } : undefined,
+    }),
+  };
+}
+
+/**
+ * Pengingat ke admin: user sudah mengirim bukti perpanjangan tetapi belum
+ * disetujui, padahal paketnya hampir berakhir. Admin yang perlu bertindak,
+ * jadi user tidak dikirimi pengingat lagi.
+ */
+export function buildSubscriptionReminderAdminEmail(input: {
+  userName: string | null;
+  userEmail: string;
+  planName: string;
+  endsAt: Date;
+  stage: SubscriptionReminderStage;
+  pending: NonNullable<SubscriptionReminderInput["pending"]>;
+}) {
+  const user = input.userName?.trim() || input.userEmail;
+  const lead = reminderLeadLabel(input.stage);
+  const endsAt = formatDateOnly(input.endsAt);
+  const amount = formatMoney(input.pending.amount, input.pending.currency);
+  const reviewUrl = appUrl("/dashboard/commercial");
+  const subject = emailSubject(`Perpanjangan ${user} menunggu, paket berakhir ${lead}`);
+  const summary = `Paket ${input.planName} milik ${user} berakhir ${lead} (${endsAt}), dan bukti perpanjangannya masih menunggu persetujuan admin.`;
+  const textLines = [
+    "Halo,",
+    "",
+    summary,
+    "",
+    `Pengguna: ${user} (${input.userEmail})`,
+    `Paket: ${input.planName}`,
+    `Berakhir: ${endsAt}`,
+    `Jumlah bukti: ${amount}`,
+    `Referensi: ${input.pending.reference}`,
+    `Dikirim: ${formatDate(input.pending.submittedAt)}`,
+    ...(reviewUrl ? ["", `Periksa pembayaran: ${reviewUrl}`] : []),
+  ];
+  return {
+    subject,
+    textBody: textLines.join("\n"),
+    htmlBody: htmlDocument({
+      heading: "Perpanjangan menunggu persetujuan",
+      greeting: "Halo,",
+      paragraphs: [summary],
+      details: [
+        ["Pengguna", `${user} (${input.userEmail})`],
+        ["Paket", input.planName],
+        ["Berakhir", endsAt],
+        ["Jumlah bukti", amount],
+        ["Referensi", input.pending.reference],
+        ["Dikirim", formatDate(input.pending.submittedAt)],
+      ],
+      action: reviewUrl ? { label: "Periksa pembayaran", url: reviewUrl } : undefined,
+    }),
+  };
+}
+
+/**
+ * Satu email per user per tahap per tanggal berakhir. Idempotensi dijaga
+ * `eventKey` unik + `skipDuplicates`, jadi pemindaian yang berjalan berkali-kali
+ * di hari yang sama tidak bisa mengirim pengingat yang sama dua kali.
+ */
+export async function queueSubscriptionReminderEmails(
+  client: EmailQueueClient,
+  input: SubscriptionReminderInput,
+  dateKey: string,
+) {
+  if (input.pending) {
+    const admins = await client.user.findMany({
+      where: { role: "SUPERADMIN", status: "ACTIVE" },
+      select: { id: true, name: true, email: true },
+    });
+    if (admins.length === 0) return 0;
+    const content = buildSubscriptionReminderAdminEmail({ ...input, pending: input.pending });
+    const queued = await client.emailOutbox.createMany({
+      data: admins.map((admin) => ({
+        eventKey: `subscription-reminder-admin:${input.stage}:user:${input.userId}:${dateKey}:${admin.id}`,
+        type: "SUBSCRIPTION_REMINDER_ADMIN" as const,
+        toEmail: admin.email,
+        toName: admin.name,
+        ...content,
+      })),
+      skipDuplicates: true,
+    });
+    return queued.count;
+  }
+  const content = buildSubscriptionReminderEmail(input);
+  const queued = await client.emailOutbox.createMany({
+    data: [{
+      eventKey: `subscription-reminder:${input.stage}:user:${input.userId}:${dateKey}`,
+      type: "SUBSCRIPTION_REMINDER" as const,
+      toEmail: input.userEmail,
+      toName: input.userName,
+      ...content,
+    }],
+    skipDuplicates: true,
+  });
+  return queued.count;
 }

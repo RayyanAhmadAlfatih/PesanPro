@@ -7,7 +7,7 @@ import { recordAudit } from "@/lib/audit";
 import { checkPersistentRateLimit, getClientIp, rateLimitHeaders } from "@/lib/rate-limit";
 import { deleteStoredPaymentProof, parsePaymentProofUpload, storePaymentProof } from "@/lib/payment-proof";
 import { MessageJobError } from "@/lib/message-job-errors";
-import { queuePaymentSubmittedEmails } from "@/lib/email-notifications";
+import { queuePaymentSubmittedEmails, queuePaymentSubmittedUserEmail } from "@/lib/email-notifications";
 import { logger } from "@/lib/logger";
 import { getPaymentMethodsSnapshot } from "@/lib/payment-methods";
 import { parseUserWhatsapp } from "@/lib/whatsapp-number";
@@ -229,6 +229,17 @@ export async function POST(request: NextRequest) {
       const notifications = await queuePaymentSubmittedEmails(tx, {
         verificationId: record.id,
         payerId: record.userId,
+        planName: plan.name,
+        amount: quote.amount,
+        currency: plan.currency,
+        reference: parsed.data.reference,
+        submittedAt: record.createdAt,
+      });
+      // User menerima konfirmasi "bukti sudah diterima" di transaksi yang sama,
+      // supaya dia tidak mengunggah bukti yang sama berulang kali.
+      await queuePaymentSubmittedUserEmail(tx, {
+        verificationId: record.id,
+        userId: record.userId,
         planName: plan.name,
         amount: quote.amount,
         currency: plan.currency,
