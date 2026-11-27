@@ -8,7 +8,7 @@ import { checkPersistentRateLimit, getClientIp, rateLimitHeaders } from "@/lib/r
 import { passwordSchema } from "@/lib/password-policy";
 import { recordAudit } from "@/lib/audit";
 import { provisionDefaultSubscriptionInTransaction } from "@/lib/billing";
-import { queuePaymentSubmittedEmails } from "@/lib/email-notifications";
+import { queuePaymentSubmittedEmails, queuePaymentSubmittedUserEmail } from "@/lib/email-notifications";
 import { MessageJobError } from "@/lib/message-job-errors";
 import { deleteStoredPaymentProof, storePaymentProof } from "@/lib/payment-proof";
 import { parseRegistrationUpload } from "@/lib/registration-upload";
@@ -187,6 +187,17 @@ export async function POST(req: NextRequest) {
       const notifications = await queuePaymentSubmittedEmails(tx, {
         verificationId: verification.id,
         payerId: user.id,
+        planName: plan.name,
+        amount: amount.toString(),
+        currency: plan.currency,
+        reference,
+        submittedAt: verification.createdAt,
+      });
+      // Konfirmasi ke user dikirim di transaksi yang sama: kalau salah satunya
+      // gagal, bukti pembayaran tidak tersimpan setengah jalan.
+      await queuePaymentSubmittedUserEmail(tx, {
+        verificationId: verification.id,
+        userId: user.id,
         planName: plan.name,
         amount: amount.toString(),
         currency: plan.currency,

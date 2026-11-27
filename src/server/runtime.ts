@@ -218,6 +218,19 @@ app.prepare().then(async () => {
   const dailyMaintenance = setInterval(runMaintenance, 86_400_000);
   dailyMaintenance.unref?.();
 
+  // Pengingat paket berakhir H-3/H-1. Isinya idempoten lewat eventKey unik, jadi
+  // interval yang sering tidak bisa mengirim pengingat yang sama dua kali;
+  // jendela jamnya sendiri dijaga di runSubscriptionReminders().
+  const subscriptionReminders = setInterval(() => {
+    void import("../lib/subscription-reminders")
+      .then(({ runSubscriptionReminders }) => runSubscriptionReminders())
+      .then((count) => {
+        if (count > 0) logger.info("Billing", `Queued ${count} subscription reminder email(s)`);
+      })
+      .catch((error) => logger.error("Billing", "Subscription reminder scan failed", error));
+  }, 15 * 60_000);
+  subscriptionReminders.unref?.();
+
   // Graceful shutdown (Gate 0)
   let memoryWatchdog: MemoryWatchdog | null = null;
   const shutdown = async (signal: string) => {
@@ -227,6 +240,7 @@ app.prepare().then(async () => {
       clearInterval(operationalScan);
       clearTimeout(initialMaintenance);
       clearInterval(dailyMaintenance);
+      clearInterval(subscriptionReminders);
       await emailWorker?.stop();
       await webhookWorker?.stop();
       await autoReplyWorker?.stop();

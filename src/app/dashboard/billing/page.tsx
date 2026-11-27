@@ -34,6 +34,8 @@ interface BillingSummary {
   // maka checkout memintanya dengan validasi yang sama seperti pendaftaran.
   whatsappNumber?: string | null;
   plan: {
+    // Null untuk SuperAdmin: tidak ada paket berbayar yang bisa diperpanjang.
+    id?: string | null;
     code: string;
     name: string;
     unlimited: boolean;
@@ -438,6 +440,13 @@ export default function BillingPage() {
   const usageMap = new Map(billing?.usage.map((item) => [item.feature, item]));
   const status = subscriptionStatus(billing);
   const pendingPlan = billing?.plan.code === "PENDING";
+  // Hanya akun berbayar yang sedang berjalan yang bisa memperpanjang paket yang
+  // sama. Tanpa ini, tombol akan menawarkan perpanjangan ke akun PENDING.
+  const canRenew = Boolean(
+    billing?.plan.id
+    && !pendingPlan
+    && billing.role !== "SUPERADMIN",
+  );
 
   const selectedPlan = plans.find((plan) => plan.id === paymentPlanId) ?? null;
   const selectedSaving = selectedPlan ? yearlySaving(selectedPlan) : null;
@@ -514,6 +523,19 @@ export default function BillingPage() {
     }, 0);
   };
 
+  // Perpanjangan memakai id paket yang sedang aktif, bukan pilihan dari daftar,
+  // supaya server mengenali "paket sama" lalu memakai harga terkunci dan
+  // menambah masa dari tanggal berakhir yang sekarang.
+  const startRenewal = () => {
+    const planId = billing?.plan.id;
+    if (!planId) return;
+    setPaymentPlanId(planId);
+    setPaymentCycle(billing?.renewal?.billingCycle === "YEARLY" ? "YEARLY" : "MONTHLY");
+    window.setTimeout(() => {
+      document.getElementById("form-pembayaran")?.scrollIntoView({ behavior: "smooth", block: "start" });
+    }, 0);
+  };
+
   return (
     <div className="space-y-8 p-4 md:p-8">
       <header className="flex flex-col gap-4 md:flex-row md:items-end md:justify-between">
@@ -558,14 +580,28 @@ export default function BillingPage() {
                 Pengiriman, balasan otomatis, webhook, dan unggah media aktif setelah pembayaran disetujui.
               </p>
             ) : null}
-            <Button
-              variant="outline"
-              size="sm"
-              className="min-h-11"
-              onClick={() => document.getElementById("pilih-paket")?.scrollIntoView({ behavior: "smooth", block: "start" })}
-            >
-              Lihat pilihan paket
-            </Button>
+            <div className="flex flex-wrap items-center gap-2">
+              {/* Perpanjangan hanya masuk akal kalau sudah ada paket berbayar
+                  yang berjalan. Akun PENDING dan SuperAdmin memakai alur lain. */}
+              {canRenew ? (
+                <Button size="sm" className="min-h-11" onClick={startRenewal}>
+                  Perpanjang paket ini
+                </Button>
+              ) : null}
+              <Button
+                variant="outline"
+                size="sm"
+                className="min-h-11"
+                onClick={() => document.getElementById("pilih-paket")?.scrollIntoView({ behavior: "smooth", block: "start" })}
+              >
+                Lihat pilihan paket
+              </Button>
+            </div>
+            {canRenew ? (
+              <p className="text-xs leading-relaxed text-[var(--pp-muted)]">
+                Perpanjangan memakai harga paket Anda yang terkunci, dan masa aktif ditambahkan dari tanggal berakhir sekarang. Sisa hari yang sudah dibayar tidak hangus.
+              </p>
+            ) : null}
           </CardContent>
         </Card>
 
